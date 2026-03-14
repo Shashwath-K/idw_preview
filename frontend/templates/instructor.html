@@ -1,0 +1,59 @@
+﻿{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card card-outline card-primary filter-panel">
+            <div class="card-header"><h3 class="card-title">Instructor Filters</h3></div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="startYear">Start Year</label>
+                        <input id="startYear" type="range" min="2020" max="2026" value="2020" class="custom-range">
+                        <div class="filter-value" id="startYearLabel">2020</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="endYear">End Year</label>
+                        <input id="endYear" type="range" min="2020" max="2026" value="2026" class="custom-range">
+                        <div class="filter-value" id="endYearLabel">2026</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="regionFilter">Region</label>
+                        <select id="regionFilter" class="form-control">
+                            <option value="">All Regions</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="programFilter">Program</label>
+                        <select id="programFilter" class="form-control">
+                            <option value="">All Programs</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-3 col-6"><div class="small-box bg-info"><div class="inner"><h3 id="instructorTotal">0</h3><p>Total Instructors</p></div><div class="icon"><i class="fas fa-users"></i></div></div></div>
+    <div class="col-lg-3 col-6"><div class="small-box bg-success"><div class="inner"><h3 id="instructorSessions">0</h3><p>Sessions Conducted</p></div><div class="icon"><i class="fas fa-calendar-check"></i></div></div></div>
+    <div class="col-lg-3 col-6"><div class="small-box bg-warning"><div class="inner"><h3 id="instructorAverageSessions">0</h3><p>Avg Sessions / Instructor</p></div><div class="icon"><i class="fas fa-balance-scale"></i></div></div></div>
+    <div class="col-lg-3 col-6"><div class="small-box bg-danger"><div class="inner"><h3 id="instructorStudentsReached">0</h3><p>Students Reached</p></div><div class="icon"><i class="fas fa-user-graduate"></i></div></div></div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><h3 class="card-title">Top Instructors</h3></div>
+            <div class="card-body"><canvas id="instructorTopChart" height="180"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><h3 class="card-title">Monthly Instructor Activity</h3></div>
+            <div class="card-body"><canvas id="instructorMonthlyChart" height="180"></canvas></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
