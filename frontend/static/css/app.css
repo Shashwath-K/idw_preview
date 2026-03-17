@@ -59,6 +59,15 @@ canvas {
     padding-top: 1rem;
 }
 
+.sheet-config {
+    border-left: 4px solid #f39c12;
+}
+
+.sheet-config .table td,
+.sheet-config .table th {
+    vertical-align: middle;
+}
+
 .custom-file-label::after {
     content: "Browse";
 }

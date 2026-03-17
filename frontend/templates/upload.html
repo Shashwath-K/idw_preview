@@ -9,11 +9,12 @@
             </div>
             <div class="card-body">
                 <p class="text-muted mb-4">
-                    Upload a workbook with one sheet per source table. The application will refresh the source database,
-                    run the ELT SQL scripts, and keep the dashboard reading from datamart tables.
+                    Upload a workbook with one sheet per source table. If sheet names or fields do not line up,
+                    the app will pause and ask the user to map them manually before importing.
                 </p>
 
                 <form id="uploadForm" enctype="multipart/form-data">
+                    <input id="mappingJson" type="hidden" name="mapping_json" value="">
                     <div class="form-group">
                         <label for="excelFile">Excel File</label>
                         <div class="custom-file">
@@ -28,6 +29,24 @@
                 </form>
 
                 <div id="uploadAlert" class="alert mt-4 d-none" role="alert"></div>
+
+                <div id="mappingConfigurator" class="d-none mt-4">
+                    <div class="card card-outline card-warning mb-0">
+                        <div class="card-header">
+                            <h3 class="card-title">Manual Mapping Required</h3>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">
+                                Review unsupported sheet names and unmapped fields below. Choose a target table,
+                                map the missing columns, or ignore sheets like README when they should not be loaded.
+                            </p>
+                            <div id="mappingSheets"></div>
+                            <button id="applyMappingButton" type="button" class="btn btn-warning mt-3">
+                                <i class="fas fa-sliders-h mr-2"></i>Apply Mapping And Upload
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
                 <div id="uploadSummary" class="upload-summary d-none mt-4">
                     <h5 class="mb-3">Load Summary</h5>
@@ -78,9 +97,15 @@
         const form = document.getElementById("uploadForm");
         const input = document.getElementById("excelFile");
         const button = document.getElementById("uploadButton");
+        const applyMappingButton = document.getElementById("applyMappingButton");
+        const mappingJsonInput = document.getElementById("mappingJson");
         const alertBox = document.getElementById("uploadAlert");
         const summary = document.getElementById("uploadSummary");
         const summaryRows = document.getElementById("summaryRows");
+        const mappingConfigurator = document.getElementById("mappingConfigurator");
+        const mappingSheets = document.getElementById("mappingSheets");
+
+        let currentPlan = null;
 
         input.addEventListener("change", () => {
             const label = document.querySelector('label[for="excelFile"].custom-file-label');
@@ -91,6 +116,14 @@
 
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
+            await submitUpload(false);
+        });
+
+        applyMappingButton.addEventListener("click", async () => {
+            await submitUpload(true);
+        });
+
+        async function submitUpload(includeManualMapping) {
             const file = input.files?.[0];
             if (!file) {
                 showAlert("Please choose an Excel file before uploading.", "warning");
@@ -99,8 +132,13 @@
 
             const data = new FormData();
             data.append("file", file);
+            mappingJsonInput.value = includeManualMapping ? JSON.stringify(buildMappingPayload()) : "";
+            if (mappingJsonInput.value) {
+                data.append("mapping_json", mappingJsonInput.value);
+            }
 
             button.disabled = true;
+            applyMappingButton.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing';
             showAlert("Upload in progress. Source tables are being refreshed and ELT is running.", "info");
             summary.classList.add("d-none");
@@ -112,19 +150,204 @@
                 });
                 const payload = await response.json();
 
-                if (!response.ok) {
-                    throw new Error(payload.detail || "Upload failed.");
+                if (response.status === 409 && payload.details?.requires_configuration) {
+                    currentPlan = payload.details;
+                    renderConfigurator(currentPlan);
+                    showAlert(payload.message, "warning");
+                    return;
                 }
 
+                if (!response.ok) {
+                    throw new Error(payload.detail || payload.message || "Upload failed.");
+                }
+
+                currentPlan = null;
+                mappingConfigurator.classList.add("d-none");
                 showAlert(payload.message, "success");
                 renderSummary(payload.details || {});
             } catch (error) {
                 showAlert(error.message || "Upload failed.", "danger");
             } finally {
                 button.disabled = false;
+                applyMappingButton.disabled = false;
                 button.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload And Run ELT';
             }
-        });
+        }
+
+        function renderConfigurator(plan) {
+            mappingSheets.innerHTML = "";
+            mappingConfigurator.classList.remove("d-none");
+            summary.classList.add("d-none");
+
+            (plan.sheets || []).forEach((sheet) => {
+                const card = document.createElement("div");
+                card.className = "sheet-config card mb-3";
+                card.dataset.sheetName = sheet.sheet_name;
+                card.dataset.selectedTarget = sheet.selected_target || "";
+                card.dataset.sourceColumns = JSON.stringify(sheet.source_columns || []);
+
+                card.innerHTML = `
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <strong>${escapeHtml(sheet.sheet_name)}</strong>
+                            <span class="badge badge-${sheet.exact_match ? "success" : "warning"}">${sheet.exact_match ? "Matched Sheet" : "Needs Mapping"}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label>Target Table</label>
+                            <select class="form-control sheet-target-select"></select>
+                        </div>
+                        <div class="sheet-issues mb-3"></div>
+                        <div class="sheet-unmatched mb-3"></div>
+                        <div class="column-mapping-container"></div>
+                    </div>
+                `;
+
+                mappingSheets.appendChild(card);
+                populateTargetSelect(card.querySelector(".sheet-target-select"), plan.available_tables || [], sheet.selected_target || "");
+                renderSheetCard(card, sheet, plan.table_catalog || {});
+
+                card.querySelector(".sheet-target-select").addEventListener("change", () => {
+                    renderSheetCard(card, sheet, plan.table_catalog || {});
+                });
+            });
+        }
+
+        function populateTargetSelect(select, tables, selectedTarget) {
+            select.innerHTML = "";
+
+            const options = [
+                { value: "", label: "Select target table" },
+                { value: "__ignore__", label: "Ignore sheet" },
+                ...tables.map((tableName) => ({ value: tableName, label: tableName })),
+            ];
+
+            options.forEach((optionConfig) => {
+                const option = document.createElement("option");
+                option.value = optionConfig.value;
+                option.textContent = optionConfig.label;
+                option.selected = optionConfig.value === selectedTarget;
+                select.appendChild(option);
+            });
+        }
+
+        function renderSheetCard(card, sheet, tableCatalog) {
+            const selectedTarget = card.querySelector(".sheet-target-select").value;
+            const sourceColumns = JSON.parse(card.dataset.sourceColumns || "[]");
+            const issuesContainer = card.querySelector(".sheet-issues");
+            const unmatchedContainer = card.querySelector(".sheet-unmatched");
+            const columnContainer = card.querySelector(".column-mapping-container");
+            const currentMappings = Object.fromEntries((sheet.column_mappings || []).map((row) => [row.target_column, row.selected_source || ""]));
+
+            issuesContainer.innerHTML = "";
+            (sheet.issues || []).forEach((issue) => {
+                const item = document.createElement("div");
+                item.className = "alert alert-warning py-2 px-3 mb-2";
+                item.textContent = issue;
+                issuesContainer.appendChild(item);
+            });
+
+            if (!sheet.exact_match && sheet.suggested_target) {
+                const note = document.createElement("div");
+                note.className = "small text-muted mb-2";
+                note.textContent = `Suggested target: ${sheet.suggested_target}`;
+                issuesContainer.appendChild(note);
+            }
+
+            const unmatchedColumns = (sheet.unmatched_source_columns || []).filter((column) => column);
+            unmatchedContainer.innerHTML = unmatchedColumns.length
+                ? `<div class="small text-muted">Unmatched source columns: ${unmatchedColumns.map(escapeHtml).join(", ")}</div>`
+                : '<div class="small text-muted">All detected source columns are currently mapped or intentionally left unused.</div>';
+
+            if (!selectedTarget || selectedTarget === "__ignore__") {
+                columnContainer.innerHTML = selectedTarget === "__ignore__"
+                    ? '<div class="small text-muted">This sheet will be ignored during import.</div>'
+                    : '<div class="small text-muted">Choose a target table to configure field mappings.</div>';
+                return;
+            }
+
+            const targetColumns = tableCatalog[selectedTarget] || [];
+            const rows = targetColumns.map((targetColumn) => {
+                const autoSource = findAutoSource(targetColumn.target_column, sourceColumns);
+                const selectedSource = currentMappings[targetColumn.target_column] || autoSource || "";
+                return `
+                    <tr>
+                        <td>
+                            ${escapeHtml(targetColumn.target_column)}
+                            ${targetColumn.required ? '<span class="badge badge-danger ml-2">Required</span>' : '<span class="badge badge-secondary ml-2">Optional</span>'}
+                        </td>
+                        <td>
+                            <select class="form-control form-control-sm column-mapping-select" data-target-column="${escapeAttribute(targetColumn.target_column)}">
+                                ${renderSourceOptions(sourceColumns, selectedSource)}
+                            </select>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+
+            columnContainer.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead>
+                            <tr>
+                                <th>Target Column</th>
+                                <th>Workbook Column</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderSourceOptions(sourceColumns, selectedSource) {
+            const options = ['<option value="">Leave unmapped</option>'];
+            sourceColumns.forEach((columnName) => {
+                const selected = columnName === selectedSource ? ' selected' : '';
+                options.push(`<option value="${escapeAttribute(columnName)}"${selected}>${escapeHtml(columnName)}</option>`);
+            });
+            return options.join("");
+        }
+
+        function buildMappingPayload() {
+            const payload = {
+                sheet_targets: {},
+                column_mappings: {},
+            };
+
+            document.querySelectorAll("[data-sheet-name]").forEach((card) => {
+                const sheetName = card.dataset.sheetName;
+                const targetSelect = card.querySelector(".sheet-target-select");
+                const targetValue = targetSelect ? targetSelect.value : "";
+                if (targetValue) {
+                    payload.sheet_targets[sheetName] = targetValue;
+                }
+
+                const fieldMap = {};
+                card.querySelectorAll(".column-mapping-select").forEach((select) => {
+                    fieldMap[select.dataset.targetColumn] = select.value || "";
+                });
+                if (Object.keys(fieldMap).length) {
+                    payload.column_mappings[sheetName] = fieldMap;
+                }
+            });
+
+            return payload;
+        }
+
+        function findAutoSource(targetColumn, sourceColumns) {
+            const normalizedTarget = normalizeIdentifier(targetColumn);
+            return sourceColumns.find((columnName) => normalizeIdentifier(columnName) === normalizedTarget) || "";
+        }
+
+        function normalizeIdentifier(value) {
+            return String(value || "")
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "_")
+                .replace(/^_+|_+$/g, "");
+        }
 
         function showAlert(message, level) {
             alertBox.className = `alert alert-${level} mt-4`;
@@ -141,14 +364,26 @@
             const rows = details.inserted_rows || {};
             Object.entries(rows).forEach(([tableName, rowCount]) => {
                 const tr = document.createElement("tr");
-                tr.innerHTML = `<td>${tableName}</td><td class="text-right">${Number(rowCount).toLocaleString()}</td>`;
+                tr.innerHTML = `<td>${escapeHtml(tableName)}</td><td class="text-right">${Number(rowCount).toLocaleString()}</td>`;
                 summaryRows.appendChild(tr);
             });
 
+            mappingConfigurator.classList.add("d-none");
             summary.classList.remove("d-none");
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function escapeAttribute(value) {
+            return escapeHtml(value);
         }
     })();
 </script>
 {% endblock %}
-
-
