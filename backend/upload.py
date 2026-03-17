@@ -3,10 +3,11 @@ from __future__ import annotations
 import difflib
 import io
 import json
+import math
 import re
 from collections.abc import Iterable
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
@@ -24,6 +25,51 @@ from backend.models.schemas import ApiMessage
 router = APIRouter(tags=["upload"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 IGNORE_SHEET_VALUE = "__ignore__"
+INTEGER_RANGES = {
+    "int2": (-32768, 32767),
+    "int4": (-2147483648, 2147483647),
+    "int8": (-9223372036854775808, 9223372036854775807),
+}
+SMALL_NUMBERS = {
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+}
+TENS_NUMBERS = {
+    "twenty": 20,
+    "thirty": 30,
+    "forty": 40,
+    "fifty": 50,
+    "sixty": 60,
+    "seventy": 70,
+    "eighty": 80,
+    "ninety": 90,
+}
+SCALE_NUMBERS = {
+    "hundred": 100,
+    "thousand": 1000,
+    "million": 1000000,
+    "billion": 1000000000,
+}
+TRUE_VALUES = {"true", "t", "yes", "y", "1"}
+FALSE_VALUES = {"false", "f", "no", "n", "0"}
 
 
 def _render_page(request: Request) -> HTMLResponse:
@@ -191,7 +237,7 @@ def _fetch_table_metadata(conn, table_names: Iterable[str]) -> dict[str, list[di
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT table_name, column_name, is_nullable, column_default
+            SELECT table_name, column_name, is_nullable, column_default, data_type, udt_name
             FROM information_schema.columns
             WHERE table_schema = 'public'
               AND table_name = ANY(%s)
@@ -205,6 +251,8 @@ def _fetch_table_metadata(conn, table_names: Iterable[str]) -> dict[str, list[di
                 {
                     "column_name": row["column_name"],
                     "required": row["is_nullable"] == "NO" and row["column_default"] is None,
+                    "data_type": row["data_type"],
+                    "udt_name": row["udt_name"],
                 }
             )
         return metadata
@@ -220,7 +268,11 @@ def _build_import_plan(
 
     table_catalog = {
         table_name: [
-            {"target_column": column["column_name"], "required": column["required"]}
+            {
+                "target_column": column["column_name"],
+                "required": column["required"],
+                "data_type": column["data_type"],
+            }
             for column in columns
         ]
         for table_name, columns in table_metadata.items()
@@ -254,12 +306,10 @@ def _build_import_plan(
             sheet_issues.append(f"The selected target table '{resolved_target}' is not valid.")
             resolved_target = None
 
-        duplicate_target_sheet = None
         if resolved_target and resolved_target in assigned_targets and assigned_targets[resolved_target] != sheet_name:
-            duplicate_target_sheet = assigned_targets[resolved_target]
             requires_configuration = True
             sheet_issues.append(
-                f"Target table '{resolved_target}' is already mapped from sheet '{duplicate_target_sheet}'."
+                f"Target table '{resolved_target}' is already mapped from sheet '{assigned_targets[resolved_target]}'."
             )
         elif resolved_target:
             assigned_targets[resolved_target] = sheet_name
@@ -297,6 +347,7 @@ def _build_import_plan(
                     {
                         "target_column": target_column,
                         "required": column_meta["required"],
+                        "data_type": column_meta["data_type"],
                         "selected_source": chosen_source,
                         "auto_source": auto_source,
                     }
@@ -348,18 +399,22 @@ def _insert_dataframe(
     if trimmed.empty:
         return 0
 
-    selected_columns = [
-        column_meta["column_name"]
+    selected_metadata = [
+        column_meta
         for column_meta in table_metadata
         if column_meta["column_name"] in column_map and column_map[column_meta["column_name"]] in trimmed.columns
     ]
-    if not selected_columns:
+    if not selected_metadata:
         return 0
 
+    selected_columns = [column_meta["column_name"] for column_meta in selected_metadata]
     records = []
     for row in trimmed.to_dict(orient="records"):
         records.append(
-            tuple(_normalize_cell_value(row.get(column_map[target_column])) for target_column in selected_columns)
+            tuple(
+                _coerce_value(row.get(column_map[column_meta["column_name"]]), column_meta)
+                for column_meta in selected_metadata
+            )
         )
 
     if not records:
@@ -371,6 +426,189 @@ def _insert_dataframe(
     )
     execute_values(cur, insert_sql.as_string(cur.connection), records, page_size=500)
     return len(records)
+
+
+def _coerce_value(value: Any, column_meta: dict[str, Any]) -> Any:
+    normalized_value = _normalize_cell_value(value)
+    if normalized_value is None:
+        return None
+
+    udt_name = column_meta.get("udt_name")
+    data_type = column_meta.get("data_type")
+
+    if udt_name in INTEGER_RANGES:
+        return _coerce_integer(normalized_value, udt_name)
+
+    if data_type in {"numeric", "double precision", "real", "decimal"}:
+        return _coerce_decimal(normalized_value)
+
+    if data_type == "boolean":
+        return _coerce_boolean(normalized_value)
+
+    if data_type == "date":
+        return _coerce_date(normalized_value)
+
+    if data_type and data_type.startswith("timestamp"):
+        return _coerce_timestamp(normalized_value)
+
+    return normalized_value
+
+
+def _coerce_integer(value: Any, udt_name: str) -> int | None:
+    numeric_value = _as_number(value)
+    if numeric_value is None:
+        return None
+
+    try:
+        coerced = int(numeric_value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+    lower_bound, upper_bound = INTEGER_RANGES[udt_name]
+    if coerced < lower_bound or coerced > upper_bound:
+        return None
+
+    return coerced
+
+
+def _coerce_decimal(value: Any) -> Decimal | None:
+    numeric_value = _as_number(value)
+    if numeric_value is None:
+        return None
+
+    try:
+        return Decimal(str(numeric_value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+
+
+def _coerce_boolean(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, (int, float, Decimal)):
+        return bool(value)
+
+    cleaned = str(value).strip().lower()
+    if cleaned in TRUE_VALUES:
+        return True
+    if cleaned in FALSE_VALUES:
+        return False
+    return None
+
+
+def _coerce_date(value: Any) -> date | None:
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+
+    if isinstance(value, datetime):
+        return value.date()
+
+    try:
+        import pandas as pd
+
+        parsed = pd.to_datetime(value, errors="coerce")
+    except Exception:
+        return None
+
+    if parsed is None or getattr(parsed, "isna", lambda: False)():
+        return None
+
+    try:
+        return parsed.to_pydatetime().date()
+    except Exception:
+        return None
+
+
+def _coerce_timestamp(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+
+    try:
+        import pandas as pd
+
+        parsed = pd.to_datetime(value, errors="coerce")
+    except Exception:
+        return None
+
+    if parsed is None or getattr(parsed, "isna", lambda: False)():
+        return None
+
+    try:
+        return parsed.to_pydatetime()
+    except Exception:
+        return None
+
+
+def _as_number(value: Any) -> Decimal | None:
+    if isinstance(value, bool):
+        return Decimal(int(value))
+
+    if isinstance(value, Decimal):
+        return value
+
+    if isinstance(value, int):
+        return Decimal(value)
+
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return Decimal(str(value))
+
+    cleaned = str(value).strip().lower().replace(",", "")
+    if not cleaned:
+        return None
+
+    if re.fullmatch(r"[-+]?\d+(\.\d+)?", cleaned):
+        try:
+            return Decimal(cleaned)
+        except InvalidOperation:
+            return None
+
+    words_value = _words_to_number(cleaned)
+    if words_value is not None:
+        return Decimal(words_value)
+
+    return None
+
+
+def _words_to_number(text: str) -> int | None:
+    normalized = text.replace("-", " ")
+    normalized = re.sub(r"\band\b", " ", normalized)
+    tokens = [token for token in normalized.split() if token]
+    if not tokens:
+        return None
+
+    total = 0
+    current = 0
+    matched_token = False
+
+    for token in tokens:
+        if token in SMALL_NUMBERS:
+            current += SMALL_NUMBERS[token]
+            matched_token = True
+        elif token in TENS_NUMBERS:
+            current += TENS_NUMBERS[token]
+            matched_token = True
+        elif token == "hundred":
+            current = max(current, 1) * 100
+            matched_token = True
+        elif token in {"thousand", "million", "billion"}:
+            scale = SCALE_NUMBERS[token]
+            current = max(current, 1)
+            total += current * scale
+            current = 0
+            matched_token = True
+        else:
+            return None
+
+    if not matched_token:
+        return None
+
+    return total + current
 
 
 def _suggest_target_table(sheet_name: str) -> str | None:
