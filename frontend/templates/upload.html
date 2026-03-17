@@ -1,0 +1,154 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card card-outline card-success upload-card">
+            <div class="card-header">
+                <h3 class="card-title">Excel To Source Pipeline</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    Upload a workbook with one sheet per source table. The application will refresh the source database,
+                    run the ELT SQL scripts, and keep the dashboard reading from datamart tables.
+                </p>
+
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="excelFile">Excel File</label>
+                        <div class="custom-file">
+                            <input id="excelFile" name="file" type="file" class="custom-file-input" accept=".xlsx,.xls" required>
+                            <label class="custom-file-label" for="excelFile">Choose workbook</label>
+                        </div>
+                    </div>
+
+                    <button id="uploadButton" type="submit" class="btn btn-success">
+                        <i class="fas fa-upload mr-2"></i>Upload And Run ELT
+                    </button>
+                </form>
+
+                <div id="uploadAlert" class="alert mt-4 d-none" role="alert"></div>
+
+                <div id="uploadSummary" class="upload-summary d-none mt-4">
+                    <h5 class="mb-3">Load Summary</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">File</dt>
+                        <dd class="col-sm-8" id="summaryFilename">-</dd>
+                        <dt class="col-sm-4">Source Database</dt>
+                        <dd class="col-sm-8" id="summarySchema">-</dd>
+                        <dt class="col-sm-4">Scripts</dt>
+                        <dd class="col-sm-8" id="summaryScripts">-</dd>
+                    </dl>
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Source Table</th>
+                                    <th class="text-right">Rows Inserted</th>
+                                </tr>
+                            </thead>
+                            <tbody id="summaryRows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Expected Sheets</h3>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for table_name in managed_tables %}
+                    <li class="list-group-item">{{ table_name }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const form = document.getElementById("uploadForm");
+        const input = document.getElementById("excelFile");
+        const button = document.getElementById("uploadButton");
+        const alertBox = document.getElementById("uploadAlert");
+        const summary = document.getElementById("uploadSummary");
+        const summaryRows = document.getElementById("summaryRows");
+
+        input.addEventListener("change", () => {
+            const label = document.querySelector('label[for="excelFile"].custom-file-label');
+            if (label) {
+                label.textContent = input.files?.[0]?.name || "Choose workbook";
+            }
+        });
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const file = input.files?.[0];
+            if (!file) {
+                showAlert("Please choose an Excel file before uploading.", "warning");
+                return;
+            }
+
+            const data = new FormData();
+            data.append("file", file);
+
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing';
+            showAlert("Upload in progress. Source tables are being refreshed and ELT is running.", "info");
+            summary.classList.add("d-none");
+
+            try {
+                const response = await fetch("/upload", {
+                    method: "POST",
+                    body: data,
+                });
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(payload.detail || "Upload failed.");
+                }
+
+                showAlert(payload.message, "success");
+                renderSummary(payload.details || {});
+            } catch (error) {
+                showAlert(error.message || "Upload failed.", "danger");
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload And Run ELT';
+            }
+        });
+
+        function showAlert(message, level) {
+            alertBox.className = `alert alert-${level} mt-4`;
+            alertBox.textContent = message;
+            alertBox.classList.remove("d-none");
+        }
+
+        function renderSummary(details) {
+            document.getElementById("summaryFilename").textContent = details.filename || "-";
+            document.getElementById("summarySchema").textContent = details.source_database || "-";
+            document.getElementById("summaryScripts").textContent = (details.executed_scripts || []).join(", ") || "-";
+
+            summaryRows.innerHTML = "";
+            const rows = details.inserted_rows || {};
+            Object.entries(rows).forEach(([tableName, rowCount]) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${tableName}</td><td class="text-right">${Number(rowCount).toLocaleString()}</td>`;
+                summaryRows.appendChild(tr);
+            });
+
+            summary.classList.remove("d-none");
+        }
+    })();
+</script>
+{% endblock %}
+
+

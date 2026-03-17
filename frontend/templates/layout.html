@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -56,6 +56,12 @@
                             <p>Program Metrics</p>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="/upload" class="nav-link {% if page_id == 'upload' %}active{% endif %}">
+                            <i class="nav-icon fas fa-file-excel"></i>
+                            <p>Upload Excel</p>
+                        </a>
+                    </li>
                 </ul>
             </nav>
         </div>
@@ -98,5 +104,6 @@
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', path='js/dashboard.js') }}"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

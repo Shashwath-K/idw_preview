@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --panel-accent: #1f4e79;
     --panel-soft: #eef4f9;
     --panel-border: #d8e3ed;
@@ -48,4 +48,17 @@ body {
 
 canvas {
     max-height: 320px;
+}
+
+.upload-card {
+    border-top: 3px solid #28a745;
+}
+
+.upload-summary {
+    border-top: 1px solid var(--panel-border);
+    padding-top: 1rem;
+}
+
+.custom-file-label::after {
+    content: "Browse";
 }
