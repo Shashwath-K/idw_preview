@@ -1,4 +1,4 @@
-﻿from backend.services.query_utils import build_dimension_filters, fetch_all, fetch_one
+from backend.services.query_utils import build_dimension_filters, fetch_all, fetch_one
 
 
 def get_total_students(
@@ -18,8 +18,9 @@ def get_total_students(
     )
     row = fetch_one(
         f"""
-        SELECT COALESCE(SUM(f.students_total), 0) AS total_students
-        FROM fact_exposure f
+        SELECT COALESCE(SUM(e.students_total), 0) AS total_students
+        FROM fact_exposure e
+        LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
@@ -48,11 +49,12 @@ def get_exposure_kpis(
     row = fetch_one(
         f"""
         SELECT
-            COALESCE(SUM(f.students_total), 0) AS total_students,
+            COALESCE(SUM(e.students_total), 0) AS total_students,
             COUNT(DISTINCT p.program_name) AS total_programs,
             COUNT(DISTINCT l.state) AS total_regions,
-            COALESCE(AVG(f.students_total), 0) AS avg_students_per_exposure
-        FROM fact_exposure f
+            COALESCE(AVG(e.students_total), 0) AS avg_students_per_exposure
+        FROM fact_exposure e
+        LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
@@ -88,8 +90,9 @@ def get_program_metrics(
         f"""
         SELECT
             COALESCE(p.program_name, 'Unknown') AS label,
-            COALESCE(SUM(f.students_total), 0) AS value
-        FROM fact_exposure f
+            COALESCE(SUM(e.students_total), 0) AS value
+        FROM fact_exposure e
+        LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
@@ -123,7 +126,8 @@ def get_program_distribution(
         SELECT
             COALESCE(p.program_name, 'Unknown') AS label,
             COUNT(*) AS value
-        FROM fact_exposure f
+        FROM fact_exposure e
+        LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
