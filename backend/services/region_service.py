@@ -1,23 +1,4 @@
-﻿from backend.services.query_utils import build_dimension_filters, fetch_all, fetch_one
-
-
-MONTH_LABEL = """
-CASE f.month_key
-    WHEN 1 THEN 'Jan'
-    WHEN 2 THEN 'Feb'
-    WHEN 3 THEN 'Mar'
-    WHEN 4 THEN 'Apr'
-    WHEN 5 THEN 'May'
-    WHEN 6 THEN 'Jun'
-    WHEN 7 THEN 'Jul'
-    WHEN 8 THEN 'Aug'
-    WHEN 9 THEN 'Sep'
-    WHEN 10 THEN 'Oct'
-    WHEN 11 THEN 'Nov'
-    WHEN 12 THEN 'Dec'
-    ELSE CONCAT('Month ', f.month_key::text)
-END
-"""
+from backend.services.query_utils import build_dimension_filters, fetch_all, fetch_one
 
 
 def get_region_kpis(
@@ -27,21 +8,26 @@ def get_region_kpis(
     program: str | None = None,
 ) -> dict[str, float]:
     where_clause, params = build_dimension_filters(
-        start=None,
-        end=None,
+        start=start,
+        end=end,
         region=region,
-        program=None,
+        program=program,
+        year_expression="d.year",
         location_expression="l.state",
+        program_expression="p.program_name",
     )
     row = fetch_one(
         f"""
         SELECT
-            COALESCE(SUM(f.students_reached), 0) AS total_students_reached,
+            COALESCE(SUM(COALESCE(e.students_total, 0)), 0) AS total_students_reached,
             COUNT(DISTINCT l.state) AS total_states,
-            COALESCE(SUM(f.sessions), 0) AS total_sessions,
-            COALESCE(AVG(f.students_reached), 0) AS avg_students_per_state_period
-        FROM fact_monthly_region_impact f
+            COALESCE(SUM(f.session_count), 0) AS total_sessions,
+            COALESCE(AVG(COALESCE(e.students_total, 0)), 0) AS avg_students_per_state_period
+        FROM fact_session_event f
+        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
+        LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
         """,
         params,
@@ -61,19 +47,24 @@ def get_region_impact(
     program: str | None = None,
 ) -> list[dict]:
     where_clause, params = build_dimension_filters(
-        start=None,
-        end=None,
+        start=start,
+        end=end,
         region=region,
-        program=None,
+        program=program,
+        year_expression="d.year",
         location_expression="l.state",
+        program_expression="p.program_name",
     )
     rows = fetch_all(
         f"""
         SELECT
             COALESCE(l.state, 'Unknown') AS label,
-            COALESCE(SUM(f.students_reached), 0) AS value
-        FROM fact_monthly_region_impact f
+            COALESCE(SUM(COALESCE(e.students_total, 0)), 0) AS value
+        FROM fact_session_event f
+        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
+        LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
         GROUP BY COALESCE(l.state, 'Unknown')
         ORDER BY value DESC, label
@@ -91,23 +82,28 @@ def get_monthly_region_impact(
     program: str | None = None,
 ) -> list[dict]:
     where_clause, params = build_dimension_filters(
-        start=None,
-        end=None,
+        start=start,
+        end=end,
         region=region,
-        program=None,
+        program=program,
+        year_expression="d.year",
         location_expression="l.state",
+        program_expression="p.program_name",
     )
     rows = fetch_all(
         f"""
         SELECT
-            {MONTH_LABEL} AS label,
-            COALESCE(SUM(f.students_reached), 0) AS value,
-            f.month_key AS sort_key
-        FROM fact_monthly_region_impact f
+            TO_CHAR(DATE_TRUNC('month', d.date_value), 'YYYY-MM') AS label,
+            COALESCE(SUM(COALESCE(e.students_total, 0)), 0) AS value,
+            DATE_TRUNC('month', d.date_value) AS sort_key
+        FROM fact_session_event f
+        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
+        LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
-        GROUP BY f.month_key
-        ORDER BY f.month_key
+        GROUP BY DATE_TRUNC('month', d.date_value)
+        ORDER BY DATE_TRUNC('month', d.date_value)
         """,
         params,
     )
