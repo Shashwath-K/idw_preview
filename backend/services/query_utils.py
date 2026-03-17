@@ -1,6 +1,6 @@
-﻿from collections.abc import Sequence
+from collections.abc import Sequence
 
-from backend.db import get_conn
+from backend.db import get_datamart_conn
 
 
 def build_dimension_filters(
@@ -48,7 +48,7 @@ def build_dimension_filters(
 
 
 def fetch_one(query: str, params: Sequence[object] | None = None) -> dict:
-    with get_conn() as conn:
+    with get_datamart_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(query, params or [])
             row = cur.fetchone()
@@ -56,7 +56,7 @@ def fetch_one(query: str, params: Sequence[object] | None = None) -> dict:
 
 
 def fetch_all(query: str, params: Sequence[object] | None = None) -> list[dict]:
-    with get_conn() as conn:
+    with get_datamart_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(query, params or [])
             return [dict(row) for row in cur.fetchall()]
