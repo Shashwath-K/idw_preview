@@ -88,39 +88,35 @@
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <section class="overview-surface overview-table-panel">
-            <div class="overview-panel-head">
-                <h3 class="panel-title">Program-level targets vs actuals</h3>
-            </div>
-            <div class="table-responsive">
-                <table class="overview-table">
-                    <thead>
-                        <tr>
-                            <th>Program</th>
-                            <th>Donor</th>
-                            <th>Sessions</th>
-                            <th>Progress</th>
-                            <th>Students</th>
-                            <th>End date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="programTargetsBody">
-                        <tr>
-                            <td colspan="7" class="overview-empty">Loading program targets...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </div>
-</div>
+<section class="overview-content-stack">
+    <section class="overview-surface overview-table-panel">
+        <div class="overview-panel-head">
+            <h3 class="panel-title">Program-level targets vs actuals</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="overview-table">
+                <thead>
+                    <tr>
+                        <th>Program</th>
+                        <th>Donor</th>
+                        <th>Sessions</th>
+                        <th>Progress</th>
+                        <th>Students</th>
+                        <th>End date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="programTargetsBody">
+                    <tr>
+                        <td colspan="7" class="overview-empty">Loading program targets...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 
-<div class="row">
-    <div class="col-lg-7 mb-4">
-        <section class="overview-surface overview-list-panel h-100">
+    <div class="overview-dual-grid">
+        <section class="overview-surface overview-list-panel overview-list-panel-wide">
             <div class="overview-panel-head">
                 <h3 class="panel-title">Sessions by activity type</h3>
             </div>
@@ -128,9 +124,7 @@
                 <div class="overview-empty">Loading activity distribution...</div>
             </div>
         </section>
-    </div>
-    <div class="col-lg-5 mb-4">
-        <section class="overview-surface overview-list-panel h-100">
+        <section class="overview-surface overview-list-panel overview-list-panel-narrow">
             <div class="overview-panel-head">
                 <h3 class="panel-title">Sessions by donor</h3>
             </div>
@@ -139,5 +133,5 @@
             </div>
         </section>
     </div>
-</div>
+</section>
 {% endblock %}

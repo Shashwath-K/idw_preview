@@ -10,11 +10,12 @@
             <div class="card-body">
                 <p class="text-muted mb-4">
                     Upload a workbook with one sheet per source table. If sheet names or fields do not line up,
-                    the app will pause and ask the user to map them manually before importing.
+                    the app will pause and ask the user to map them manually before importing. Existing rows are preserved, and only new rows are inserted after confirmation when duplicates are detected.
                 </p>
 
                 <form id="uploadForm" enctype="multipart/form-data">
                     <input id="mappingJson" type="hidden" name="mapping_json" value="">
+                    <input id="confirmInsert" type="hidden" name="confirm_insert" value="false">
                     <div class="form-group">
                         <label for="excelFile">Excel File</label>
                         <div class="custom-file">
@@ -23,9 +24,14 @@
                         </div>
                     </div>
 
-                    <button id="uploadButton" type="submit" class="btn btn-success">
-                        <i class="fas fa-upload mr-2"></i>Upload And Run ELT
-                    </button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button id="uploadButton" type="submit" class="btn btn-success mr-2 mb-2">
+                            <i class="fas fa-upload mr-2"></i>Upload And Run ELT
+                        </button>
+                        <button id="truncateButton" type="button" class="btn btn-outline-danger mb-2">
+                            <i class="fas fa-trash-alt mr-2"></i>Truncate Source Tables
+                        </button>
+                    </div>
                 </form>
 
                 <div id="uploadAlert" class="alert mt-4 d-none" role="alert"></div>
@@ -57,6 +63,10 @@
                         <dd class="col-sm-8" id="summarySchema">-</dd>
                         <dt class="col-sm-4">Scripts</dt>
                         <dd class="col-sm-8" id="summaryScripts">-</dd>
+                        <dt class="col-sm-4">New Rows</dt>
+                        <dd class="col-sm-8" id="summaryNewRows">-</dd>
+                        <dt class="col-sm-4">Duplicates Skipped</dt>
+                        <dd class="col-sm-8" id="summaryDuplicateRows">-</dd>
                     </dl>
                     <div class="table-responsive mt-3">
                         <table class="table table-sm table-striped mb-0">
@@ -98,7 +108,9 @@
         const input = document.getElementById("excelFile");
         const button = document.getElementById("uploadButton");
         const applyMappingButton = document.getElementById("applyMappingButton");
+        const truncateButton = document.getElementById("truncateButton");
         const mappingJsonInput = document.getElementById("mappingJson");
+        const confirmInsertInput = document.getElementById("confirmInsert");
         const alertBox = document.getElementById("uploadAlert");
         const summary = document.getElementById("uploadSummary");
         const summaryRows = document.getElementById("summaryRows");
@@ -116,14 +128,45 @@
 
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
-            await submitUpload(false);
+            await submitUpload(false, false);
         });
 
         applyMappingButton.addEventListener("click", async () => {
-            await submitUpload(true);
+            await submitUpload(true, false);
         });
 
-        async function submitUpload(includeManualMapping) {
+        truncateButton.addEventListener("click", async () => {
+            const confirmed = window.confirm("This will truncate all managed source tables for debugging and delete their data. Do you want to continue?");
+            if (!confirmed) {
+                return;
+            }
+
+            button.disabled = true;
+            applyMappingButton.disabled = true;
+            truncateButton.disabled = true;
+            showAlert("Truncating managed source tables for debugging...", "warning");
+            summary.classList.add("d-none");
+
+            try {
+                const response = await fetch("/upload/truncate", { method: "POST" });
+                const payload = await response.json();
+                if (!response.ok) {
+                    throw new Error(payload.detail || payload.message || "Truncate failed.");
+                }
+                currentPlan = null;
+                mappingConfigurator.classList.add("d-none");
+                showAlert(payload.message, "success");
+                renderTruncateSummary(payload.details || {});
+            } catch (error) {
+                showAlert(error.message || "Truncate failed.", "danger");
+            } finally {
+                button.disabled = false;
+                applyMappingButton.disabled = false;
+                truncateButton.disabled = false;
+            }
+        });
+
+        async function submitUpload(includeManualMapping, forceInsert) {
             const file = input.files?.[0];
             if (!file) {
                 showAlert("Please choose an Excel file before uploading.", "warning");
@@ -133,14 +176,17 @@
             const data = new FormData();
             data.append("file", file);
             mappingJsonInput.value = includeManualMapping ? JSON.stringify(buildMappingPayload()) : "";
+            confirmInsertInput.value = forceInsert ? "true" : "false";
             if (mappingJsonInput.value) {
                 data.append("mapping_json", mappingJsonInput.value);
             }
+            data.append("confirm_insert", confirmInsertInput.value);
 
             button.disabled = true;
             applyMappingButton.disabled = true;
+            truncateButton.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing';
-            showAlert("Upload in progress. Source tables are being refreshed and ELT is running.", "info");
+            showAlert("Upload in progress. The workbook is being reviewed for duplicates and new rows before ELT runs.", "info");
             summary.classList.add("d-none");
 
             try {
@@ -157,6 +203,21 @@
                     return;
                 }
 
+                if (response.status === 409 && payload.details?.requires_confirmation) {
+                    const review = payload.details.review || {};
+                    const confirmed = window.confirm(`${payload.message}
+
+${Number(review.duplicate_rows || 0).toLocaleString()} duplicate rows will be skipped. ${Number(review.new_rows || 0).toLocaleString()} new rows will be inserted.
+
+Do you want to continue?`);
+                    if (confirmed) {
+                        await submitUpload(includeManualMapping, true);
+                    } else {
+                        showAlert("Upload cancelled. No database changes were made.", "warning");
+                    }
+                    return;
+                }
+
                 if (!response.ok) {
                     throw new Error(payload.detail || payload.message || "Upload failed.");
                 }
@@ -170,6 +231,7 @@
             } finally {
                 button.disabled = false;
                 applyMappingButton.disabled = false;
+                truncateButton.disabled = false;
                 button.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload And Run ELT';
             }
         }
@@ -355,10 +417,32 @@
             alertBox.classList.remove("d-none");
         }
 
+        function renderTruncateSummary(details) {
+            document.getElementById("summaryFilename").textContent = "Manual truncate";
+            document.getElementById("summarySchema").textContent = details.source_database || "-";
+            document.getElementById("summaryScripts").textContent = "-";
+            document.getElementById("summaryNewRows").textContent = "0";
+            const deletedRows = details.deleted_rows || {};
+            const deletedTotal = Object.values(deletedRows).reduce((sum, value) => sum + Number(value || 0), 0);
+            document.getElementById("summaryDuplicateRows").textContent = deletedTotal.toLocaleString();
+
+            summaryRows.innerHTML = "";
+            Object.entries(deletedRows).forEach(([tableName, rowCount]) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${escapeHtml(tableName)}</td><td class="text-right">${Number(rowCount).toLocaleString()}</td>`;
+                summaryRows.appendChild(tr);
+            });
+
+            mappingConfigurator.classList.add("d-none");
+            summary.classList.remove("d-none");
+        }
+
         function renderSummary(details) {
             document.getElementById("summaryFilename").textContent = details.filename || "-";
             document.getElementById("summarySchema").textContent = details.source_database || "-";
             document.getElementById("summaryScripts").textContent = (details.executed_scripts || []).join(", ") || "-";
+            document.getElementById("summaryNewRows").textContent = Number(details.review?.new_rows || 0).toLocaleString();
+            document.getElementById("summaryDuplicateRows").textContent = Number(details.review?.duplicate_rows || 0).toLocaleString();
 
             summaryRows.innerHTML = "";
             const rows = details.inserted_rows || {};
