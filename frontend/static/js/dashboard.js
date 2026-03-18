@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     const charts = {};
 
     document.addEventListener("DOMContentLoaded", async () => {
