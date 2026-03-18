@@ -29,6 +29,53 @@ def exposure_kpis(
     return {"metrics": exposure_service.get_exposure_kpis(start=start, end=end, region=region, program=program)}
 
 
+@router.get("/gender-split")
+def gender_split(
+    start: int | None = Query(default=None),
+    end: int | None = Query(default=None),
+    region: str | None = Query(default=None),
+    program: str | None = Query(default=None),
+):
+    return {"metrics": exposure_service.get_gender_split(start=start, end=end, region=region, program=program)}
+
+
+@router.get("/community-gender-split")
+def community_gender_split(
+    start: int | None = Query(default=None),
+    end: int | None = Query(default=None),
+    region: str | None = Query(default=None),
+    program: str | None = Query(default=None),
+):
+    return {"metrics": exposure_service.get_community_gender_split(start=start, end=end, region=region, program=program)}
+
+
+@router.get("/top-schools")
+def top_schools(
+    start: int | None = Query(default=None),
+    end: int | None = Query(default=None),
+    region: str | None = Query(default=None),
+    program: str | None = Query(default=None),
+    limit: int = Query(default=5, ge=1, le=20),
+):
+    return {
+        "title": "Top Schools by Students Reached",
+        "data": exposure_service.get_top_schools(start=start, end=end, region=region, program=program, limit=limit),
+    }
+
+
+@router.get("/cohort-breakdown", response_model=SeriesBundle)
+def cohort_breakdown(
+    start: int | None = Query(default=None),
+    end: int | None = Query(default=None),
+    region: str | None = Query(default=None),
+    program: str | None = Query(default=None),
+):
+    return {
+        "title": "Exposure by Cohort Type",
+        "data": exposure_service.get_cohort_breakdown(start=start, end=end, region=region, program=program),
+    }
+
+
 @router.get("/program-metrics", response_model=SeriesBundle)
 def program_metrics(
     start: int | None = Query(default=None),
