@@ -39,7 +39,7 @@ SELECT
     p.target_sessions,
     p.target_students
 FROM {{SOURCE_FDW_SCHEMA}}.mst_program p
-LEFT JOIN dim_donor d ON d.donor_id = p.donor_id
+LEFT JOIN dim_donor d ON d.donor_id = p.donor_id::varchar
 ORDER BY p.program_id;
 
 INSERT INTO dim_location (
@@ -52,7 +52,7 @@ INSERT INTO dim_location (
     center_name
 )
 SELECT DISTINCT
-    s.school_id,
+    s.school_id::varchar,
     s.school_name,
     s.area,
     s.region,
@@ -60,7 +60,7 @@ SELECT DISTINCT
     s.state,
     s.center_name
 FROM {{SOURCE_FDW_SCHEMA}}.mst_school s
-ORDER BY s.school_id;
+ORDER BY s.school_id::varchar;
 
 INSERT INTO dim_instructor (
     instructor_id,
@@ -69,7 +69,7 @@ INSERT INTO dim_instructor (
     region_assigned
 )
 SELECT
-    i.instructor_id,
+    i.instructor_id::varchar,
     i.instructor_name,
     i.instructor_type,
     i.assigned_region
@@ -82,7 +82,7 @@ INSERT INTO dim_activity (
     activity_category
 )
 SELECT
-    a.activity_id,
+    a.activity_id::varchar,
     a.activity_name,
     a.category
 FROM {{SOURCE_FDW_SCHEMA}}.mst_activity_type a
