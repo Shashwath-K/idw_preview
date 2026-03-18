@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query
 
 from backend.models.schemas import KPIBundle, SeriesBundle
 from backend.services import instructor_service

@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query
 
 from backend.models.schemas import CountResponse, KPIBundle, OptionsResponse, SeriesBundle
 from backend.services import exposure_service
