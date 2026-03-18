@@ -25,6 +25,7 @@ from backend.models.schemas import ApiMessage
 router = APIRouter(tags=["upload"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 IGNORE_SHEET_VALUE = "__ignore__"
+SOURCE_SCHEMA_NAME = "source_data_schema"
 INTEGER_RANGES = {
     "int2": (-32768, 32767),
     "int4": (-2147483648, 2147483647),
@@ -89,8 +90,33 @@ def upload_page(request: Request):
     return _render_page(request)
 
 
+@router.post("/upload/truncate", response_model=ApiMessage)
+def truncate_source_data():
+    deleted_rows: dict[str, int] = {}
+    with get_source_conn() as conn:
+        with conn.cursor() as cur:
+            for table_name in reversed(MANAGED_SOURCE_TABLES):
+                cur.execute(
+                    sql.SQL("SELECT COUNT(*) AS c FROM {}").format(sql.Identifier(SOURCE_SCHEMA_NAME, table_name))
+                )
+                deleted_rows[table_name] = int(cur.fetchone()["c"] or 0)
+            _truncate_source_tables(cur, MANAGED_SOURCE_TABLES)
+
+    return {
+        "message": "Source tables truncated successfully for debugging.",
+        "details": {
+            "source_database": SOURCE_DB_NAME,
+            "deleted_rows": deleted_rows,
+        },
+    }
+
+
 @router.post("/upload", response_model=ApiMessage)
-async def upload_workbook(file: UploadFile = File(...), mapping_json: str | None = Form(default=None)):
+async def upload_workbook(
+    file: UploadFile = File(...),
+    mapping_json: str | None = Form(default=None),
+    confirm_insert: bool = Form(default=False),
+):
     filename = file.filename or ""
     if not filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(
@@ -135,24 +161,99 @@ async def upload_workbook(file: UploadFile = File(...), mapping_json: str | None
                 },
             )
 
-        inserted_rows: dict[str, int] = {}
+        prepared_tables: dict[str, dict[str, Any]] = {}
+        review_by_table: dict[str, dict[str, int]] = {}
+        total_new_records = 0
+        total_duplicate_records = 0
+        total_candidate_records = 0
 
+        with conn.cursor() as cur:
+            for table_name in MANAGED_SOURCE_TABLES:
+                table_plan = import_plan["table_plans"].get(table_name)
+                if table_plan is None:
+                    review_by_table[table_name] = {
+                        "candidate_rows": 0,
+                        "new_rows": 0,
+                        "duplicate_rows": 0,
+                    }
+                    prepared_tables[table_name] = {
+                        "selected_columns": [],
+                        "new_records": [],
+                    }
+                    continue
+
+                selected_columns, candidate_records = _prepare_records(
+                    dataframe=workbook[table_plan["sheet_name"]],
+                    table_metadata=table_metadata[table_name],
+                    column_map=table_plan["column_map"],
+                )
+                new_records, duplicate_count = _partition_new_records(
+                    cur=cur,
+                    table_name=table_name,
+                    selected_columns=selected_columns,
+                    candidate_records=candidate_records,
+                )
+                prepared_tables[table_name] = {
+                    "selected_columns": selected_columns,
+                    "new_records": new_records,
+                }
+                review_by_table[table_name] = {
+                    "candidate_rows": len(candidate_records),
+                    "new_rows": len(new_records),
+                    "duplicate_rows": duplicate_count,
+                }
+                total_candidate_records += len(candidate_records)
+                total_new_records += len(new_records)
+                total_duplicate_records += duplicate_count
+
+        if total_new_records == 0:
+            return {
+                "message": "All uploaded rows already exist in the source database. No new records were inserted.",
+                "details": {
+                    "filename": filename,
+                    "source_database": SOURCE_DB_NAME,
+                    "inserted_rows": {table_name: 0 for table_name in MANAGED_SOURCE_TABLES},
+                    "review": {
+                        "candidate_rows": total_candidate_records,
+                        "new_rows": 0,
+                        "duplicate_rows": total_duplicate_records,
+                        "by_table": review_by_table,
+                    },
+                    "executed_scripts": [],
+                },
+            }
+
+        if total_duplicate_records > 0 and not confirm_insert:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content={
+                    "message": (
+                        f"Some uploaded rows already exist. There are {total_new_records} new records ready to insert."
+                    ),
+                    "details": {
+                        "requires_confirmation": True,
+                        "filename": filename,
+                        "source_database": SOURCE_DB_NAME,
+                        "review": {
+                            "candidate_rows": total_candidate_records,
+                            "new_rows": total_new_records,
+                            "duplicate_rows": total_duplicate_records,
+                            "by_table": review_by_table,
+                        },
+                    },
+                },
+            )
+
+        inserted_rows: dict[str, int] = {}
         try:
             with conn.cursor() as cur:
-                _truncate_source_tables(cur, MANAGED_SOURCE_TABLES)
-
                 for table_name in MANAGED_SOURCE_TABLES:
-                    table_plan = import_plan["table_plans"].get(table_name)
-                    if table_plan is None:
-                        inserted_rows[table_name] = 0
-                        continue
-
-                    inserted_rows[table_name] = _insert_dataframe(
+                    prepared = prepared_tables[table_name]
+                    inserted_rows[table_name] = _insert_records(
                         cur=cur,
                         table_name=table_name,
-                        dataframe=workbook[table_plan["sheet_name"]],
-                        table_metadata=table_metadata[table_name],
-                        column_map=table_plan["column_map"],
+                        selected_columns=prepared["selected_columns"],
+                        records=prepared["new_records"],
                     )
         except HTTPException:
             raise
@@ -171,11 +272,17 @@ async def upload_workbook(file: UploadFile = File(...), mapping_json: str | None
         ) from exc
 
     return {
-        "message": "Excel upload completed and ELT refresh finished successfully.",
+        "message": "Excel upload completed and only new rows were inserted successfully.",
         "details": {
             "filename": filename,
             "source_database": SOURCE_DB_NAME,
             "inserted_rows": inserted_rows,
+            "review": {
+                "candidate_rows": total_candidate_records,
+                "new_rows": total_new_records,
+                "duplicate_rows": total_duplicate_records,
+                "by_table": review_by_table,
+            },
             "executed_scripts": executed_scripts,
         },
     }
@@ -225,10 +332,10 @@ def _fetch_available_tables(conn) -> set[str]:
             """
             SELECT table_name
             FROM information_schema.tables
-            WHERE table_schema = 'source_data_schema'
+            WHERE table_schema = %s
               AND table_name = ANY(%s)
             """,
-            [list(MANAGED_SOURCE_TABLES)],
+            [SOURCE_SCHEMA_NAME, list(MANAGED_SOURCE_TABLES)],
         )
         return {row["table_name"] for row in cur.fetchall()}
 
@@ -239,11 +346,11 @@ def _fetch_table_metadata(conn, table_names: Iterable[str]) -> dict[str, list[di
             """
             SELECT table_name, column_name, is_nullable, column_default, data_type, udt_name
             FROM information_schema.columns
-            WHERE table_schema = 'source_data_schema'
+            WHERE table_schema = %s
               AND table_name = ANY(%s)
             ORDER BY table_name, ordinal_position
             """,
-            [list(table_names)],
+            [SOURCE_SCHEMA_NAME, list(table_names)],
         )
         metadata: dict[str, list[dict[str, Any]]] = {table_name: [] for table_name in table_names}
         for row in cur.fetchall():
@@ -383,21 +490,19 @@ def _build_import_plan(
 
 
 def _truncate_source_tables(cur, table_names: Iterable[str]) -> None:
-    identifiers = [sql.Identifier("source_data_schema", table_name) for table_name in table_names]
+    identifiers = [sql.Identifier(SOURCE_SCHEMA_NAME, table_name) for table_name in table_names]
     statement = sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY CASCADE").format(sql.SQL(", ").join(identifiers))
     cur.execute(statement)
 
 
-def _insert_dataframe(
-    cur,
-    table_name: str,
+def _prepare_records(
     dataframe: Any,
     table_metadata: list[dict[str, Any]],
     column_map: dict[str, str],
-) -> int:
+) -> tuple[list[str], list[tuple[Any, ...]]]:
     trimmed = dataframe.dropna(how="all")
     if trimmed.empty:
-        return 0
+        return [], []
 
     selected_metadata = [
         column_meta
@@ -405,27 +510,79 @@ def _insert_dataframe(
         if column_meta["column_name"] in column_map and column_map[column_meta["column_name"]] in trimmed.columns
     ]
     if not selected_metadata:
-        return 0
+        return [], []
 
     selected_columns = [column_meta["column_name"] for column_meta in selected_metadata]
-    records = []
+    records: list[tuple[Any, ...]] = []
     for row in trimmed.to_dict(orient="records"):
-        records.append(
-            tuple(
-                _coerce_value(row.get(column_map[column_meta["column_name"]]), column_meta)
-                for column_meta in selected_metadata
-            )
+        record = tuple(
+            _coerce_value(row.get(column_map[column_meta["column_name"]]), column_meta)
+            for column_meta in selected_metadata
         )
+        if any(value is not None for value in record):
+            records.append(record)
 
-    if not records:
+    return selected_columns, records
+
+
+def _partition_new_records(
+    cur,
+    table_name: str,
+    selected_columns: list[str],
+    candidate_records: list[tuple[Any, ...]],
+) -> tuple[list[tuple[Any, ...]], int]:
+    if not selected_columns or not candidate_records:
+        return [], 0
+
+    existing_records = _fetch_existing_records(cur, table_name, selected_columns)
+    seen_records: set[tuple[Any, ...]] = set()
+    new_records: list[tuple[Any, ...]] = []
+    duplicate_count = 0
+
+    for record in candidate_records:
+        normalized = tuple(_normalize_record_value(value) for value in record)
+        if normalized in seen_records or normalized in existing_records:
+            duplicate_count += 1
+            continue
+        seen_records.add(normalized)
+        new_records.append(record)
+
+    return new_records, duplicate_count
+
+
+def _fetch_existing_records(cur, table_name: str, selected_columns: list[str]) -> set[tuple[Any, ...]]:
+    if not selected_columns:
+        return set()
+
+    statement = sql.SQL("SELECT DISTINCT {} FROM {}") .format(
+        sql.SQL(", ").join(sql.Identifier(column_name) for column_name in selected_columns),
+        sql.Identifier(SOURCE_SCHEMA_NAME, table_name),
+    )
+    cur.execute(statement)
+    return {
+        tuple(_normalize_record_value(row.get(column_name)) for column_name in selected_columns)
+        for row in cur.fetchall()
+    }
+
+
+def _insert_records(cur, table_name: str, selected_columns: list[str], records: list[tuple[Any, ...]]) -> int:
+    if not selected_columns or not records:
         return 0
 
     insert_sql = sql.SQL("INSERT INTO {} ({}) VALUES %s").format(
-        sql.Identifier("source_data_schema", table_name),
+        sql.Identifier(SOURCE_SCHEMA_NAME, table_name),
         sql.SQL(", ").join(sql.Identifier(column_name) for column_name in selected_columns),
     )
     execute_values(cur, insert_sql.as_string(cur.connection), records, page_size=500)
     return len(records)
+
+
+def _normalize_record_value(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return value.normalize() if value == value.to_integral() else value.normalize()
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    return value
 
 
 def _coerce_value(value: Any, column_meta: dict[str, Any]) -> Any:
