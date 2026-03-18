@@ -9,16 +9,32 @@ from backend.db import get_admin_conn, get_datamart_conn, get_source_conn
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SOURCE_SCHEMA_FILE = BASE_DIR / "source_data_schema.sql"
-DATAMART_SCHEMA_FILE = BASE_DIR / "dw_data.sql"
+SOURCE_SCHEMA_FILE = BASE_DIR / "create_source_tables.sql"
+DATAMART_SCHEMA_FILE = BASE_DIR / "create_dw_tables.sql"
+ETL_MAPPING_FILE = BASE_DIR / "create_etl_mapping.sql"
+SOURCE_SCHEMA_NAME = "source_data_schema"
+DATAMART_SCHEMA_NAME = "dw_data_schema"
 
 
 def reset_databases() -> None:
     for db_name in (SOURCE_DB_NAME, DATAMART_DB_NAME):
         _recreate_database(db_name)
 
-    _run_sql_file(get_source_conn, SOURCE_SCHEMA_FILE)
-    _run_sql_file(get_datamart_conn, DATAMART_SCHEMA_FILE)
+    _run_sql_batch(
+        get_source_conn,
+        [
+            f"CREATE SCHEMA IF NOT EXISTS {SOURCE_SCHEMA_NAME}",
+            SOURCE_SCHEMA_FILE.read_text(encoding="utf-8"),
+        ],
+    )
+    _run_sql_batch(
+        get_datamart_conn,
+        [
+            f"CREATE SCHEMA IF NOT EXISTS {DATAMART_SCHEMA_NAME}",
+            DATAMART_SCHEMA_FILE.read_text(encoding="utf-8"),
+            ETL_MAPPING_FILE.read_text(encoding="utf-8"),
+        ],
+    )
 
 
 def _recreate_database(db_name: str) -> None:
@@ -36,11 +52,15 @@ def _recreate_database(db_name: str) -> None:
         conn.close()
 
 
-def _run_sql_file(connection_factory, sql_path: Path) -> None:
-    sql_text = sql_path.read_text(encoding="utf-8")
+def _run_sql_batch(connection_factory, statements: list[str]) -> None:
     with connection_factory() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql_text)
+            for statement in statements:
+                cur.execute(_sanitize_sql(statement))
+
+
+def _sanitize_sql(sql_text: str) -> str:
+    return sql_text.replace("→", "->").replace("???", "->")
 
 
 if __name__ == "__main__":
