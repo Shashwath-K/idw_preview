@@ -1,12 +1,23 @@
 (function () {
     const charts = {};
+    const COLORS = {
+        indigo: "#5b5ce6",
+        blue: "#3f8cff",
+        teal: "#18b891",
+        violet: "#8b5cf6",
+        amber: "#f3a536",
+        rose: "#ee6b78",
+        tick: "rgba(255,255,255,0.72)",
+        grid: "rgba(255,255,255,0.08)",
+        gridSoft: "rgba(255,255,255,0.04)",
+    };
     const overviewPalette = [
-        { dot: "overview-dot-violet", fill: "#6654d9" },
-        { dot: "overview-dot-green", fill: "#20c997" },
-        { dot: "overview-dot-blue", fill: "#4090f0" },
-        { dot: "overview-dot-amber", fill: "#f2ab30" },
-        { dot: "overview-dot-red", fill: "#e76d6d" },
-        { dot: "overview-dot-teal", fill: "#1eb18f" },
+        { dot: "overview-dot-violet", fill: COLORS.indigo },
+        { dot: "overview-dot-green", fill: COLORS.teal },
+        { dot: "overview-dot-blue", fill: COLORS.blue },
+        { dot: "overview-dot-amber", fill: COLORS.amber },
+        { dot: "overview-dot-red", fill: COLORS.rose },
+        { dot: "overview-dot-teal", fill: COLORS.violet },
     ];
 
     document.addEventListener("DOMContentLoaded", async () => {
@@ -212,8 +223,8 @@
         setText("sessionActiveRegions", kpis.metrics.active_regions);
         setText("sessionPrograms", kpis.metrics.total_programs);
 
-        renderLineChart("sessionMonthlyChart", monthly.data, "Sessions", "#27c498");
-        renderBarChart("sessionRegionChart", byRegion.data, "Sessions", "#6654d9");
+        renderLineChart("sessionMonthlyChart", monthly.data, "Sessions", COLORS.teal);
+        renderBarChart("sessionRegionChart", byRegion.data, "Sessions", COLORS.indigo);
     }
 
     async function loadRegionPage() {
@@ -229,8 +240,8 @@
         setText("regionPrograms", kpis.metrics.total_programs);
         setText("regionAverageImpact", kpis.metrics.avg_students_per_state_period);
 
-        renderBarChart("regionStateChart", impact.data, "Students Reached", "#6654d9");
-        renderLineChart("regionMonthlyChart", monthly.data, "Students Reached", "#4090f0");
+        renderBarChart("regionStateChart", impact.data, "Students Reached", COLORS.indigo);
+        renderLineChart("regionMonthlyChart", monthly.data, "Students Reached", COLORS.blue);
     }
 
     async function loadInstructorPage() {
@@ -580,7 +591,7 @@
     }
 
     function renderHorizontalPaletteChart(id, points, label) {
-        const palette = ["#27c498", "#4090f0", "#f2ab30", "#6654d9", "#e76d6d", "#1eb18f", "#8f6cf2", "#f38f5d"];
+        const palette = [COLORS.teal, COLORS.blue, COLORS.amber, COLORS.indigo, COLORS.rose, COLORS.violet, "#59b4ff", "#35c3a0"];
         renderChart(id, "bar", points, label, {
             backgroundColor: points.map((_, index) => palette[index % palette.length]),
             indexAxis: "y",
@@ -629,7 +640,7 @@
                         display: false,
                     },
                     tooltip: {
-                        backgroundColor: "rgba(23, 23, 23, 0.92)",
+                        backgroundColor: "rgba(32, 38, 49, 0.94)",
                         titleColor: "#fff",
                         bodyColor: "#fff",
                         borderColor: "rgba(255,255,255,0.08)",
@@ -639,10 +650,10 @@
                 scales: {
                     x: {
                         grid: {
-                            color: "rgba(255,255,255,0.08)",
+                            color: COLORS.grid,
                         },
                         ticks: {
-                            color: "rgba(255,255,255,0.72)",
+                            color: COLORS.tick,
                         },
                         border: {
                             display: false,
@@ -651,10 +662,10 @@
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: type === "line" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+                            color: type === "line" ? COLORS.grid : COLORS.gridSoft,
                         },
                         ticks: {
-                            color: "rgba(255,255,255,0.72)",
+                            color: COLORS.tick,
                         },
                         border: {
                             display: false,
