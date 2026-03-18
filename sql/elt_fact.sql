@@ -30,7 +30,7 @@ all_sessions AS (
     SELECT * FROM adhoc_sessions
 )
 INSERT INTO fact_session_event (
-    session_id,
+    session_key,
     date_key,
     location_key,
     program_key,
@@ -55,12 +55,12 @@ SELECT
     COALESCE(LOWER(s.status), '') IN ('overdue', 'late', 'delayed') AS is_overdue,
     1 AS session_count
 FROM all_sessions s
-LEFT JOIN dim_date d ON d.date_value = s.session_date
+LEFT JOIN dim_date d ON d.date = s.session_date
 LEFT JOIN dim_location l ON l.school_id = s.school_id
 LEFT JOIN dim_program p ON p.program_id = s.program_id
-LEFT JOIN dim_activity a ON a.activity_id = s.activity_id
+LEFT JOIN dim_activity a ON a.activity_type_id = s.activity_id
 LEFT JOIN dim_instructor i ON i.instructor_id = s.instructor_id
-LEFT JOIN dim_shift sh ON sh.shift_id = s.shift_id;
+LEFT JOIN dim_shift sh ON sh.shift_key = s.shift_id;
 
 WITH exposure_by_session AS (
     SELECT
@@ -97,7 +97,7 @@ SELECT
     e.community_women,
     e.guests_count
 FROM exposure_by_session e
-JOIN fact_session_event f ON f.session_id = e.session_id;
+JOIN fact_session_event f ON f.session_key = e.session_id;
 
 INSERT INTO fact_session_attribute (
     session_key,
@@ -109,4 +109,4 @@ SELECT
     COALESCE(NULLIF(a.question_asked, ''), CONCAT('question_', a.question_id::text)) AS attribute_name,
     a.question_answer AS attribute_value
 FROM {{SOURCE_FDW_SCHEMA}}.txn_feedback_answer a
-JOIN fact_session_event f ON f.session_id = a.session_id;
+JOIN fact_session_event f ON f.session_key = a.session_id;

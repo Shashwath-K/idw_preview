@@ -64,9 +64,9 @@ ORDER BY s.school_id;
 
 INSERT INTO dim_instructor (
     instructor_id,
-    instructor_name,
+    name,
     instructor_type,
-    assigned_region
+    region_assigned
 )
 SELECT
     i.instructor_id,
@@ -77,9 +77,9 @@ FROM {{SOURCE_FDW_SCHEMA}}.mst_instructor i
 ORDER BY i.instructor_id;
 
 INSERT INTO dim_activity (
-    activity_id,
+    activity_type_id,
     activity_name,
-    category
+    activity_category
 )
 SELECT
     a.activity_id,
@@ -89,7 +89,7 @@ FROM {{SOURCE_FDW_SCHEMA}}.mst_activity_type a
 ORDER BY a.activity_id;
 
 INSERT INTO dim_shift (
-    shift_id,
+    shift_key,
     shift_name
 )
 SELECT DISTINCT
@@ -120,27 +120,25 @@ calendar AS (
 )
 INSERT INTO dim_date (
     date_key,
-    date_value,
-    day_name,
+    date,
+    day,
     week,
     month,
-    month_name,
     quarter,
     year,
     financial_year
 )
 SELECT
     TO_CHAR(actual_date, 'YYYYMMDD')::int AS date_key,
-    actual_date AS date_value,
-    TRIM(TO_CHAR(actual_date, 'Day')) AS day_name,
+    actual_date AS date,
+    EXTRACT(DAY FROM actual_date)::int AS day,
     EXTRACT(WEEK FROM actual_date)::int AS week,
     EXTRACT(MONTH FROM actual_date)::int AS month,
-    TRIM(TO_CHAR(actual_date, 'Month')) AS month_name,
     EXTRACT(QUARTER FROM actual_date)::int AS quarter,
     EXTRACT(YEAR FROM actual_date)::int AS year,
     CASE
-        WHEN EXTRACT(MONTH FROM actual_date) >= 4 THEN EXTRACT(YEAR FROM actual_date)::int + 1
-        ELSE EXTRACT(YEAR FROM actual_date)::int
+        WHEN EXTRACT(MONTH FROM actual_date) >= 4 THEN (EXTRACT(YEAR FROM actual_date)::int + 1)::varchar
+        ELSE EXTRACT(YEAR FROM actual_date)::character varying
     END AS financial_year
 FROM calendar
 ORDER BY actual_date;
