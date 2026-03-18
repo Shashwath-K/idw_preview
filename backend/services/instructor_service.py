@@ -19,7 +19,7 @@ def get_instructor_kpis(
     row = fetch_one(
         f"""
         SELECT
-            COUNT(DISTINCT i.instructor_name) AS total_instructors,
+            COUNT(DISTINCT i.name) AS total_instructors,
             COALESCE(SUM(f.session_count), 0) AS sessions_conducted,
             COALESCE(
                 SUM(f.session_count)::numeric / NULLIF(COUNT(DISTINCT i.instructor_key), 0),
@@ -63,7 +63,7 @@ def get_instructor_productivity(
     rows = fetch_all(
         f"""
         SELECT
-            COALESCE(i.instructor_name, 'Unknown') AS label,
+            COALESCE(i.name, 'Unknown') AS label,
             COALESCE(SUM(f.session_count), 0) AS value
         FROM fact_session_event f
         LEFT JOIN dim_date d ON d.date_key = f.date_key
@@ -71,7 +71,7 @@ def get_instructor_productivity(
         LEFT JOIN dim_program p ON p.program_key = f.program_key
         LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
         {where_clause}
-        GROUP BY COALESCE(i.instructor_name, 'Unknown')
+        GROUP BY COALESCE(i.name, 'Unknown')
         ORDER BY value DESC, label
         LIMIT %s
         """,
@@ -98,16 +98,16 @@ def get_monthly_instructor_activity(
     rows = fetch_all(
         f"""
         SELECT
-            TO_CHAR(DATE_TRUNC('month', d.date_value), 'YYYY-MM') AS label,
+            TO_CHAR(DATE_TRUNC('month', d.date), 'YYYY-MM') AS label,
             COALESCE(SUM(f.session_count), 0) AS value,
-            DATE_TRUNC('month', d.date_value) AS sort_key
+            DATE_TRUNC('month', d.date) AS sort_key
         FROM fact_session_event f
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
-        GROUP BY DATE_TRUNC('month', d.date_value)
-        ORDER BY DATE_TRUNC('month', d.date_value)
+        GROUP BY DATE_TRUNC('month', d.date)
+        ORDER BY DATE_TRUNC('month', d.date)
         """,
         params,
     )

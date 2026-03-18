@@ -77,15 +77,15 @@ def get_monthly_sessions(
     rows = fetch_all(
         f"""
         SELECT
-            TO_CHAR(DATE_TRUNC('month', d.date_value), 'YYYY-MM') AS label,
+            TO_CHAR(DATE_TRUNC('month', d.date), 'YYYY-MM') AS label,
             COALESCE(SUM(f.session_count), COUNT(*), 0) AS value
         FROM fact_session_event f
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
-        GROUP BY DATE_TRUNC('month', d.date_value)
-        ORDER BY DATE_TRUNC('month', d.date_value)
+        GROUP BY DATE_TRUNC('month', d.date)
+        ORDER BY DATE_TRUNC('month', d.date)
         """,
         params,
     )

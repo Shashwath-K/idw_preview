@@ -93,17 +93,17 @@ def get_monthly_region_impact(
     rows = fetch_all(
         f"""
         SELECT
-            TO_CHAR(DATE_TRUNC('month', d.date_value), 'YYYY-MM') AS label,
+            TO_CHAR(DATE_TRUNC('month', d.date), 'YYYY-MM') AS label,
             COALESCE(SUM(COALESCE(e.students_total, 0)), 0) AS value,
-            DATE_TRUNC('month', d.date_value) AS sort_key
+            DATE_TRUNC('month', d.date) AS sort_key
         FROM fact_session_event f
         LEFT JOIN fact_exposure e ON e.session_key = f.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
-        GROUP BY DATE_TRUNC('month', d.date_value)
-        ORDER BY DATE_TRUNC('month', d.date_value)
+        GROUP BY DATE_TRUNC('month', d.date)
+        ORDER BY DATE_TRUNC('month', d.date)
         """,
         params,
     )
