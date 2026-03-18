@@ -9,8 +9,8 @@ from backend.db import get_admin_conn, get_datamart_conn, get_source_conn
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SOURCE_SCHEMA_FILE = BASE_DIR / "schema_updated_source.sql"
-DATAMART_SCHEMA_FILE = BASE_DIR / "data_schema.sql"
+SOURCE_SCHEMA_FILE = BASE_DIR / "source_data_schema.sql"
+DATAMART_SCHEMA_FILE = BASE_DIR / "dw_data.sql"
 
 
 def reset_databases() -> None:

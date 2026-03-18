@@ -32,7 +32,10 @@ def get_source_conn():
 
 
 def get_datamart_conn():
-    return _connect(DATAMART_DB_NAME)
+    conn = _connect(DATAMART_DB_NAME)
+    with conn.cursor() as cur:
+        cur.execute("SET search_path TO dw_data_schema, public")
+    return conn
 
 
 def get_conn():

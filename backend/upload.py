@@ -225,7 +225,7 @@ def _fetch_available_tables(conn) -> set[str]:
             """
             SELECT table_name
             FROM information_schema.tables
-            WHERE table_schema = 'public'
+            WHERE table_schema = 'source_data_schema'
               AND table_name = ANY(%s)
             """,
             [list(MANAGED_SOURCE_TABLES)],
@@ -239,7 +239,7 @@ def _fetch_table_metadata(conn, table_names: Iterable[str]) -> dict[str, list[di
             """
             SELECT table_name, column_name, is_nullable, column_default, data_type, udt_name
             FROM information_schema.columns
-            WHERE table_schema = 'public'
+            WHERE table_schema = 'source_data_schema'
               AND table_name = ANY(%s)
             ORDER BY table_name, ordinal_position
             """,
@@ -383,7 +383,7 @@ def _build_import_plan(
 
 
 def _truncate_source_tables(cur, table_names: Iterable[str]) -> None:
-    identifiers = [sql.Identifier("public", table_name) for table_name in table_names]
+    identifiers = [sql.Identifier("source_data_schema", table_name) for table_name in table_names]
     statement = sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY CASCADE").format(sql.SQL(", ").join(identifiers))
     cur.execute(statement)
 
@@ -421,7 +421,7 @@ def _insert_dataframe(
         return 0
 
     insert_sql = sql.SQL("INSERT INTO {} ({}) VALUES %s").format(
-        sql.Identifier("public", table_name),
+        sql.Identifier("source_data_schema", table_name),
         sql.SQL(", ").join(sql.Identifier(column_name) for column_name in selected_columns),
     )
     execute_values(cur, insert_sql.as_string(cur.connection), records, page_size=500)
