@@ -1,5 +1,13 @@
 (function () {
     const charts = {};
+    const overviewPalette = [
+        { dot: "overview-dot-violet", fill: "#6654d9" },
+        { dot: "overview-dot-green", fill: "#20c997" },
+        { dot: "overview-dot-blue", fill: "#4090f0" },
+        { dot: "overview-dot-amber", fill: "#f2ab30" },
+        { dot: "overview-dot-red", fill: "#e76d6d" },
+        { dot: "overview-dot-teal", fill: "#1eb18f" },
+    ];
 
     document.addEventListener("DOMContentLoaded", async () => {
         syncRangeLabels();
@@ -168,25 +176,27 @@
 
     async function loadDashboard() {
         const filters = getFilters();
-        const [sessionKpis, exposureKpis, instructorKpis, regionImpact, monthlySessions, instructorProductivity, programMetrics] = await Promise.all([
-            fetchJSON(`/session/kpis?${filters}`),
-            fetchJSON(`/exposure/kpis?${filters}`),
-            fetchJSON(`/instructor/kpis?${filters}`),
-            fetchJSON(`/region/impact?${filters}`),
-            fetchJSON(`/session/monthly?${filters}`),
-            fetchJSON(`/instructor/productivity?${filters}`),
-            fetchJSON(`/exposure/program-metrics?${filters}`),
+        const [kpis, targets, activity, donor] = await Promise.all([
+            fetchJSON(`/overview/kpis?${filters}`),
+            fetchJSON(`/overview/program-targets?${filters}`),
+            fetchJSON(`/overview/sessions-by-activity?${filters}`),
+            fetchJSON(`/overview/sessions-by-donor?${filters}`),
         ]);
 
-        setText("dashboardTotalSessions", sessionKpis.metrics.total_sessions);
-        setText("dashboardTotalStudents", exposureKpis.metrics.total_students);
-        setText("dashboardTotalInstructors", instructorKpis.metrics.total_instructors);
-        setText("dashboardTotalPrograms", exposureKpis.metrics.total_programs);
+        setText("kpiDonors", kpis.metrics.total_donors);
+        setText("kpiPrograms", kpis.metrics.total_programs);
+        setText("kpiProgramsTrack", kpis.metrics.programs_on_track);
+        setText("kpiProgramsRisk", kpis.metrics.programs_at_risk);
+        setText("kpiTargetSessions", kpis.metrics.target_sessions);
+        setText("kpiCompletedSessions", kpis.metrics.completed_sessions);
+        setText("kpiSessionsPct", percentOf(kpis.metrics.completed_sessions, kpis.metrics.target_sessions));
+        setText("kpiTargetStudents", kpis.metrics.target_students);
+        setText("kpiReachedStudents", kpis.metrics.reached_students);
+        setText("kpiStudentsPct", percentOf(kpis.metrics.reached_students, kpis.metrics.target_students));
 
-        renderBarChart("regionImpactChart", regionImpact.data, "Students Reached", "#007bff");
-        renderLineChart("monthlySessionsChart", monthlySessions.data, "Sessions", "#17a2b8");
-        renderHorizontalBarChart("instructorProductivityChart", instructorProductivity.data, "Sessions Conducted", "#fd7e14");
-        renderDoughnutChart("programMetricsChart", programMetrics.data);
+        renderProgramTargets(targets.data || []);
+        renderOverviewList("activityTypeList", activity.data || []);
+        renderOverviewList("donorSessionsList", donor.data || []);
     }
 
     async function loadSessionsPage() {
@@ -202,8 +212,8 @@
         setText("sessionActiveRegions", kpis.metrics.active_regions);
         setText("sessionPrograms", kpis.metrics.total_programs);
 
-        renderLineChart("sessionMonthlyChart", monthly.data, "Sessions", "#20c997");
-        renderBarChart("sessionRegionChart", byRegion.data, "Sessions", "#6610f2");
+        renderLineChart("sessionMonthlyChart", monthly.data, "Sessions", "#27c498");
+        renderBarChart("sessionRegionChart", byRegion.data, "Sessions", "#6654d9");
     }
 
     async function loadRegionPage() {
@@ -219,42 +229,327 @@
         setText("regionPrograms", kpis.metrics.total_programs);
         setText("regionAverageImpact", kpis.metrics.avg_students_per_state_period);
 
-        renderBarChart("regionStateChart", impact.data, "Students Reached", "#e83e8c");
-        renderLineChart("regionMonthlyChart", monthly.data, "Students Reached", "#007bff");
+        renderBarChart("regionStateChart", impact.data, "Students Reached", "#6654d9");
+        renderLineChart("regionMonthlyChart", monthly.data, "Students Reached", "#4090f0");
     }
 
     async function loadInstructorPage() {
         const filters = getFilters();
-        const [kpis, productivity, monthly] = await Promise.all([
+        const [kpis, sessionLog, typeBreakdown, multiProgram] = await Promise.all([
             fetchJSON(`/instructor/kpis?${filters}`),
-            fetchJSON(`/instructor/productivity?${filters}`),
-            fetchJSON(`/instructor/monthly?${filters}`),
+            fetchJSON(`/instructor/session-log?${filters}`),
+            fetchJSON(`/instructor/type-breakdown?${filters}`),
+            fetchJSON(`/instructor/multi-program?${filters}`),
         ]);
 
         setText("instructorTotal", kpis.metrics.total_instructors);
-        setText("instructorSessions", kpis.metrics.sessions_conducted);
         setText("instructorAverageSessions", kpis.metrics.avg_sessions_per_instructor);
-        setText("instructorStudentsReached", kpis.metrics.total_students_reached);
+        setText("instructorTopRegion", kpis.metrics.top_region || "-");
+        setText("instructorTopRegionSessions", kpis.metrics.top_region_sessions);
+        setText("instructorUnprocessed", kpis.metrics.unprocessed_sessions);
 
-        renderHorizontalBarChart("instructorTopChart", productivity.data, "Sessions Conducted", "#ffc107");
-        renderLineChart("instructorMonthlyChart", monthly.data, "Sessions Conducted", "#28a745");
+        renderInstructorLog(sessionLog.data || []);
+        renderInstructorTypeBreakdown(typeBreakdown.data || []);
+        renderMultiProgramInstructors(multiProgram.data || []);
     }
 
     async function loadProgramsPage() {
         const filters = getFilters();
-        const [kpis, metrics, distribution] = await Promise.all([
+        const [kpis, genderSplit, communitySplit, topSchools, cohortBreakdown] = await Promise.all([
             fetchJSON(`/exposure/kpis?${filters}`),
-            fetchJSON(`/exposure/program-metrics?${filters}`),
-            fetchJSON(`/exposure/program-distribution?${filters}`),
+            fetchJSON(`/exposure/gender-split?${filters}`),
+            fetchJSON(`/exposure/community-gender-split?${filters}`),
+            fetchJSON(`/exposure/top-schools?${filters}`),
+            fetchJSON(`/exposure/cohort-breakdown?${filters}`),
         ]);
 
         setText("programTotalStudents", kpis.metrics.total_students);
-        setText("programTotalPrograms", kpis.metrics.total_programs);
-        setText("programRegions", kpis.metrics.total_regions);
+        setText("programCommunityMembers", kpis.metrics.community_members);
+        setText("programTeachersReached", kpis.metrics.teachers_reached);
         setText("programAverageStudents", kpis.metrics.avg_students_per_exposure);
 
-        renderBarChart("programReachChart", metrics.data, "Students Reached", "#dc3545");
-        renderDoughnutChart("programDistributionChart", distribution.data);
+        renderExposureSplit(
+            {
+                leftValue: genderSplit.metrics.girls,
+                rightValue: genderSplit.metrics.boys,
+                leftLabel: "Girls",
+                rightLabel: "Boys",
+                leftBarId: "studentGirlsBar",
+                rightBarId: "studentBoysBar",
+                leftCountId: "studentGirlsCount",
+                rightCountId: "studentBoysCount",
+            }
+        );
+        renderExposureSplit(
+            {
+                leftValue: communitySplit.metrics.women,
+                rightValue: communitySplit.metrics.men,
+                leftLabel: "Women",
+                rightLabel: "Men",
+                leftBarId: "communityWomenBar",
+                rightBarId: "communityMenBar",
+                leftCountId: "communityWomenCount",
+                rightCountId: "communityMenCount",
+            }
+        );
+        renderTopSchools(topSchools.data || []);
+        renderCohortBreakdown(cohortBreakdown.data || []);
+    }
+
+    function renderProgramTargets(rows) {
+        const tbody = document.getElementById("programTargetsBody");
+        if (!tbody) {
+            return;
+        }
+
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="overview-empty">No program target data available.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map((row) => {
+            const progressClass = row.status === "On track"
+                ? "overview-progress-green"
+                : row.status === "At risk"
+                    ? "overview-progress-blue"
+                    : "overview-progress-amber";
+            const statusClass = row.status === "On track"
+                ? "overview-status-green"
+                : row.status === "At risk"
+                    ? "overview-status-amber"
+                    : "overview-status-red";
+            const targetValue = Number(row.target_sessions || 0).toLocaleString();
+            const completedValue = Number(row.completed_sessions || 0).toLocaleString();
+            const studentsValue = Number(row.students || 0).toLocaleString();
+            const progressPct = Math.max(4, Math.min(100, Number(row.progress_pct || 0)));
+
+            return `
+                <tr>
+                    <td class="program-name">${row.label}</td>
+                    <td class="program-muted">${row.donor}</td>
+                    <td>${completedValue} / ${targetValue}</td>
+                    <td>
+                        <div class="overview-progress-track">
+                            <div class="overview-progress-fill ${progressClass}" style="width: ${progressPct}%"></div>
+                        </div>
+                    </td>
+                    <td>${studentsValue}</td>
+                    <td class="program-muted">${row.end_date}</td>
+                    <td><span class="overview-status-pill ${statusClass}">${row.status}</span></td>
+                </tr>`;
+        }).join("");
+    }
+
+    function renderOverviewList(id, points) {
+        const container = document.getElementById(id);
+        if (!container) {
+            return;
+        }
+
+        if (!points.length) {
+            container.innerHTML = '<div class="overview-empty">No data available for this selection.</div>';
+            return;
+        }
+
+        const maxValue = Math.max(...points.map((point) => Number(point.value) || 0), 1);
+        container.innerHTML = points.map((point, index) => {
+            const tone = overviewPalette[index % overviewPalette.length];
+            const width = Math.max(10, ((Number(point.value) || 0) / maxValue) * 100);
+            return `
+                <div class="overview-list-row">
+                    <div class="overview-list-label"><span class="overview-list-dot ${tone.dot}"></span>${point.label}</div>
+                    <div class="overview-list-bar"><div class="overview-list-fill" style="width:${width}%; background:${tone.fill};"></div></div>
+                    <div class="overview-list-value">${Number(point.value || 0).toLocaleString()}</div>
+                </div>`;
+        }).join("");
+    }
+
+
+    function renderInstructorLog(rows) {
+        const tbody = document.getElementById("instructorLogBody");
+        if (!tbody) {
+            return;
+        }
+
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="instructor-empty">No instructor activity available.</td></tr>';
+            return;
+        }
+
+        const maxSessions = Math.max(...rows.map((row) => Number(row.sessions) || 0), 1);
+        tbody.innerHTML = rows.map((row) => {
+            const width = Math.max(8, ((Number(row.sessions) || 0) / maxSessions) * 100);
+            const typeClass = getInstructorTypeClass(row.type);
+            return `
+                <tr>
+                    <td class="instructor-name">${row.name}</td>
+                    <td><span class="instructor-type-pill ${typeClass}">${row.type}</span></td>
+                    <td class="instructor-muted">${row.region}</td>
+                    <td>${Number(row.sessions || 0).toLocaleString()}</td>
+                    <td>
+                        <div class="instructor-activity-track">
+                            <div class="instructor-activity-fill ${typeClass}" style="width:${width}%"></div>
+                        </div>
+                    </td>
+                    <td>${Number(row.students || 0).toLocaleString()}</td>
+                    <td class="instructor-muted">${row.last_session || "-"}</td>
+                </tr>`;
+        }).join("");
+    }
+
+    function renderInstructorTypeBreakdown(points) {
+        const container = document.getElementById("instructorTypeList");
+        if (!container) {
+            return;
+        }
+
+        if (!points.length) {
+            container.innerHTML = '<div class="instructor-empty">No instructor type data available.</div>';
+            return;
+        }
+
+        const total = points.reduce((sum, point) => sum + (Number(point.value) || 0), 0) || 1;
+        const maxValue = Math.max(...points.map((point) => Number(point.value) || 0), 1);
+        container.innerHTML = points.map((point) => {
+            const typeClass = getInstructorTypeClass(point.label);
+            const width = Math.max(10, ((Number(point.value) || 0) / maxValue) * 100);
+            const pct = Math.round(((Number(point.value) || 0) / total) * 100);
+            return `
+                <div class="instructor-type-row">
+                    <div class="instructor-type-meta">
+                        <span class="instructor-type-name">${point.label}</span>
+                        <span class="instructor-type-value">${Number(point.value || 0).toLocaleString()} (${pct}%)</span>
+                    </div>
+                    <div class="instructor-activity-track instructor-type-track">
+                        <div class="instructor-activity-fill ${typeClass}" style="width:${width}%"></div>
+                    </div>
+                </div>`;
+        }).join("");
+    }
+
+    function renderMultiProgramInstructors(rows) {
+        const container = document.getElementById("multiProgramList");
+        if (!container) {
+            return;
+        }
+
+        if (!rows.length) {
+            container.innerHTML = '<div class="instructor-empty">No multi-program instructor data available.</div>';
+            return;
+        }
+
+        container.innerHTML = rows.map((row, index) => `
+            <div class="instructor-rank-row">
+                <div class="instructor-rank-index">${index + 1}</div>
+                <div class="instructor-avatar">${row.initials}</div>
+                <div class="instructor-rank-copy">
+                    <div class="instructor-rank-name">${row.name}</div>
+                    <div class="instructor-rank-meta">${row.region} - ${row.type}</div>
+                </div>
+                <div class="instructor-rank-stats">
+                    <div class="instructor-rank-programs">${Number(row.programs || 0).toLocaleString()} programs</div>
+                    <div class="instructor-rank-sessions">${Number(row.sessions || 0).toLocaleString()} sessions</div>
+                </div>
+            </div>`).join("");
+    }
+
+    function getInstructorTypeClass(type) {
+        const value = String(type || "").toLowerCase();
+        if (value.includes("volunteer")) {
+            return "type-teal";
+        }
+        if (value.includes("instructor")) {
+            return "type-blue";
+        }
+        return "type-violet";
+    }
+
+
+    function renderExposureSplit(config) {
+        const total = Number(config.leftValue || 0) + Number(config.rightValue || 0);
+        const leftPct = total ? Math.round((Number(config.leftValue || 0) / total) * 100) : 0;
+        const rightPct = total ? 100 - leftPct : 0;
+
+        const leftBar = document.getElementById(config.leftBarId);
+        const rightBar = document.getElementById(config.rightBarId);
+        if (leftBar) {
+            leftBar.style.width = `${Math.max(leftPct, total ? 18 : 50)}%`;
+            leftBar.textContent = `${leftPct}% ${config.leftLabel}`;
+        }
+        if (rightBar) {
+            rightBar.style.width = `${Math.max(rightPct, total ? 18 : 50)}%`;
+            rightBar.textContent = `${rightPct}% ${config.rightLabel}`;
+        }
+        setText(config.leftCountId, config.leftValue);
+        setText(config.rightCountId, config.rightValue);
+    }
+
+    function renderTopSchools(rows) {
+        const container = document.getElementById("topSchoolsList");
+        if (!container) {
+            return;
+        }
+
+        if (!rows.length) {
+            container.innerHTML = '<div class="exposure-empty">No school exposure data available.</div>';
+            return;
+        }
+
+        const maxValue = Math.max(...rows.map((row) => Number(row.value) || 0), 1);
+        container.innerHTML = rows.map((row) => {
+            const width = Math.max(10, ((Number(row.value) || 0) / maxValue) * 100);
+            return `
+                <div class="exposure-school-row">
+                    <div class="exposure-school-copy">
+                        <div class="exposure-school-name">${row.label}</div>
+                        <div class="exposure-school-meta">${row.subtitle || "-"}</div>
+                    </div>
+                    <div class="exposure-school-bar"><div class="exposure-school-fill" style="width:${width}%"></div></div>
+                    <div class="exposure-school-value">${Number(row.value || 0).toLocaleString()}</div>
+                </div>`;
+        }).join("");
+    }
+
+    function renderCohortBreakdown(points) {
+        const container = document.getElementById("cohortBreakdownList");
+        if (!container) {
+            return;
+        }
+
+        if (!points.length) {
+            container.innerHTML = '<div class="exposure-empty">No cohort breakdown available.</div>';
+            return;
+        }
+
+        const total = points.reduce((sum, point) => sum + (Number(point.value) || 0), 0) || 1;
+        const palette = {
+            Students: { icon: 'fa-user-graduate', chip: 'exposure-chip-violet' },
+            Teachers: { icon: 'fa-chalkboard-teacher', chip: 'exposure-chip-teal' },
+            Community: { icon: 'fa-users', chip: 'exposure-chip-amber' },
+        };
+
+        container.innerHTML = points.map((point) => {
+            const pct = Math.round(((Number(point.value) || 0) / total) * 100);
+            const style = palette[point.label] || palette.Students;
+            return `
+                <div class="exposure-cohort-row">
+                    <div class="exposure-cohort-icon ${style.chip}"><i class="fas ${style.icon}"></i></div>
+                    <div class="exposure-cohort-copy">
+                        <div class="exposure-cohort-name">${point.label}</div>
+                        <div class="exposure-cohort-value">${Number(point.value || 0).toLocaleString()} <span>${pct}%</span></div>
+                        <div class="exposure-school-bar exposure-cohort-bar"><div class="exposure-school-fill" style="width:${Math.max(pct, 10)}%"></div></div>
+                    </div>
+                </div>`;
+        }).join("");
+    }
+
+    function percentOf(actual, target) {
+        const numerator = Number(actual || 0);
+        const denominator = Number(target || 0);
+        if (!denominator) {
+            return 0;
+        }
+        return Math.round((numerator / denominator) * 100);
     }
 
     function setText(id, value) {
@@ -270,7 +565,8 @@
     function renderBarChart(id, points, label, color) {
         renderChart(id, "bar", points, label, {
             backgroundColor: color,
-            borderRadius: 6,
+            borderRadius: 8,
+            barThickness: 18,
         });
     }
 
@@ -278,7 +574,18 @@
         renderChart(id, "bar", points, label, {
             backgroundColor: color,
             indexAxis: "y",
-            borderRadius: 6,
+            borderRadius: 8,
+            barThickness: 12,
+        });
+    }
+
+    function renderHorizontalPaletteChart(id, points, label) {
+        const palette = ["#27c498", "#4090f0", "#f2ab30", "#6654d9", "#e76d6d", "#1eb18f", "#8f6cf2", "#f38f5d"];
+        renderChart(id, "bar", points, label, {
+            backgroundColor: points.map((_, index) => palette[index % palette.length]),
+            indexAxis: "y",
+            borderRadius: 8,
+            barThickness: 12,
         });
     }
 
@@ -286,16 +593,11 @@
         renderChart(id, "line", points, label, {
             borderColor: color,
             backgroundColor: `${color}33`,
+            pointBackgroundColor: color,
+            pointBorderColor: color,
+            pointRadius: 3,
             tension: 0.35,
             fill: true,
-        });
-    }
-
-    function renderDoughnutChart(id, points) {
-        const palette = ["#007bff", "#17a2b8", "#28a745", "#ffc107", "#dc3545", "#6610f2", "#fd7e14", "#20c997"];
-        renderChart(id, "doughnut", points, "Programs", {
-            backgroundColor: points.map((_, index) => palette[index % palette.length]),
-            borderWidth: 1,
         });
     }
 
@@ -324,13 +626,39 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: type === "doughnut",
-                        position: "bottom",
+                        display: false,
+                    },
+                    tooltip: {
+                        backgroundColor: "rgba(23, 23, 23, 0.92)",
+                        titleColor: "#fff",
+                        bodyColor: "#fff",
+                        borderColor: "rgba(255,255,255,0.08)",
+                        borderWidth: 1,
                     },
                 },
-                scales: type === "doughnut" ? {} : {
+                scales: {
+                    x: {
+                        grid: {
+                            color: "rgba(255,255,255,0.08)",
+                        },
+                        ticks: {
+                            color: "rgba(255,255,255,0.72)",
+                        },
+                        border: {
+                            display: false,
+                        },
+                    },
                     y: {
                         beginAtZero: true,
+                        grid: {
+                            color: type === "line" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+                        },
+                        ticks: {
+                            color: "rgba(255,255,255,0.72)",
+                        },
+                        border: {
+                            display: false,
+                        },
                     },
                 },
             },

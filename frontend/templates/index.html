@@ -1,13 +1,21 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="row">
+<div class="hero-strip overview-hero mb-4">
+    <div class="overview-title-row">
+        <h2 class="hero-title">Program & Donor Tracker</h2>
+        <button class="overview-info-trigger" type="button" aria-label="About Program and Donor Tracker">
+            <i class="fas fa-info"></i>
+            <span class="overview-info-popover">Monitor donor-backed programs, compare planned targets against actual delivery, and scan which activities and donors are driving session volume.</span>
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
     <div class="col-12">
-        <div class="card card-outline card-primary filter-panel">
-            <div class="card-header">
-                <h3 class="card-title">Global Filters</h3>
-            </div>
-            <div class="card-body">
+        <div class="card card-outline card-primary filter-panel overview-filter-panel">
+            <div class="card-header border-0 pb-0"><h3 class="card-title">Global Filters</h3></div>
+            <div class="card-body pt-3">
                 <div class="row">
                     <div class="col-md-3">
                         <label for="startYear">Start Year</label>
@@ -37,69 +45,99 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-info">
-            <div class="inner">
-                <h3 id="dashboardTotalSessions">0</h3>
-                <p>Total Sessions</p>
+<div class="row kpi-grid overview-kpi-grid">
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card overview-kpi-card kpi-card-aqua">
+            <div class="overview-kpi-top">
+                <span class="kpi-label">Donors</span>
+                <span class="overview-kpi-icon"><i class="fas fa-donate"></i></span>
             </div>
-            <div class="icon"><i class="fas fa-calendar-check"></i></div>
-        </div>
+            <span class="kpi-value" id="kpiDonors">0</span>
+            <span class="kpi-copy">funding active programs</span>
+        </section>
     </div>
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-success">
-            <div class="inner">
-                <h3 id="dashboardTotalStudents">0</h3>
-                <p>Total Students</p>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card overview-kpi-card kpi-card-emerald">
+            <div class="overview-kpi-top">
+                <span class="kpi-label">Programs</span>
+                <span class="overview-kpi-icon"><i class="fas fa-project-diagram"></i></span>
             </div>
-            <div class="icon"><i class="fas fa-user-graduate"></i></div>
-        </div>
+            <span class="kpi-value" id="kpiPrograms">0</span>
+            <span class="kpi-copy"><strong id="kpiProgramsTrack">0</strong> on track, <strong id="kpiProgramsRisk">0</strong> at risk</span>
+        </section>
     </div>
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-warning">
-            <div class="inner">
-                <h3 id="dashboardTotalInstructors">0</h3>
-                <p>Total Instructors</p>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card overview-kpi-card kpi-card-amber">
+            <div class="overview-kpi-top">
+                <span class="kpi-label">Target Sessions</span>
+                <span class="overview-kpi-icon"><i class="fas fa-calendar-check"></i></span>
             </div>
-            <div class="icon"><i class="fas fa-chalkboard-teacher"></i></div>
-        </div>
+            <span class="kpi-value" id="kpiTargetSessions">0</span>
+            <span class="kpi-copy"><strong id="kpiCompletedSessions">0</strong> completed (<strong id="kpiSessionsPct">0</strong>%)</span>
+        </section>
     </div>
-    <div class="col-lg-3 col-6">
-        <div class="small-box bg-danger">
-            <div class="inner">
-                <h3 id="dashboardTotalPrograms">0</h3>
-                <p>Total Programs</p>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card overview-kpi-card kpi-card-rose">
+            <div class="overview-kpi-top">
+                <span class="kpi-label">Target Students</span>
+                <span class="overview-kpi-icon"><i class="fas fa-user-graduate"></i></span>
             </div>
-            <div class="icon"><i class="fas fa-layer-group"></i></div>
-        </div>
+            <span class="kpi-value" id="kpiTargetStudents">0</span>
+            <span class="kpi-copy"><strong id="kpiReachedStudents">0</strong> reached (<strong id="kpiStudentsPct">0</strong>%)</span>
+        </section>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <section class="overview-surface overview-table-panel">
+            <div class="overview-panel-head">
+                <h3 class="panel-title">Program-level targets vs actuals</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="overview-table">
+                    <thead>
+                        <tr>
+                            <th>Program</th>
+                            <th>Donor</th>
+                            <th>Sessions</th>
+                            <th>Progress</th>
+                            <th>Students</th>
+                            <th>End date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="programTargetsBody">
+                        <tr>
+                            <td colspan="7" class="overview-empty">Loading program targets...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Region Impact</h3></div>
-            <div class="card-body"><canvas id="regionImpactChart" height="180"></canvas></div>
-        </div>
+    <div class="col-lg-7 mb-4">
+        <section class="overview-surface overview-list-panel h-100">
+            <div class="overview-panel-head">
+                <h3 class="panel-title">Sessions by activity type</h3>
+            </div>
+            <div class="overview-list" id="activityTypeList">
+                <div class="overview-empty">Loading activity distribution...</div>
+            </div>
+        </section>
     </div>
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Monthly Sessions</h3></div>
-            <div class="card-body"><canvas id="monthlySessionsChart" height="180"></canvas></div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Instructor Productivity</h3></div>
-            <div class="card-body"><canvas id="instructorProductivityChart" height="180"></canvas></div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Program Metrics</h3></div>
-            <div class="card-body"><canvas id="programMetricsChart" height="180"></canvas></div>
-        </div>
+    <div class="col-lg-5 mb-4">
+        <section class="overview-surface overview-list-panel h-100">
+            <div class="overview-panel-head">
+                <h3 class="panel-title">Sessions by donor</h3>
+            </div>
+            <div class="overview-list donor-list" id="donorSessionsList">
+                <div class="overview-empty">Loading donor distribution...</div>
+            </div>
+        </section>
     </div>
 </div>
 {% endblock %}

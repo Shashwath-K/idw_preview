@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="hero-strip mb-4">
+    <h2 class="hero-title">Dashboard 5 - Region impact</h2>
+    <p class="hero-subtitle">See how geography shapes outreach with regional reach totals and month-by-month movement.</p>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card card-outline card-primary filter-panel">
+            <div class="card-header border-0 pb-0"><h3 class="card-title">Region Filters</h3></div>
+            <div class="card-body pt-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="startYear">Start Year</label>
+                        <input id="startYear" type="range" min="2020" max="2026" value="2020" class="custom-range">
+                        <div class="filter-value" id="startYearLabel">2020</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="endYear">End Year</label>
+                        <input id="endYear" type="range" min="2020" max="2026" value="2026" class="custom-range">
+                        <div class="filter-value" id="endYearLabel">2026</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="regionFilter">Region</label>
+                        <select id="regionFilter" class="form-control">
+                            <option value="">All Regions</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="programFilter">Program</label>
+                        <select id="programFilter" class="form-control">
+                            <option value="">All Programs</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row kpi-grid">
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Students Reached</span>
+            <span class="kpi-value" id="regionStudentsReached">0</span>
+            <span class="kpi-copy">total regional student exposure</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">States</span>
+            <span class="kpi-value" id="regionStates">0</span>
+            <span class="kpi-copy">distinct states active in the window</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Programs</span>
+            <span class="kpi-value" id="regionPrograms">0</span>
+            <span class="kpi-copy">session-program footprint in regions</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Avg Impact</span>
+            <span class="kpi-value" id="regionAverageImpact">0</span>
+            <span class="kpi-copy">average student reach per state period</span>
+        </section>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-7 mb-4 mb-lg-0">
+        <section class="dashboard-panel h-100">
+            <h3 class="panel-title">Region impact</h3>
+            <p class="panel-copy">Students reached by state in the selected filters.</p>
+            <div class="chart-stage mt-3">
+                <canvas id="regionStateChart" height="180"></canvas>
+            </div>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="dashboard-panel h-100">
+            <h3 class="panel-title">Monthly region impact</h3>
+            <p class="panel-copy">The movement of regional reach over time.</p>
+            <div class="chart-stage mt-3">
+                <canvas id="regionMonthlyChart" height="180"></canvas>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -1,11 +1,21 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="row">
+<div class="hero-strip exposure-hero mb-4">
+    <div class="exposure-title-row">
+        <h2 class="hero-title">Student Exposure & Outreach</h2>
+        <button class="exposure-info-trigger" type="button" aria-label="About Student Exposure and Outreach">
+            <i class="fas fa-info"></i>
+            <span class="exposure-info-popover">Track student and community reach, compare gender balance, and surface the schools and cohorts receiving the strongest exposure footprint.</span>
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
     <div class="col-12">
-        <div class="card card-outline card-primary filter-panel">
-            <div class="card-header"><h3 class="card-title">Program Filters</h3></div>
-            <div class="card-body">
+        <div class="card card-outline card-primary filter-panel exposure-filter-panel">
+            <div class="card-header border-0 pb-0"><h3 class="card-title">Exposure Filters</h3></div>
+            <div class="card-body pt-3">
                 <div class="row">
                     <div class="col-md-3">
                         <label for="startYear">Start Year</label>
@@ -35,25 +45,102 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-lg-3 col-6"><div class="small-box bg-info"><div class="inner"><h3 id="programTotalStudents">0</h3><p>Total Students</p></div><div class="icon"><i class="fas fa-user-graduate"></i></div></div></div>
-    <div class="col-lg-3 col-6"><div class="small-box bg-success"><div class="inner"><h3 id="programTotalPrograms">0</h3><p>Total Programs</p></div><div class="icon"><i class="fas fa-layer-group"></i></div></div></div>
-    <div class="col-lg-3 col-6"><div class="small-box bg-warning"><div class="inner"><h3 id="programRegions">0</h3><p>Regions Covered</p></div><div class="icon"><i class="fas fa-map"></i></div></div></div>
-    <div class="col-lg-3 col-6"><div class="small-box bg-danger"><div class="inner"><h3 id="programAverageStudents">0</h3><p>Avg Students / Exposure</p></div><div class="icon"><i class="fas fa-chart-pie"></i></div></div></div>
+<div class="row kpi-grid exposure-kpi-grid">
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card exposure-kpi-card exposure-kpi-violet">
+            <div class="exposure-kpi-top">
+                <span class="kpi-label">Total Students</span>
+                <span class="exposure-kpi-icon"><i class="fas fa-user-graduate"></i></span>
+            </div>
+            <span class="kpi-value" id="programTotalStudents">0</span>
+            <span class="kpi-copy">boys + girls</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card exposure-kpi-card exposure-kpi-teal">
+            <div class="exposure-kpi-top">
+                <span class="kpi-label">Community Members</span>
+                <span class="exposure-kpi-icon"><i class="fas fa-users"></i></span>
+            </div>
+            <span class="kpi-value" id="programCommunityMembers">0</span>
+            <span class="kpi-copy">men + women</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card exposure-kpi-card exposure-kpi-cyan">
+            <div class="exposure-kpi-top">
+                <span class="kpi-label">Teachers Reached</span>
+                <span class="exposure-kpi-icon"><i class="fas fa-chalkboard-teacher"></i></span>
+            </div>
+            <span class="kpi-value" id="programTeachersReached">0</span>
+            <span class="kpi-copy">across all sessions</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card exposure-kpi-card exposure-kpi-amber">
+            <div class="exposure-kpi-top">
+                <span class="kpi-label">Avg Per Session</span>
+                <span class="exposure-kpi-icon"><i class="fas fa-chart-bar"></i></span>
+            </div>
+            <span class="kpi-value" id="programAverageStudents">0</span>
+            <span class="kpi-copy">students per session</span>
+        </section>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4 mb-lg-0">
+        <section class="exposure-surface h-100">
+            <div class="exposure-panel-head">
+                <h3 class="panel-title">Gender split - students</h3>
+            </div>
+            <div class="exposure-split-bar">
+                <div class="exposure-split-segment exposure-split-girls" id="studentGirlsBar">0% Girls</div>
+                <div class="exposure-split-segment exposure-split-boys" id="studentBoysBar">0% Boys</div>
+            </div>
+            <div class="exposure-legend-row">
+                <div class="exposure-legend-item"><span class="exposure-dot exposure-dot-violet"></span>Girls - <strong id="studentGirlsCount">0</strong></div>
+                <div class="exposure-legend-item"><span class="exposure-dot exposure-dot-blue"></span>Boys - <strong id="studentBoysCount">0</strong></div>
+            </div>
+        </section>
+    </div>
+    <div class="col-lg-6">
+        <section class="exposure-surface h-100">
+            <div class="exposure-panel-head">
+                <h3 class="panel-title">Community gender split</h3>
+            </div>
+            <div class="exposure-split-bar">
+                <div class="exposure-split-segment exposure-split-women" id="communityWomenBar">0% Women</div>
+                <div class="exposure-split-segment exposure-split-men" id="communityMenBar">0% Men</div>
+            </div>
+            <div class="exposure-legend-row">
+                <div class="exposure-legend-item"><span class="exposure-dot exposure-dot-green"></span>Women - <strong id="communityWomenCount">0</strong></div>
+                <div class="exposure-legend-item"><span class="exposure-dot exposure-dot-amber"></span>Men - <strong id="communityMenCount">0</strong></div>
+            </div>
+        </section>
+    </div>
 </div>
 
 <div class="row">
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Program Reach</h3></div>
-            <div class="card-body"><canvas id="programReachChart" height="180"></canvas></div>
-        </div>
+    <div class="col-lg-6 mb-4">
+        <section class="exposure-surface h-100">
+            <div class="exposure-panel-head">
+                <h3 class="panel-title">Top schools by students reached</h3>
+            </div>
+            <div class="exposure-school-list" id="topSchoolsList">
+                <div class="exposure-empty">Loading school reach...</div>
+            </div>
+        </section>
     </div>
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Program Distribution</h3></div>
-            <div class="card-body"><canvas id="programDistributionChart" height="180"></canvas></div>
-        </div>
+    <div class="col-lg-6 mb-4">
+        <section class="exposure-surface h-100">
+            <div class="exposure-panel-head">
+                <h3 class="panel-title">Exposure by cohort type</h3>
+            </div>
+            <div class="exposure-cohort-list" id="cohortBreakdownList">
+                <div class="exposure-empty">Loading cohort breakdown...</div>
+            </div>
+        </section>
     </div>
 </div>
 {% endblock %}

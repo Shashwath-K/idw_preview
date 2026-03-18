@@ -1,11 +1,21 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="row">
+<div class="hero-strip instructor-hero mb-4">
+    <div class="instructor-title-row">
+        <h2 class="hero-title">Instructor Performance</h2>
+        <button class="instructor-info-trigger" type="button" aria-label="About Instructor Performance">
+            <i class="fas fa-info"></i>
+            <span class="instructor-info-popover">Track active instructors, compare session contribution, and identify the team members supporting multiple programs across regions.</span>
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
     <div class="col-12">
-        <div class="card card-outline card-primary filter-panel">
-            <div class="card-header"><h3 class="card-title">Instructor Filters</h3></div>
-            <div class="card-body">
+        <div class="card card-outline card-primary filter-panel instructor-filter-panel">
+            <div class="card-header border-0 pb-0"><h3 class="card-title">Instructor Filters</h3></div>
+            <div class="card-body pt-3">
                 <div class="row">
                     <div class="col-md-3">
                         <label for="startYear">Start Year</label>
@@ -35,25 +45,99 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-lg-3 col-6"><div class="small-box bg-info"><div class="inner"><h3 id="instructorTotal">0</h3><p>Total Instructors</p></div><div class="icon"><i class="fas fa-users"></i></div></div></div>
-    <div class="col-lg-3 col-6"><div class="small-box bg-success"><div class="inner"><h3 id="instructorSessions">0</h3><p>Sessions Conducted</p></div><div class="icon"><i class="fas fa-calendar-check"></i></div></div></div>
-    <div class="col-lg-3 col-6"><div class="small-box bg-warning"><div class="inner"><h3 id="instructorAverageSessions">0</h3><p>Avg Sessions / Instructor</p></div><div class="icon"><i class="fas fa-balance-scale"></i></div></div></div>
-    <div class="col-lg-3 col-6"><div class="small-box bg-danger"><div class="inner"><h3 id="instructorStudentsReached">0</h3><p>Students Reached</p></div><div class="icon"><i class="fas fa-user-graduate"></i></div></div></div>
+<div class="row kpi-grid instructor-kpi-grid">
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card instructor-kpi-card instructor-kpi-blue">
+            <div class="instructor-kpi-top">
+                <span class="kpi-label">Active Instructors</span>
+                <span class="instructor-kpi-icon"><i class="fas fa-chalkboard-teacher"></i></span>
+            </div>
+            <span class="kpi-value" id="instructorTotal">0</span>
+            <span class="kpi-copy">ignitors + volunteers</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card instructor-kpi-card instructor-kpi-teal">
+            <div class="instructor-kpi-top">
+                <span class="kpi-label">Avg Sessions / Month</span>
+                <span class="instructor-kpi-icon"><i class="fas fa-chart-line"></i></span>
+            </div>
+            <span class="kpi-value" id="instructorAverageSessions">0</span>
+            <span class="kpi-copy">per active instructor</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card instructor-kpi-card instructor-kpi-violet">
+            <div class="instructor-kpi-top">
+                <span class="kpi-label">Top Region</span>
+                <span class="instructor-kpi-icon"><i class="fas fa-map-marked-alt"></i></span>
+            </div>
+            <span class="kpi-value instructor-kpi-text" id="instructorTopRegion">-</span>
+            <span class="kpi-copy"><strong id="instructorTopRegionSessions">0</strong> sessions</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card instructor-kpi-card instructor-kpi-rose">
+            <div class="instructor-kpi-top">
+                <span class="kpi-label">Unprocessed Sessions</span>
+                <span class="instructor-kpi-icon"><i class="fas fa-exclamation-circle"></i></span>
+            </div>
+            <span class="kpi-value" id="instructorUnprocessed">0</span>
+            <span class="kpi-copy">needs feedback entry</span>
+        </section>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <section class="instructor-surface instructor-log-panel">
+            <div class="instructor-panel-head">
+                <h3 class="panel-title">Instructor session log</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="instructor-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Region</th>
+                            <th>Sessions</th>
+                            <th>Activity</th>
+                            <th>Students</th>
+                            <th>Last session</th>
+                        </tr>
+                    </thead>
+                    <tbody id="instructorLogBody">
+                        <tr>
+                            <td colspan="7" class="instructor-empty">Loading instructor session log...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
 </div>
 
 <div class="row">
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Top Instructors</h3></div>
-            <div class="card-body"><canvas id="instructorTopChart" height="180"></canvas></div>
-        </div>
+    <div class="col-lg-5 mb-4">
+        <section class="instructor-surface instructor-type-panel h-100">
+            <div class="instructor-panel-head">
+                <h3 class="panel-title">Sessions by instructor type</h3>
+            </div>
+            <div class="instructor-type-list" id="instructorTypeList">
+                <div class="instructor-empty">Loading instructor types...</div>
+            </div>
+        </section>
     </div>
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><h3 class="card-title">Monthly Instructor Activity</h3></div>
-            <div class="card-body"><canvas id="instructorMonthlyChart" height="180"></canvas></div>
-        </div>
+    <div class="col-lg-7 mb-4">
+        <section class="instructor-surface instructor-multi-panel h-100">
+            <div class="instructor-panel-head">
+                <h3 class="panel-title">Multi-program instructors</h3>
+            </div>
+            <div class="instructor-rank-list" id="multiProgramList">
+                <div class="instructor-empty">Loading multi-program instructors...</div>
+            </div>
+        </section>
     </div>
 </div>
 {% endblock %}
