@@ -587,6 +587,12 @@ body[data-page="dashboard"] .overview-table .program-muted {
     color: var(--text-muted);
 }
 
+body[data-page="dashboard"] .overview-progress-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
 body[data-page="dashboard"] .overview-progress-track {
     width: 140px;
     height: 7px;
@@ -598,6 +604,13 @@ body[data-page="dashboard"] .overview-progress-track {
 body[data-page="dashboard"] .overview-progress-fill {
     height: 100%;
     border-radius: 999px;
+}
+
+body[data-page="dashboard"] .overview-progress-pct {
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 body[data-page="dashboard"] .overview-progress-green { background: var(--brand-teal); }
@@ -688,11 +701,26 @@ body[data-page="dashboard"] .overview-list-fill {
 }
 
 body[data-page="dashboard"] .overview-list-value {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     color: var(--text-muted);
-    font-size: 0.92rem;
-    font-weight: 600;
     text-align: right;
     white-space: nowrap;
+}
+
+body[data-page="dashboard"] .overview-list-pct {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    padding: 0.24rem 0.55rem;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #4b5563;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
 }
 
 body[data-page="dashboard"] .overview-empty {
@@ -1579,3 +1607,4 @@ body[data-page="programs"] .exposure-empty {
         grid-template-columns: 1fr;
     }
 }
+
