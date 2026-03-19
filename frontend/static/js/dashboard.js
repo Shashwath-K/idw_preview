@@ -200,14 +200,15 @@
         setText("kpiProgramsRisk", kpis.metrics.programs_at_risk);
         setText("kpiTargetSessions", kpis.metrics.target_sessions);
         setText("kpiCompletedSessions", kpis.metrics.completed_sessions);
-        setText("kpiSessionsPct", percentOf(kpis.metrics.completed_sessions, kpis.metrics.target_sessions));
+        const overallCompletionPct = percentOf(kpis.metrics.completed_sessions, kpis.metrics.target_sessions);
+        setText("kpiSessionsPct", overallCompletionPct);
         setText("kpiTargetStudents", kpis.metrics.target_students);
         setText("kpiReachedStudents", kpis.metrics.reached_students);
         setText("kpiStudentsPct", percentOf(kpis.metrics.reached_students, kpis.metrics.target_students));
 
         renderProgramTargets(targets.data || []);
-        renderOverviewList("activityTypeList", activity.data || []);
-        renderOverviewList("donorSessionsList", donor.data || []);
+        renderOverviewList("activityTypeList", activity.data || [], overallCompletionPct);
+        renderOverviewList("donorSessionsList", donor.data || [], overallCompletionPct);
     }
 
     async function loadSessionsPage() {
@@ -332,7 +333,8 @@
             const targetValue = Number(row.target_sessions || 0).toLocaleString();
             const completedValue = Number(row.completed_sessions || 0).toLocaleString();
             const studentsValue = Number(row.students || 0).toLocaleString();
-            const progressPct = Math.max(4, Math.min(100, Number(row.progress_pct || 0)));
+            const actualProgressPct = Math.max(0, Math.min(100, Number(row.progress_pct || 0)));
+            const progressPct = actualProgressPct > 0 ? Math.max(4, actualProgressPct) : 0;
 
             return `
                 <tr>
@@ -340,8 +342,11 @@
                     <td class="program-muted">${row.donor}</td>
                     <td>${completedValue} / ${targetValue}</td>
                     <td>
-                        <div class="overview-progress-track">
-                            <div class="overview-progress-fill ${progressClass}" style="width: ${progressPct}%"></div>
+                        <div class="overview-progress-meta">
+                            <div class="overview-progress-track">
+                                <div class="overview-progress-fill ${progressClass}" style="width: ${progressPct}%"></div>
+                            </div>
+                            <span class="overview-progress-pct">${formatPercent(actualProgressPct, 0)}</span>
                         </div>
                     </td>
                     <td>${studentsValue}</td>
@@ -351,7 +356,7 @@
         }).join("");
     }
 
-    function renderOverviewList(id, points) {
+    function renderOverviewList(id, points, overallCompletionPct = 0) {
         const container = document.getElementById(id);
         if (!container) {
             return;
@@ -362,17 +367,32 @@
             return;
         }
 
+        const totalValue = points.reduce((sum, point) => sum + (Number(point.value) || 0), 0);
         const maxValue = Math.max(...points.map((point) => Number(point.value) || 0), 1);
         container.innerHTML = points.map((point, index) => {
             const tone = overviewPalette[index % overviewPalette.length];
-            const width = Math.max(10, ((Number(point.value) || 0) / maxValue) * 100);
+            const value = Number(point.value) || 0;
+            const width = Math.max(10, (value / maxValue) * 100);
+            const sharePct = totalValue > 0 ? (value / totalValue) * 100 : 0;
             return `
                 <div class="overview-list-row">
                     <div class="overview-list-label"><span class="overview-list-dot ${tone.dot}"></span>${point.label}</div>
-                    <div class="overview-list-bar"><div class="overview-list-fill" style="width:${width}%; background:${tone.fill};"></div></div>
-                    <div class="overview-list-value">${Number(point.value || 0).toLocaleString()}</div>
+                    <div class="overview-list-bar" title="${value.toLocaleString()} sessions, ${formatPercent(sharePct)} of total, ${formatPercent(overallCompletionPct, 0)} completed">
+                        <div class="overview-list-fill" style="width:${width}%; background:${tone.fill};"></div>
+                    </div>
+                    <div class="overview-list-value">
+                        <span class="overview-list-pct">${formatPercent(sharePct)}</span>
+                    </div>
                 </div>`;
         }).join("");
+    }
+
+    function formatPercent(value, decimals = 1) {
+        const numericValue = Number(value) || 0;
+        return `${numericValue.toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: decimals,
+        })}%`;
     }
 
 
@@ -684,3 +704,4 @@
         return response.json();
     }
 })();
+
