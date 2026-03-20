@@ -14,6 +14,7 @@ def get_instructor_kpis(
     end: int | None = None,
     region: str | None = None,
     program: str | None = None,
+    instructor: str | None = None,
 ) -> dict[str, int | float | str]:
     where_clause, params = build_dimension_filters(
         start=start,
@@ -23,6 +24,8 @@ def get_instructor_kpis(
         year_expression="d.year",
         location_expression="l.state",
         program_expression="p.program_name",
+        instructor=instructor,
+        instructor_expression="i.instructor_type",
     )
     row = fetch_one(
         f"""
@@ -77,6 +80,7 @@ def get_instructor_session_log(
     end: int | None = None,
     region: str | None = None,
     program: str | None = None,
+    instructor: str | None = None,
     limit: int = 8,
 ) -> list[dict]:
     where_clause, params = build_dimension_filters(
@@ -87,6 +91,8 @@ def get_instructor_session_log(
         year_expression="d.year",
         location_expression="l.state",
         program_expression="p.program_name",
+        instructor=instructor,
+        instructor_expression="i.instructor_type",
     )
     rows = fetch_all(
         f"""
@@ -128,6 +134,7 @@ def get_multi_program_instructors(
     end: int | None = None,
     region: str | None = None,
     program: str | None = None,
+    instructor: str | None = None,
     limit: int = 5,
 ) -> list[dict]:
     where_clause, params = build_dimension_filters(
@@ -138,6 +145,8 @@ def get_multi_program_instructors(
         year_expression="d.year",
         location_expression="l.state",
         program_expression="p.program_name",
+        instructor=instructor,
+        instructor_expression="i.instructor_type",
     )
     rows = fetch_all(
         f"""
@@ -178,6 +187,7 @@ def get_sessions_by_instructor_type(
     end: int | None = None,
     region: str | None = None,
     program: str | None = None,
+    instructor: str | None = None,
 ) -> list[dict]:
     where_clause, params = build_dimension_filters(
         start=start,
@@ -187,6 +197,8 @@ def get_sessions_by_instructor_type(
         year_expression="d.year",
         location_expression="l.state",
         program_expression="p.program_name",
+        instructor=instructor,
+        instructor_expression="i.instructor_type",
     )
     rows = fetch_all(
         f"""
@@ -207,14 +219,27 @@ def get_sessions_by_instructor_type(
     return [{"label": row["label"], "value": float(row["value"] or 0)} for row in rows]
 
 
+def get_instructor_type_options() -> list[str]:
+    rows = fetch_all(
+        """
+        SELECT DISTINCT instructor_type
+        FROM dim_instructor
+        WHERE instructor_type IS NOT NULL
+        ORDER BY instructor_type
+        """
+    )
+    return [str(row["instructor_type"]) for row in rows if row.get("instructor_type")]
+
+
 def get_instructor_productivity(
     start: int | None = None,
     end: int | None = None,
     region: str | None = None,
     program: str | None = None,
+    instructor: str | None = None,
     limit: int = 10,
 ) -> list[dict]:
-    rows = get_instructor_session_log(start=start, end=end, region=region, program=program, limit=limit)
+    rows = get_instructor_session_log(start=start, end=end, region=region, program=program, instructor=instructor, limit=limit)
     return [{"label": row["name"], "value": float(row["sessions"])} for row in rows]
 
 
@@ -223,6 +248,7 @@ def get_monthly_instructor_activity(
     end: int | None = None,
     region: str | None = None,
     program: str | None = None,
+    instructor: str | None = None,
 ) -> list[dict]:
     where_clause, params = build_dimension_filters(
         start=start,
@@ -232,6 +258,8 @@ def get_monthly_instructor_activity(
         year_expression="d.year",
         location_expression="l.state",
         program_expression="p.program_name",
+        instructor=instructor,
+        instructor_expression="i.instructor_type",
     )
     rows = fetch_all(
         f"""
