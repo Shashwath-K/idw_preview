@@ -13,6 +13,8 @@ def build_dimension_filters(
     year_expression: str | None = None,
     location_expression: str | None = None,
     program_expression: str | None = None,
+    instructor: str | None = None,
+    instructor_expression: str | None = None,
 ) -> tuple[str, list[object]]:
     clauses: list[str] = []
     params: list[object] = []
@@ -40,6 +42,10 @@ def build_dimension_filters(
     if program and program_expression:
         clauses.append(f"{program_expression} = %s")
         params.append(program)
+
+    if instructor and instructor_expression:
+        clauses.append(f"{instructor_expression} = %s")
+        params.append(instructor)
 
     if not clauses:
         return "", params
