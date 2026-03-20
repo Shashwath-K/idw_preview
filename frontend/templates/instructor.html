@@ -35,9 +35,13 @@
                     </div>
                     <div class="col-md-3">
                         <label for="programFilter">Program</label>
-                        <select id="programFilter" class="form-control">
-                            <option value="">All Programs</option>
-                        </select>
+                            <select id="programFilter" class="form-control">
+                                <option value="">All Programs</option>
+                            </select>
+                            <label for="instructorTypeFilter" style="margin-top:8px;">Instructor Type</label>
+                            <select id="instructorTypeFilter" class="form-control">
+                                <option value="">All Types</option>
+                            </select>
                     </div>
                 </div>
             </div>
@@ -124,8 +128,8 @@
             <div class="instructor-panel-head">
                 <h3 class="panel-title">Sessions by instructor type</h3>
             </div>
-            <div class="instructor-type-list" id="instructorTypeList">
-                <div class="instructor-empty">Loading instructor types...</div>
+            <div class="instructor-type-chart" style="height:220px;">
+                <canvas id="instructorTypeChart"></canvas>
             </div>
         </section>
     </div>
