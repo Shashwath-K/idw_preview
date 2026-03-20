@@ -36,7 +36,7 @@
     }
 
     function bindFilters() {
-        const filterIds = ["startYear", "endYear", "regionFilter", "programFilter"];
+        const filterIds = ["startYear", "endYear", "regionFilter", "programFilter", "instructorTypeFilter"];
         filterIds.forEach((id) => {
             const element = document.getElementById(id);
             if (!element) {
@@ -79,10 +79,11 @@
     }
 
     async function loadFilterOptions() {
-        const [yearOptions, regionOptions, programOptions] = await Promise.all([
+        const [yearOptions, regionOptions, programOptions, instructorTypes] = await Promise.all([
             fetchJSON("/session/filter-options"),
             fetchJSON("/region/options"),
             fetchJSON("/exposure/programs"),
+            fetchJSON("/instructor/types"),
         ]);
 
         const years = yearOptions.years || [];
@@ -95,6 +96,7 @@
 
         populateSelect("regionFilter", "All Regions", regionOptions.regions || []);
         populateSelect("programFilter", "All Programs", programOptions.programs || []);
+        populateSelect("instructorTypeFilter", "All Types", instructorTypes.types || []);
         syncRangeLabels();
     }
 
@@ -140,6 +142,7 @@
         const end = document.getElementById("endYear")?.value;
         const region = document.getElementById("regionFilter")?.value;
         const program = document.getElementById("programFilter")?.value;
+        const instructor = document.getElementById("instructorTypeFilter")?.value;
 
         if (start) {
             params.set("start", start);
@@ -152,6 +155,9 @@
         }
         if (program) {
             params.set("program", program);
+        }
+        if (instructor) {
+            params.set("instructor", instructor);
         }
 
         return params.toString();
@@ -201,14 +207,21 @@
         setText("kpiTargetSessions", kpis.metrics.target_sessions);
         setText("kpiCompletedSessions", kpis.metrics.completed_sessions);
         const overallCompletionPct = percentOf(kpis.metrics.completed_sessions, kpis.metrics.target_sessions);
+        const overallCompletedSessions = Number(kpis.metrics.completed_sessions || 0);
         setText("kpiSessionsPct", overallCompletionPct);
         setText("kpiTargetStudents", kpis.metrics.target_students);
         setText("kpiReachedStudents", kpis.metrics.reached_students);
         setText("kpiStudentsPct", percentOf(kpis.metrics.reached_students, kpis.metrics.target_students));
 
         renderProgramTargets(targets.data || []);
-        renderOverviewList("activityTypeList", activity.data || [], overallCompletionPct);
-        renderOverviewList("donorSessionsList", donor.data || [], overallCompletionPct);
+        // Render activity and donor distributions as doughnut charts
+        const activityPoints = activity.data || [];
+        const donorPoints = donor.data || [];
+        const palette = [COLORS.violet, COLORS.teal, COLORS.blue, COLORS.amber, COLORS.rose, COLORS.indigo, "#59b4ff", "#35c3a0"];
+        const activityBg = activityPoints.map((_, i) => palette[i % palette.length]);
+        const donorBg = donorPoints.map((_, i) => palette[i % palette.length]);
+        renderChart("activityTypeChart", "doughnut", activityPoints, "Sessions", { backgroundColor: activityBg, showLegend: true, legendPosition: 'left', legendSmall: true, legendInteractive: false, legendTextColor: '#1f2937' });
+        renderChart("donorSessionsChart", "doughnut", donorPoints, "Sessions", { backgroundColor: donorBg, showLegend: true, legendPosition: 'left', legendSmall: true, legendInteractive: false, legendTextColor: '#1f2937' });
     }
 
     async function loadSessionsPage() {
@@ -261,7 +274,11 @@
         setText("instructorUnprocessed", kpis.metrics.unprocessed_sessions);
 
         renderInstructorLog(sessionLog.data || []);
-        renderInstructorTypeBreakdown(typeBreakdown.data || []);
+        // Render instructor type as a doughnut chart (match activity style)
+        const typePoints = (typeBreakdown.data || []).map((p) => ({ label: p.label, value: p.value }));
+        const palette = [COLORS.violet, COLORS.teal, COLORS.blue, COLORS.amber, COLORS.rose, COLORS.indigo, "#59b4ff", "#35c3a0"];
+        const bg = typePoints.map((_, i) => palette[i % palette.length]);
+        renderChart("instructorTypeChart", "doughnut", typePoints, "Sessions", { backgroundColor: bg, showLegend: true, legendPosition: 'left', legendSmall: true, legendInteractive: false, legendTextColor: '#ffffff' });
         renderMultiProgramInstructors(multiProgram.data || []);
     }
 
@@ -332,7 +349,9 @@
                     : "overview-status-red";
             const targetValue = Number(row.target_sessions || 0).toLocaleString();
             const completedValue = Number(row.completed_sessions || 0).toLocaleString();
-            const studentsValue = Number(row.students || 0).toLocaleString();
+            const studentsReached = Number(row.students_reached || 0).toLocaleString();
+            const studentsTarget = Number(row.students_target || 0).toLocaleString();
+            const studentsValue = `${studentsReached} / ${studentsTarget}`;
             const actualProgressPct = Math.max(0, Math.min(100, Number(row.progress_pct || 0)));
             const progressPct = actualProgressPct > 0 ? Math.max(4, actualProgressPct) : 0;
 
@@ -356,7 +375,7 @@
         }).join("");
     }
 
-    function renderOverviewList(id, points, overallCompletionPct = 0) {
+    function renderOverviewList(id, points, overallCompletedSessions = 0) {
         const container = document.getElementById(id);
         if (!container) {
             return;
@@ -378,7 +397,7 @@
             return `
                 <div class="overview-list-row">
                     <div class="overview-list-label"><span class="overview-list-dot ${tone.dot}"></span>${point.label}</div>
-                    <div class="overview-list-bar" title="${value.toLocaleString()} sessions, ${formatPercent(sharePct)} of total, ${formatPercent(overallCompletionPct, 0)} completed">
+                    <div class="overview-list-bar" title="Total Sessions: ${value.toLocaleString()}, Percentage of total: ${formatPercent(sharePct)}">
                         <div class="overview-list-fill" style="width:${width}%; background:${tone.fill};"></div>
                     </div>
                     <div class="overview-list-value">
@@ -643,7 +662,30 @@
             charts[id].destroy();
         }
 
-        charts[id] = new Chart(canvas, {
+        // Custom plugin to draw data labels inside doughnut/pie charts
+        const dataLabelPlugin = {
+            id: "datalabels",
+            afterDatasetsDraw(chart, args, options) {
+                const { ctx, data } = chart;
+                if (!data || !data.datasets || !data.datasets[0]) return;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data) return;
+                meta.data.forEach((arc, index) => {
+                    const val = data.datasets[0].data[index];
+                    if (val === null || val === undefined) return;
+                    const pos = arc.tooltipPosition();
+                    ctx.save();
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "bold 12px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(Number(val).toLocaleString(), pos.x, pos.y);
+                    ctx.restore();
+                });
+            },
+        };
+
+        const chartConfig = {
             type,
             data: {
                 labels: points.map((point) => point.label),
@@ -658,7 +700,13 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: false,
+                        display: datasetOptions && datasetOptions.showLegend === true ? true : false,
+                        position: datasetOptions && datasetOptions.legendPosition ? datasetOptions.legendPosition : 'top',
+                        labels: datasetOptions && datasetOptions.legendSmall
+                            ? { color: datasetOptions.legendTextColor || '#1f2937', boxWidth: 12, padding: 8, usePointStyle: true, pointStyle: 'rectRounded' }
+                            : { color: datasetOptions && datasetOptions.legendTextColor ? datasetOptions.legendTextColor : COLORS.tick },
+                        // disable default click behavior (toggling datasets)
+                        onClick: datasetOptions && datasetOptions.legendInteractive === false ? () => {} : undefined,
                     },
                     tooltip: {
                         backgroundColor: "rgba(32, 38, 49, 0.94)",
@@ -666,35 +714,44 @@
                         bodyColor: "#fff",
                         borderColor: "rgba(255,255,255,0.08)",
                         borderWidth: 1,
-                    },
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            color: COLORS.grid,
-                        },
-                        ticks: {
-                            color: COLORS.tick,
-                        },
-                        border: {
-                            display: false,
-                        },
-                    },
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: type === "line" ? COLORS.grid : COLORS.gridSoft,
-                        },
-                        ticks: {
-                            color: COLORS.tick,
-                        },
-                        border: {
-                            display: false,
-                        },
+                        callbacks: {
+                            label: function(context) {
+                                const dataset = context.dataset || (context.chart && context.chart.data && context.chart.data.datasets && context.chart.data.datasets[0]);
+                                const data = dataset && dataset.data ? dataset.data : [];
+                                const value = data[context.dataIndex] ?? context.parsed ?? 0;
+                                const total = data.reduce((s, v) => s + (Number(v) || 0), 0) || 0;
+                                const pct = total ? Math.round((Number(value) / total) * 100) : 0;
+                                return `${context.label || ''}: ${Number(value).toLocaleString()} (${pct}%)`;
+                            }
+                        }
                     },
                 },
             },
-        });
+        };
+
+        // Only include Cartesian scales for bar/line charts
+        if (type === "bar" || type === "line") {
+            chartConfig.options.scales = {
+                x: {
+                    grid: { color: COLORS.grid },
+                    ticks: { color: COLORS.tick },
+                    border: { display: false },
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: type === "line" ? COLORS.grid : COLORS.gridSoft },
+                    ticks: { color: COLORS.tick },
+                    border: { display: false },
+                },
+            };
+        }
+
+        // Register the datalabels plugin only for pie/doughnut charts
+        if (type === "doughnut" || type === "pie") {
+            charts[id] = new Chart(canvas, { ...chartConfig, plugins: [dataLabelPlugin] });
+        } else {
+            charts[id] = new Chart(canvas, chartConfig);
+        }
     }
 
     async function fetchJSON(url) {
