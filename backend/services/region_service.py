@@ -26,7 +26,7 @@ def get_region_kpis(
         FROM fact_session_event f
         LEFT JOIN fact_exposure e ON e.session_key = f.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
         LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
         """,
@@ -63,7 +63,7 @@ def get_region_impact(
         FROM fact_session_event f
         LEFT JOIN fact_exposure e ON e.session_key = f.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
         LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
         GROUP BY COALESCE(l.state, 'Unknown')
@@ -99,7 +99,7 @@ def get_monthly_region_impact(
         FROM fact_session_event f
         LEFT JOIN fact_exposure e ON e.session_key = f.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
         LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
         GROUP BY DATE_TRUNC('month', d.date)
