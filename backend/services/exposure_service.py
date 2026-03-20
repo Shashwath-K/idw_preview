@@ -26,8 +26,8 @@ def get_total_students(
         FROM fact_exposure e
         LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
+        LEFT JOIN dim_program p ON p.program_key = COALESCE(f.program_key, e.program_key)
         {where_clause}
         """,
         params,
@@ -52,8 +52,8 @@ def get_exposure_kpis(
         FROM fact_exposure e
         LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
+        LEFT JOIN dim_program p ON p.program_key = COALESCE(f.program_key, e.program_key)
         {where_clause}
         """,
         params,
@@ -82,8 +82,8 @@ def get_program_metrics(
         FROM fact_exposure e
         LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
+        LEFT JOIN dim_program p ON p.program_key = COALESCE(f.program_key, e.program_key)
         {where_clause}
         GROUP BY COALESCE(p.program_name, 'Unknown')
         ORDER BY value DESC, label
@@ -109,8 +109,8 @@ def get_program_distribution(
         FROM fact_exposure e
         LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
+        LEFT JOIN dim_program p ON p.program_key = COALESCE(f.program_key, e.program_key)
         {where_clause}
         GROUP BY COALESCE(p.program_name, 'Unknown')
         ORDER BY value DESC, label
