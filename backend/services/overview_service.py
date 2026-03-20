@@ -92,8 +92,10 @@ def get_program_targets(start: int | None = None, end: int | None = None, region
             COALESCE(MAX(p.target_sessions), 0) AS target_sessions,
             COALESCE(SUM(f.session_count), 0) AS completed_sessions,
             COALESCE(MAX(p.target_students), 0) AS target_students,
+            COALESCE(SUM(e.students_total), 0) AS reached_students,
             MAX(p.end_date) AS end_date
         FROM fact_session_event f
+        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
@@ -124,7 +126,8 @@ def get_program_targets(start: int | None = None, end: int | None = None, region
                 "donor": row.get("donor") or "Unknown",
                 "completed_sessions": completed_sessions,
                 "target_sessions": target_sessions,
-                "students": int(row.get("target_students", 0) or 0),
+                        "students_target": int(row.get("target_students", 0) or 0),
+                        "students_reached": int(row.get("reached_students", 0) or 0),
                 "progress_pct": pct,
                 "end_date": row["end_date"].strftime("%b %Y") if row.get("end_date") else "Unknown",
                 "status": status,
