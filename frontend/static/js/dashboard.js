@@ -368,12 +368,13 @@
         }
 
         const totalValue = points.reduce((sum, point) => sum + (Number(point.value) || 0), 0);
-        const maxValue = Math.max(...points.map((point) => Number(point.value) || 0), 1);
         container.innerHTML = points.map((point, index) => {
             const tone = overviewPalette[index % overviewPalette.length];
             const value = Number(point.value) || 0;
-            const width = Math.max(10, (value / maxValue) * 100);
+            // Compute share-of-total and use that as the bar width so the visual
+            // length matches the percentage shown in the tooltip/label.
             const sharePct = totalValue > 0 ? (value / totalValue) * 100 : 0;
+            const width = sharePct > 0 ? Math.max(3, sharePct) : 0;
             return `
                 <div class="overview-list-row">
                     <div class="overview-list-label"><span class="overview-list-dot ${tone.dot}"></span>${point.label}</div>
