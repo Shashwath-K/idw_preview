@@ -187,8 +187,8 @@ def get_top_schools(
         FROM fact_exposure e
         LEFT JOIN fact_session_event f ON f.session_key = e.session_key
         LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = e.location_key
-        LEFT JOIN dim_program p ON p.program_key = e.program_key
+        LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_program p ON p.program_key = f.program_key
         {where_clause}
         GROUP BY COALESCE(NULLIF(l.school_name, ''), 'Unknown school'), COALESCE(NULLIF(l.state, ''), 'Unknown'), COALESCE(NULLIF(l.district, ''), 'Unknown')
         ORDER BY value DESC, label
