@@ -57,9 +57,9 @@ app.include_router(upload.router)
 
 def render_page(request, template_name, title, page_id):
     return templates.TemplateResponse(
-        template_name,
-        {
-            "request": request,
+        name=template_name,
+        request=request,
+        context={
             "page_title": title,
             "page_id": page_id,
         },

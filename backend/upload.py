@@ -75,9 +75,9 @@ FALSE_VALUES = {"false", "f", "no", "n", "0"}
 
 def _render_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
-        "upload.html",
-        {
-            "request": request,
+        name="upload.html",
+        request=request,
+        context={
             "page_title": "Upload Excel",
             "page_id": "upload",
             "managed_tables": MANAGED_SOURCE_TABLES,
