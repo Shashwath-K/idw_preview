@@ -3,15 +3,24 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from pathlib import Path
+
 from backend import upload
-from backend.config import STATIC_DIR, TEMPLATES_DIR
 from backend.routers import exposure, instructor, overview, region, session
 
 
+BASE_DIR = Path(__file__).resolve().parent
+
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
+
+
 app = FastAPI(title="Pramana Analytics Dashboard")
+
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 
 app.include_router(overview.router)
 app.include_router(session.router)
@@ -54,4 +63,9 @@ def instructor_page(request: Request):
 
 @app.get("/program-metrics", response_class=HTMLResponse)
 def exposure_page(request: Request):
-    return render_page(request, "exposure.html", "Student Exposure & Outreach", "programs")
+    return render_page(
+        request,
+        "exposure.html",
+        "Student Exposure & Outreach",
+        "programs",
+    )
