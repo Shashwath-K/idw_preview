@@ -9,19 +9,37 @@ from backend import upload
 from backend.routers import exposure, instructor, overview, region, session
 
 
+# -------------------------------------------------
+# PATH SETUP (works locally + Render)
+# -------------------------------------------------
+
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 
-TEMPLATES_DIR = PROJECT_DIR / "frontend" / "templates"
-STATIC_DIR = PROJECT_DIR / "frontend" / "static"
+FRONTEND_DIR = PROJECT_DIR / "frontend"
 
+TEMPLATES_DIR = FRONTEND_DIR / "templates"
+STATIC_DIR = FRONTEND_DIR / "static"
+
+
+# -------------------------------------------------
+# APP INIT
+# -------------------------------------------------
 
 app = FastAPI(title="Pramana Analytics Dashboard")
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount(
+    "/static",
+    StaticFiles(directory=str(STATIC_DIR)),
+    name="static",
+)
 
+
+# -------------------------------------------------
+# ROUTERS
+# -------------------------------------------------
 
 app.include_router(overview.router)
 app.include_router(session.router)
@@ -29,3 +47,77 @@ app.include_router(exposure.router)
 app.include_router(region.router)
 app.include_router(instructor.router)
 app.include_router(upload.router)
+
+
+# -------------------------------------------------
+# TEMPLATE RENDER HELPER
+# -------------------------------------------------
+
+def render_page(
+    request: Request,
+    template_name: str,
+    title: str,
+    page_id: str,
+):
+    return templates.TemplateResponse(
+        template_name,
+        {
+            "request": request,
+            "page_title": title,
+            "page_id": page_id,
+        },
+    )
+
+
+# -------------------------------------------------
+# PAGES
+# -------------------------------------------------
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard(request: Request):
+    return render_page(
+        request,
+        "index.html",
+        "Program & Donor Tracker",
+        "dashboard",
+    )
+
+
+@app.get("/sessions", response_class=HTMLResponse)
+def sessions_page(request: Request):
+    return render_page(
+        request,
+        "session.html",
+        "Sessions",
+        "sessions",
+    )
+
+
+@app.get("/region-impact", response_class=HTMLResponse)
+def region_page(request: Request):
+    return render_page(
+        request,
+        "region.html",
+        "Region Impact",
+        "region",
+    )
+
+
+@app.get("/instructor-productivity", response_class=HTMLResponse)
+def instructor_page(request: Request):
+    return render_page(
+        request,
+        "instructor.html",
+        "Instructor Performance",
+        "instructor",
+    )
+
+
+@app.get("/program-metrics", response_class=HTMLResponse)
+def exposure_page(request: Request):
+    return render_page(
+        request,
+        "exposure.html",
+        "Student Exposure & Outreach",
+        "programs",
+    )
