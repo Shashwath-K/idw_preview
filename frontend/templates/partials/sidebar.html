@@ -1,0 +1,35 @@
+<aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <a href="/" class="brand-link">
+        <span class="brand-text font-weight-light">Agastya IDW</span>
+    </a>
+    <div class="sidebar">
+        <nav class="mt-3">
+            <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
+                <li class="nav-item">
+                    <a href="/" class="nav-link {% if page_id == 'dashboard' %}active{% endif %}">
+                        <i class="nav-icon fas fa-hand-holding-heart"></i>
+                        <p>Overview</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/instructor-productivity" class="nav-link {% if page_id == 'instructor' %}active{% endif %}">
+                        <i class="nav-icon fas fa-chalkboard-teacher"></i>
+                        <p>Instructor Performance</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/program-metrics" class="nav-link {% if page_id == 'programs' %}active{% endif %}">
+                        <i class="nav-icon fas fa-user-graduate"></i>
+                        <p>Student Exposure</p>
+                    </a>
+                </li>
+                <!--li class="nav-item">
+                    <a href="/upload" class="nav-link {% if page_id == 'upload' %}active{% endif %}">
+                        <i class="nav-icon fas fa-file-excel"></i>
+                        <p>Debug window</p>
+                    </a>
+                </li-->
+            </ul>
+        </nav>
+    </div>
+</aside>
