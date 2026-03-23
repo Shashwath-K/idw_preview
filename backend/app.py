@@ -9,37 +9,39 @@ from backend import upload
 from backend.routers import exposure, instructor, overview, region, session
 
 
-# -------------------------------------------------
-# PATH SETUP (works locally + Render)
-# -------------------------------------------------
+# -----------------------------
+# PATH FIX (NO config.py used)
+# -----------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 
-FRONTEND_DIR = PROJECT_DIR / "frontend"
-
-TEMPLATES_DIR = FRONTEND_DIR / "templates"
-STATIC_DIR = FRONTEND_DIR / "static"
+TEMPLATES_DIR = PROJECT_DIR / "frontend" / "templates"
+STATIC_DIR = PROJECT_DIR / "frontend" / "static"
 
 
-# -------------------------------------------------
-# APP INIT
-# -------------------------------------------------
+print("TEMPLATES:", TEMPLATES_DIR)
+print("STATIC:", STATIC_DIR)
+
 
 app = FastAPI(title="Pramana Analytics Dashboard")
 
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+templates = Jinja2Templates(
+    directory=str(TEMPLATES_DIR.resolve())
+)
+
 
 app.mount(
     "/static",
-    StaticFiles(directory=str(STATIC_DIR)),
+    StaticFiles(directory=str(STATIC_DIR.resolve())),
     name="static",
 )
 
 
-# -------------------------------------------------
+# -----------------------------
 # ROUTERS
-# -------------------------------------------------
+# -----------------------------
 
 app.include_router(overview.router)
 app.include_router(session.router)
@@ -49,16 +51,11 @@ app.include_router(instructor.router)
 app.include_router(upload.router)
 
 
-# -------------------------------------------------
-# TEMPLATE RENDER HELPER
-# -------------------------------------------------
+# -----------------------------
+# TEMPLATE HELPER
+# -----------------------------
 
-def render_page(
-    request: Request,
-    template_name: str,
-    title: str,
-    page_id: str,
-):
+def render_page(request, template_name, title, page_id):
     return templates.TemplateResponse(
         template_name,
         {
@@ -69,9 +66,9 @@ def render_page(
     )
 
 
-# -------------------------------------------------
+# -----------------------------
 # PAGES
-# -------------------------------------------------
+# -----------------------------
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
