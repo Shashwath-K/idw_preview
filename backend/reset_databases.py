@@ -4,7 +4,13 @@ from pathlib import Path
 
 from psycopg2 import sql
 
-from backend.config import ADMIN_DB_NAME, DATAMART_DB_NAME, SOURCE_DB_NAME
+from backend.config import (
+    ADMIN_DB_NAME,
+    DATAMART_DB_NAME,
+    DATAMART_SCHEMA_NAME,
+    SOURCE_DB_NAME,
+    SOURCE_SCHEMA_NAME,
+)
 from backend.db import get_admin_conn, get_datamart_conn, get_source_conn
 
 
@@ -12,13 +18,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SOURCE_SCHEMA_FILE = BASE_DIR / "create_source_tables.sql"
 DATAMART_SCHEMA_FILE = BASE_DIR / "create_dw_tables.sql"
 ETL_MAPPING_FILE = BASE_DIR / "create_etl_mapping.sql"
-SOURCE_SCHEMA_NAME = "source_data_schema"
-DATAMART_SCHEMA_NAME = "dw_data_schema"
 
 
 def reset_databases() -> None:
-    for db_name in (SOURCE_DB_NAME, DATAMART_DB_NAME):
-        _recreate_database(db_name)
+    # If source and datamart are same as admin, we skip database recreation
+    # and use schema-level recreation instead.
+    is_single_db = SOURCE_DB_NAME == DATAMART_DB_NAME == ADMIN_DB_NAME
+
+    if is_single_db:
+        print(f"Single database mode detected ({ADMIN_DB_NAME}). Recreating schemas instead of database.")
+        _recreate_schema(SOURCE_SCHEMA_NAME)
+        _recreate_schema(DATAMART_SCHEMA_NAME)
+    else:
+        for db_name in (SOURCE_DB_NAME, DATAMART_DB_NAME):
+            _recreate_database(db_name)
 
     _run_sql_batch(
         get_source_conn,
@@ -48,6 +61,17 @@ def _recreate_database(db_name: str) -> None:
             )
             cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name)))
             cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
+    finally:
+        conn.close()
+
+
+def _recreate_schema(schema_name: str) -> None:
+    conn = get_admin_conn()
+    try:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema_name)))
+            cur.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema_name)))
     finally:
         conn.close()
 

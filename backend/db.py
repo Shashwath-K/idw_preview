@@ -7,6 +7,7 @@ from backend.config import (
     DB_HOST,
     DB_PASSWORD,
     DB_PORT,
+    DB_SSL_MODE,
     DB_USER,
     SOURCE_DB_NAME,
 )
@@ -19,6 +20,7 @@ def _connect(db_name: str):
         password=DB_PASSWORD,
         host=DB_HOST,
         port=DB_PORT,
+        sslmode=DB_SSL_MODE,
         cursor_factory=RealDictCursor,
     )
 

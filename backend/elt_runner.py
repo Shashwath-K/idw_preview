@@ -4,7 +4,18 @@ from pathlib import Path
 
 from psycopg2 import sql
 
-from backend.config import DB_HOST, DB_PASSWORD, DB_PORT, DB_USER, FDW_SOURCE_SCHEMA, MANAGED_SOURCE_TABLES, SOURCE_DB_NAME, SQL_DIR
+from backend.config import (
+    DATAMART_DB_NAME,
+    DB_HOST,
+    DB_PASSWORD,
+    DB_PORT,
+    DB_SSL_MODE,
+    DB_USER,
+    FDW_SOURCE_SCHEMA,
+    MANAGED_SOURCE_TABLES,
+    SOURCE_DB_NAME,
+    SQL_DIR,
+)
 from backend.db import get_datamart_conn
 
 
@@ -34,6 +45,10 @@ def run_elt(script_name: str = DEFAULT_RUN_FILE) -> list[str]:
 
 
 def _ensure_foreign_source_access(conn) -> None:
+    # If source and datamart are in the same database, we don't need FDW
+    if SOURCE_DB_NAME == DATAMART_DB_NAME:
+        return
+
     with conn.cursor() as cur:
         cur.execute("CREATE EXTENSION IF NOT EXISTS postgres_fdw")
         cur.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(FDW_SOURCE_SCHEMA)))
@@ -41,9 +56,9 @@ def _ensure_foreign_source_access(conn) -> None:
         cur.execute(sql.SQL("DROP SERVER IF EXISTS {} CASCADE").format(sql.Identifier(FDW_SERVER_NAME)))
         cur.execute(
             sql.SQL(
-                "CREATE SERVER {} FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host %s, dbname %s, port %s)"
+                "CREATE SERVER {} FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host %s, dbname %s, port %s, sslmode %s)"
             ).format(sql.Identifier(FDW_SERVER_NAME)),
-            [DB_HOST, SOURCE_DB_NAME, str(DB_PORT)],
+            [DB_HOST, SOURCE_DB_NAME, str(DB_PORT), DB_SSL_MODE],
         )
         cur.execute(
             sql.SQL("CREATE USER MAPPING FOR CURRENT_USER SERVER {} OPTIONS (user %s, password %s)").format(
