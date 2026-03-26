@@ -6,7 +6,22 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
 from backend import upload
-from backend.routers import exposure, instructor, overview, region, session
+from backend.routers import (
+    arealead_summary,
+    attendance,
+    exposure,
+    instructor,
+    instructor_detail,
+    instructor_feedback,
+    instructor_summary,
+    overview,
+    programwise_report,
+    region,
+    region_summary,
+    school_visit,
+    session,
+    work_day,
+)
 
 
 # -----------------------------
@@ -46,14 +61,34 @@ app.mount(
 app.include_router(overview.router)
 app.include_router(session.router)
 app.include_router(exposure.router)
+app.include_router(attendance.router)
+app.include_router(arealead_summary.router)
+app.include_router(programwise_report.router)
 app.include_router(region.router)
 app.include_router(instructor.router)
+app.include_router(region_summary.router)
+app.include_router(instructor_summary.router)
+app.include_router(instructor_detail.router)
+app.include_router(instructor_feedback.router)
+app.include_router(school_visit.router)
+app.include_router(work_day.router)
 app.include_router(upload.router)
 
 
-# -----------------------------
-# TEMPLATE HELPER
-# -----------------------------
+@app.get("/debug-db")
+def debug_db():
+    from backend.db import get_datamart_conn
+    try:
+        conn = get_datamart_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            res = cur.fetchone()
+        conn.close()
+        return {"status": "success", "message": "Connection successful", "data": res}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+
 
 def render_page(request, template_name, title, page_id):
     return templates.TemplateResponse(
@@ -118,3 +153,80 @@ def exposure_page(request: Request):
         "Student Exposure & Outreach",
         "programs",
     )
+# -----------------------------
+# NEW PAGES
+# -----------------------------
+
+@app.get("/overview", response_class=HTMLResponse)
+def overview_page(request: Request):
+    return render_page(request, "placeholder.html", "Overview", "overview")
+
+@app.get("/program-visits", response_class=HTMLResponse)
+def program_visits_page(request: Request):
+    return render_page(
+        request, "school_visit.html", "Program wise School Visits", "program-visits"
+    )
+
+@app.get("/instructor-summary", response_class=HTMLResponse)
+def instructor_summary_page(request: Request):
+    return render_page(
+        request, "instructor_summary.html", "Instructor Summary", "instructor-summary"
+    )
+
+@app.get("/region-summary", response_class=HTMLResponse)
+def region_summary_page(request: Request):
+    return render_page(request, "region_summary.html", "Region Summary", "region-summary")
+
+@app.get("/instructor-detail", response_class=HTMLResponse)
+def instructor_detail_page(request: Request):
+    return render_page(
+        request, "instructor_detail.html", "Instructor Detail", "instructor-detail"
+    )
+
+@app.get("/vehicle-report", response_class=HTMLResponse)
+def vehicle_report_page(request: Request):
+    return render_page(request, "placeholder.html", "Vehicle Report", "vehicle-report")
+
+@app.get("/work-days-report", response_class=HTMLResponse)
+def work_days_report_page(request: Request):
+    return render_page(
+        request, "work_day.html", "Work Days Report", "work-days-report"
+    )
+
+@app.get("/attendance", response_class=HTMLResponse)
+def attendance_page(request: Request):
+    return render_page(request, "attendance.html", "Attendance", "attendance")
+
+@app.get("/arealead-summary", response_class=HTMLResponse)
+def arealead_summary_page(request: Request):
+    return render_page(request, "arealead_summary.html", "AreaLead Summary", "arealead-summary")
+
+@app.get("/programwise-report", response_class=HTMLResponse)
+def programwise_report_page(request: Request):
+    return render_page(
+        request, "programwise_report.html", "Programwise Report", "programwise-report"
+    )
+
+@app.get("/nationwide-dashboard", response_class=HTMLResponse)
+def nationwide_dashboard_page(request: Request):
+    return render_page(request, "placeholder.html", "Nationwide Dashboard", "nationwide-dashboard")
+
+@app.get("/regionwise-dashboard", response_class=HTMLResponse)
+def regionwise_dashboard_page(request: Request):
+    return render_page(request, "placeholder.html", "Regionwise Dashboard", "regionwise-dashboard")
+
+@app.get("/exposure-session-dashboard", response_class=HTMLResponse)
+def exposure_session_dashboard_page(request: Request):
+    return render_page(request, "placeholder.html", "ExposureSession Dashboard", "exposure-session-dashboard")
+
+@app.get("/performance-management-dashboard", response_class=HTMLResponse)
+def performance_management_dashboard_page(request: Request):
+    return render_page(request, "placeholder.html", "PerformanceManagement Dashboard", "performance-management-dashboard")
+
+@app.get("/manpower-vehicle-dashboard", response_class=HTMLResponse)
+def manpower_vehicle_dashboard_page(request: Request):
+    return render_page(request, "placeholder.html", "ManpowerVehicle Dashboard", "manpower-vehicle-dashboard")
+
+@app.get("/instructor-feedback", response_class=HTMLResponse)
+def instructor_feedback_page(request: Request):
+    return render_page(request, "instructor_feedback.html", "Instructor Feedback", "instructor-feedback")
