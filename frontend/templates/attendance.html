@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Attendance Report</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <!-- Filters -->
+        <div class="card card-default">
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-2">
+                        <div class="form-group mb-0">
+                            <label>Region</label>
+                            <select id="regionFilter" class="form-control select2">
+                                <option value="">All Regions</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group mb-0">
+                            <label>Area</label>
+                            <select id="areaFilter" class="form-control select2">
+                                <option value="">All Areas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group mb-0">
+                            <label>Select Year</label>
+                            <select id="yearFilter" class="form-control select2">
+                                <option value="">All Years</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group mb-0">
+                            <label>Month</label>
+                            <select id="monthFilter" class="form-control select2">
+                                <option value="">All Months</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button id="seeReport" class="btn btn-success btn-block">See Report</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card mt-3">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table id="attendanceTable" class="table table-striped table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Instructor</th>
+                                <th>Region</th>
+                                <th>Area</th>
+                                <th>Days Present</th>
+                                <th>Total Sessions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function () {
+    if ($.fn.select2) {
+        $('.select2').select2({ theme: 'bootstrap4' });
+    }
+
+    fetch('/attendance/filters')
+        .then(res => res.json())
+        .then(data => {
+            const regionSelect = $('#regionFilter');
+            const areaSelect = $('#areaFilter');
+            const yearSelect = $('#yearFilter');
+            const monthSelect = $('#monthFilter');
+
+            data.regions.forEach(r => regionSelect.append(new Option(r, r)));
+            data.areas.forEach(a => areaSelect.append(new Option(a, a)));
+            data.years.forEach(y => yearSelect.append(new Option(y, y)));
+            data.months.forEach(m => monthSelect.append(new Option(m.name, m.id)));
+        });
+
+    $('#seeReport').click(function () {
+        const filters = {
+            region: $('#regionFilter').val(),
+            area: $('#areaFilter').val(),
+            year: $('#yearFilter').val(),
+            month: $('#monthFilter').val()
+        };
+
+        const query = new URLSearchParams(filters).toString();
+        fetch(`/attendance/data?${query}`)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = $('#attendanceTable tbody');
+                tbody.empty();
+                if (data.table.length === 0) {
+                    tbody.append('<tr><td colspan="5" class="text-center">No data found</td></tr>');
+                    return;
+                }
+                data.table.forEach(row => {
+                    tbody.append(`
+                        <tr>
+                            <td>${row.instructor_name}</td>
+                            <td>${row.region}</td>
+                            <td>${row.area}</td>
+                            <td><span class="badge badge-success">${row.days_present}</span></td>
+                            <td>${row.total_sessions}</td>
+                        </tr>
+                    `);
+                });
+            });
+    });
+});
+</script>
+{% endblock %}

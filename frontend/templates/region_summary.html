@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4 mt-4">
+    <div class="col-12">
+        <h2 class="mb-3">Region Summary</h2>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card card-outline card-primary filter-panel">
+            <div class="card-body pt-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="programTypeFilter">Program Type</label>
+                        <select id="programTypeFilter" class="form-control">
+                            <option value="">Select Program</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="yearFilter">Select Year</label>
+                        <select id="yearFilter" class="form-control">
+                            <option value="">Select Year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="monthFilter">Month</label>
+                        <select id="monthFilter" class="form-control">
+                            <option value="">Select Month</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button id="seeReportBtn" class="btn btn-primary mr-2">See Report</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="reportContent" style="display: none;">
+    <div class="row kpi-grid mb-4" id="kpiContainer">
+        <!-- KPIs will be injected here -->
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card card-outline card-info">
+                <div class="card-header border-0">
+                    <h3 class="card-title">Region Performance Metrics</h3>
+                </div>
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-striped table-valign-middle">
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Sessions</th>
+                                <th>Students</th>
+                                <th>Teachers</th>
+                                <th>Schools</th>
+                                <th>Community</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryTableBody">
+                            <!-- Rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card card-outline card-info">
+                <div class="card-header border-0">
+                    <h3 class="card-title">Students Reached by Region</h3>
+                </div>
+                <div class="card-body">
+                    <div class="chart">
+                        <canvas id="regionChart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="noDataMessage" class="row mt-5" style="display: flex; justify-content: center; align-items: center; min-height: 200px; border: 1px solid #ddd; background: #fff; margin: 0 15px;">
+    <div class="col-12 text-center text-muted">
+        <h3>No Rows To Show</h3>
+        <p>Select filters and click "See Report" to view analytics.</p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function () {
+    // Load initial filter options
+    fetch('/region-summary/filters')
+        .then(response => response.json())
+        .then(data => {
+            const pt = $('#programTypeFilter');
+            const y = $('#yearFilter');
+            const m = $('#monthFilter');
+            
+            data.programs.forEach(p => pt.append(new Option(p, p)));
+            data.years.forEach(yr => y.append(new Option(yr, yr)));
+            data.months.forEach(mo => m.append(new Option(mo.name, mo.id)));
+        });
+
+    $('#seeReportBtn').on('click', function() {
+        const pt = $('#programTypeFilter').val();
+        const y = $('#yearFilter').val();
+        const m = $('#monthFilter').val();
+        
+        let url = `/region-summary/data?`;
+        if (pt) url += `program_type=${pt}&`;
+        if (y) url += `year=${y}&`;
+        if (m) url += `month=${m}&`;
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.table || data.table.length === 0) {
+                    $('#reportContent').hide();
+                    $('#noDataMessage').show();
+                    return;
+                }
+                
+                $('#noDataMessage').hide();
+                $('#reportContent').show();
+                
+                // Inject KPIs
+                const kpiContainer = $('#kpiContainer');
+                kpiContainer.empty();
+                data.kpis.forEach(kpi => {
+                    kpiContainer.append(`
+                        <div class="col-lg-3 col-6">
+                            <div class="small-box bg-info">
+                                <div class="inner">
+                                    <h3>${kpi.value.toLocaleString()}</h3>
+                                    <p>${kpi.label}</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="${kpi.icon}"></i>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                });
+                
+                // Inject Table
+                const tbody = $('#summaryTableBody');
+                tbody.empty();
+                data.table.forEach(row => {
+                    tbody.append(`
+                        <tr>
+                            <td>${row.region}</td>
+                            <td>${row.sessions.toLocaleString()}</td>
+                            <td>${row.students_reached.toLocaleString()}</td>
+                            <td>${row.teachers_trained.toLocaleString()}</td>
+                            <td>${row.schools_covered.toLocaleString()}</td>
+                            <td>${row.community_reach.toLocaleString()}</td>
+                        </tr>
+                    `);
+                });
+                
+                // Update Chart
+                const ctx = document.getElementById('regionChart').getContext('2d');
+                if (window.myChart) {
+                    window.myChart.destroy();
+                }
+                window.myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: data.chart,
+                    options: {
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        legend: { display: false },
+                        scales: {
+                            xAxes: [{ gridLines: { display: false } }],
+                            yAxes: [{ gridLines: { display: false } }]
+                        }
+                    }
+                });
+            });
+    });
+});
+</script>
+{% endblock %}
