@@ -45,7 +45,35 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None, l
             
             where_sql = " AND ".join(where_clauses)
             
-            # Get total count
+            # Get KPIs
+            kpi_sql = f"""
+                SELECT 
+                    COUNT(DISTINCT d.date) as days_worked,
+                    SUM(COALESCE(f.session_count, 0)) as total_sessions,
+                    SUM(COALESCE(e.students_total, 0)) as total_exposures,
+                    SUM(CASE WHEN a.activity_name ILIKE ANY (ARRAY['%%YIL%%', '%%SF%%', '%%CV%%']) THEN COALESCE(e.students_total, 0) ELSE 0 END) as combined_exposures
+                FROM dw_data_schema.dim_instructor i
+                LEFT JOIN dw_data_schema.fact_session_event f ON i.instructor_key = f.instructor_key
+                LEFT JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
+                LEFT JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
+                LEFT JOIN dw_data_schema.dim_activity a ON f.activity_key = a.activity_key
+                LEFT JOIN dw_data_schema.fact_exposure e ON f.session_key = e.session_key
+                WHERE {where_sql}
+            """
+            cur.execute(kpi_sql, params)
+            kpi_res = cur.fetchone()
+            
+            total_exp = int(kpi_res["total_exposures"] or 0)
+            comb_exp = int(kpi_res["combined_exposures"] or 0)
+            
+            kpis = {
+                "days_worked": kpi_res["days_worked"] or 0,
+                "total_sessions": int(kpi_res["total_sessions"] or 0),
+                "school_exposures": total_exp - comb_exp,
+                "combined_exposures": comb_exp
+            }
+
+            # Get total count for pagination
             count_sql = f"""
                 SELECT COUNT(*) FROM (
                     SELECT i.instructor_key
@@ -91,5 +119,6 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None, l
             
     return {
         "table": table_data,
-        "total_count": total_count
+        "total_count": total_count,
+        "kpis": kpis
     }
