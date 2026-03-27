@@ -1626,3 +1626,72 @@ body[data-page="programs"] .exposure-empty {
     }
 }
 
+/* --- High Contrast Table Overrides --- */
+.high-contrast-table {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.high-contrast-table thead th {
+    background-color: #f8f9fa !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #dee2e6 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
+.high-contrast-table tbody td {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border-bottom: 1px solid #edf2f7 !important;
+    padding: 0.75rem 1rem !important;
+}
+
+.high-contrast-table tbody tr:hover td {
+    background-color: #f1f5f9 !important;
+}
+
+/* Ensure pagination container below the table is also white and readable */
+.pagination-container {
+    background-color: #ffffff !important;
+    border-top: 1px solid #dee2e6 !important;
+    padding: 1rem !important;
+    margin-top: 0 !important;
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+}
+
+.pagination-info, 
+.pagination-info span,
+.page-indicator, 
+.page-indicator span {
+    color: #4b5563 !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+}
+
+.pagination-btn {
+    background: #ffffff !important;
+    color: #3b82f6 !important;
+    border: 1px solid #e5e7eb !important;
+    padding: 6px 14px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: #eff6ff !important;
+    border-color: #3b82f6 !important;
+    color: #2563eb !important;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
