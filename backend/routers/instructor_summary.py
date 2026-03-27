@@ -12,7 +12,7 @@ def get_data(
     region: str | None = Query(None),
     area: str | None = Query(None),
     year: str | None = Query(None),
-    month: int | None = Query(None)
+    month: str | None = Query(None)
 ):
     return instructor_summary_service.get_instructor_summary_data(
         region=region,
