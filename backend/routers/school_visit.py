@@ -13,6 +13,6 @@ def get_data(
     area: str | None = Query(None),
     program: str | None = Query(None),
     year: str | None = Query(None),
-    month: int | None = Query(None)
+    month: str | None = Query(None)
 ):
     return {"table": school_visit_service.get_school_visit_data(region, area, program, year, month)}
