@@ -29,6 +29,12 @@
         } catch (error) {
             console.error(error);
         }
+        
+        // Auto-load data for new pages
+        const seeReportBtn = document.getElementById("seeReport");
+        if (seeReportBtn) {
+            setTimeout(() => { seeReportBtn.click(); }, 300);
+        }
     });
 
     function getPage() {
