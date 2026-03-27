@@ -42,7 +42,7 @@ def get_arealead_summary_data(region=None, area=None, year=None, month=None, lim
             # Get total count
             count_sql = f"""
                 SELECT COUNT(*) FROM (
-                    SELECT l.area, l.region
+                    SELECT l.area, l.state
                     FROM dw_data_schema.fact_session_event f
                     JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
                     JOIN dw_data_schema.dim_instructor i ON f.instructor_key = i.instructor_key
