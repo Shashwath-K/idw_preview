@@ -119,7 +119,7 @@ def get_sessions_by_region(
         {where_clause}
         GROUP BY COALESCE(l.state, 'Unknown')
         ORDER BY value DESC, label
-        LIMIT 12
+        LIMIT 20
         """,
         params,
     )
