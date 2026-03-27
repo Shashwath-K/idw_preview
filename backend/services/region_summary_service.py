@@ -55,6 +55,7 @@ def get_region_summary_data(program_type=None, year=None, month=None):
                 WHERE {where_sql}
                 GROUP BY l.region
                 ORDER BY l.region
+                LIMIT 20
             """
             cur.execute(main_sql, params)
             table_data = cur.fetchall()
