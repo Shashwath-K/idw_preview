@@ -12,11 +12,15 @@ def get_data(
     region: str | None = Query(None),
     area: str | None = Query(None),
     year: str | None = Query(None),
-    month: str | None = Query(None)
+    month: str | None = Query(None),
+    limit: int = Query(15),
+    offset: int = Query(0)
 ):
     return instructor_summary_service.get_instructor_summary_data(
         region=region,
         area=area,
         year=year,
-        month=month
+        month=month,
+        limit=limit,
+        offset=offset
     )

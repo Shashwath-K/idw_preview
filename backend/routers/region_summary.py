@@ -12,9 +12,13 @@ def get_data(
     program_type: str | None = Query(default=None),
     year: str | None = Query(default=None),
     month: str | None = Query(default=None),
+    limit: int = Query(default=15),
+    offset: int = Query(default=0)
 ):
     return region_summary_service.get_region_summary_data(
         program_type=program_type,
         year=year,
-        month=month
+        month=month,
+        limit=limit,
+        offset=offset
     )

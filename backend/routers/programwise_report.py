@@ -11,6 +11,8 @@ def get_filters():
 def get_data(
     category: str | None = Query(None),
     year: str | None = Query(None),
-    month: str | None = Query(None)
+    month: str | None = Query(None),
+    limit: int = Query(15),
+    offset: int = Query(0)
 ):
-    return {"table": programwise_report_service.get_programwise_report_data(category, year, month)}
+    return programwise_report_service.get_programwise_report_data(category, year, month, limit, offset)

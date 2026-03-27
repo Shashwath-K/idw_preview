@@ -27,14 +27,12 @@ def instructor_session_log(
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     instructor: str | None = Query(default=None),
-    limit: int = Query(default=8, ge=1, le=25),
+    limit: int = Query(default=10, ge=1, le=25),
+    offset: int = Query(default=0)
 ):
-    return {
-        "title": "Instructor Session Log",
-        "data": instructor_service.get_instructor_session_log(
-            start=start, end=end, region=region, program=program, instructor=instructor, limit=limit
-        ),
-    }
+    return instructor_service.get_instructor_session_log(
+        start=start, end=end, region=region, program=program, instructor=instructor, limit=limit, offset=offset
+    )
 
 
 @router.get("/type-breakdown", response_model=SeriesBundle)

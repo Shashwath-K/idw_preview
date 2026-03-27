@@ -12,6 +12,8 @@ def get_data(
     region: str | None = Query(None),
     area: str | None = Query(None),
     year: str | None = Query(None),
-    month: str | None = Query(None)
+    month: str | None = Query(None),
+    limit: int = Query(15),
+    offset: int = Query(0)
 ):
-    return {"table": work_day_service.get_work_day_data(region, area, year, month)}
+    return work_day_service.get_work_day_data(region, area, year, month, limit, offset)

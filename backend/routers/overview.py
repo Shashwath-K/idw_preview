@@ -23,11 +23,10 @@ def program_targets(
     end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
+    limit: int = Query(default=10),
+    offset: int = Query(default=0)
 ):
-    return {
-        "title": "Program-level targets vs actuals",
-        "data": overview_service.get_program_targets(start=start, end=end, region=region, program=program),
-    }
+    return overview_service.get_program_targets(start=start, end=end, region=region, program=program, limit=limit, offset=offset)
 
 
 @router.get("/sessions-by-activity", response_model=SeriesBundle)
