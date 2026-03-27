@@ -9,8 +9,8 @@ router = APIRouter(prefix="/overview", tags=["overview"])
 
 @router.get("/kpis", response_model=KPIBundle)
 def overview_kpis(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -19,8 +19,8 @@ def overview_kpis(
 
 @router.get("/program-targets")
 def program_targets(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -32,8 +32,8 @@ def program_targets(
 
 @router.get("/sessions-by-activity", response_model=SeriesBundle)
 def sessions_by_activity(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -45,8 +45,8 @@ def sessions_by_activity(
 
 @router.get("/sessions-by-donor", response_model=SeriesBundle)
 def sessions_by_donor(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
