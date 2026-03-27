@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- KPI Grid -->
-{% include "partials/overview_kpis.html" %}
-
-<!-- Filters -->
-<div class="card card-default">
-    <div class="card-body">
-        <div class="row align-items-end">
-            <div class="col-md-2">
-                <div class="form-group mb-0">
+<div class="row">
+    <!-- Left Column: Filter Slicers -->
+    <div class="col-md-2 mb-3">
+        <div class="card card-outline card-primary h-100">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-filter mr-1"></i> Filters</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
                     <label>Start Year</label>
                     <select id="startYear" class="form-control select2">
                         <option value="2020">2020</option>
@@ -21,9 +21,7 @@
                         <option value="2026">2026</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group mb-0">
+                <div class="form-group">
                     <label>End Year</label>
                     <select id="endYear" class="form-control select2">
                         <option value="2020">2020</option>
@@ -35,92 +33,73 @@
                         <option value="2026" selected>2026</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group mb-0">
+                <div class="form-group">
                     <label>Region</label>
                     <select id="regionFilter" class="form-control select2">
                         <option value="">All Regions</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group mb-0">
+                <div class="form-group">
                     <label>Program</label>
                     <select id="programFilter" class="form-control select2">
                         <option value="">All Programs</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <button id="seeReport" class="btn btn-primary btn-sm btn-block">See Report</button>
-            </div>
-            <div class="col-md-1">
-                <button id="exportXlsx" class="btn btn-export btn-sm btn-block">
-                    <i class="fas fa-file-excel"></i>
+                <hr>
+                <button id="seeReport" class="btn btn-primary btn-block">
+                    <i class="fas fa-sync-alt mr-1"></i> See Report
                 </button>
             </div>
         </div>
     </div>
+
+    <!-- Right Column: Dashboard Content -->
+    <div class="col-md-10">
+        <!-- KPI Grid -->
+        {% include "partials/overview_kpis.html" %}
+
+        <section class="overview-content-stack mt-2">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header border-0 pb-0">
+                            <h3 class="card-title text-muted text-sm uppercase">Number of Instructors per Region</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="height:280px;">
+                                <canvas id="instructorRegionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header border-0 pb-0">
+                            <h3 class="card-title text-muted text-sm uppercase">Number of Drivers per Region</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="height:280px;">
+                                <canvas id="driverRegionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header border-0 pb-0">
+                            <h3 class="card-title text-muted text-sm uppercase">Number of Programs by Region</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="height:280px;">
+                                <canvas id="programChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
 </div>
-
-<section class="overview-content-stack mt-2">
-    <div class="card">
-        <div class="card-header border-0">
-            <h3 class="card-title">Program-level targets vs actuals</h3>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover mb-0 high-contrast-table" id="overviewTable">
-                    <thead>
-                        <tr>
-                            <th>Program</th>
-                            <th>Donor</th>
-                            <th>Sessions</th>
-                            <th>Progress</th>
-                            <th>Students</th>
-                            <th>End date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="programTargetsBody">
-                        <tr>
-                            <td colspan="7" class="text-center">Select filters to load...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            {% include "partials/pagination.html" %}
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-7 mb-3">
-            <div class="card h-100">
-                <div class="card-header border-0">
-                    <h3 class="card-title">Sessions by activity type</h3>
-                </div>
-                <div class="card-body">
-                    <div style="height:240px;">
-                        <canvas id="activityTypeChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-5 mb-3">
-            <div class="card h-100">
-                <div class="card-header border-0">
-                    <h3 class="card-title">Sessions by donor</h3>
-                </div>
-                <div class="card-body">
-                    <div style="height:240px;">
-                        <canvas id="donorSessionsChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 {% endblock %}
 
 {% block scripts %}
@@ -156,86 +135,37 @@ $(function () {
             .then(res => res.json())
             .then(data => {
                 // KPIs
-                $('#kpiDonors').text(data.kpis.donors);
-                $('#kpiPrograms').text(data.kpis.programs.total);
-                $('#kpiProgramsTrack').text(data.kpis.programs.on_track);
-                $('#kpiProgramsRisk').text(data.kpis.programs.at_risk);
-                $('#kpiTargetSessions').text(data.kpis.sessions.target.toLocaleString());
-                $('#kpiCompletedSessions').text(data.kpis.sessions.completed.toLocaleString());
-                $('#kpiSessionsPct').text(data.kpis.sessions.percentage);
-                $('#kpiTargetStudents').text(data.kpis.students.target.toLocaleString());
-                $('#kpiReachedStudents').text(data.kpis.students.reached.toLocaleString());
-                $('#kpiStudentsPct').text(data.kpis.students.percentage);
-
-                // Table
-                const tbody = $('#programTargetsBody');
-                tbody.empty();
-                if (data.table.length === 0) {
-                    tbody.append('<tr><td colspan="7" class="text-center">No rows found</td></tr>');
-                    pagination.updateInfo('overviewTable', 0);
-                } else {
-                    data.table.forEach(row => {
-                        tbody.append(`
-                            <tr>
-                                <td><strong>${row.program}</strong></td>
-                                <td>${row.donor}</td>
-                                <td>${row.sessions_actual} / ${row.sessions_target}</td>
-                                <td>
-                                    <div class="progress progress-xs">
-                                        <div class="progress-bar bg-primary" style="width: ${row.progress}%"></div>
-                                    </div>
-                                    <small>${row.progress}%</small>
-                                </td>
-                                <td>${row.students_actual.toLocaleString()}</td>
-                                <td>${row.end_date}</td>
-                                <td><span class="badge ${row.status === 'On Track' ? 'badge-success' : 'badge-danger'}">${row.status}</span></td>
-                            </tr>
-                        `);
-                    });
-                    pagination.updateInfo('overviewTable', data.total_count);
-                }
+                $('#kpiInstructors').text(data.kpis.total_instructors.toLocaleString());
+                $('#kpiDrivers').text(data.kpis.total_drivers.toLocaleString());
+                $('#kpiStates').text(data.kpis.total_states.toLocaleString());
+                $('#kpiPrograms').text(data.kpis.total_programs.toLocaleString());
 
                 // Charts
-                const ctxActivity = document.getElementById('activityTypeChart').getContext('2d');
-                if (window.activityChart) window.activityChart.destroy();
-                window.activityChart = new Chart(ctxActivity, {
-                    type: 'bar',
-                    data: data.charts.activity,
-                    options: { maintainAspectRatio: false, legend: { display: false } }
-                });
+                function renderBarChart(canvasId, chartData, chartRef) {
+                    const ctx = document.getElementById(canvasId).getContext('2d');
+                    if (window[chartRef]) window[chartRef].destroy();
+                    window[chartRef] = new Chart(ctx, {
+                        type: 'bar',
+                        data: chartData,
+                        options: { 
+                            maintainAspectRatio: false, 
+                            legend: { display: false },
+                            scales: {
+                                yAxes: [{ ticks: { beginAtZero: true, precision: 0 } }],
+                                xAxes: [{ gridLines: { display: false } }]
+                            }
+                        }
+                    });
+                }
 
-                const ctxDonor = document.getElementById('donorSessionsChart').getContext('2d');
-                if (window.donorChart) window.donorChart.destroy();
-                window.donorChart = new Chart(ctxDonor, {
-                    type: 'pie',
-                    data: data.charts.donor,
-                    options: { maintainAspectRatio: false, legend: { position: 'bottom' } }
-                });
+                renderBarChart('instructorRegionChart', data.charts.instructors_by_region, 'instructorChartInst');
+                renderBarChart('driverRegionChart', data.charts.drivers_by_region, 'driverChartInst');
+                renderBarChart('programChart', data.charts.programs_by_region, 'programChartInst');
             });
     }
 
     $('#seeReport').click(function() {
-        pagination.reset();
         loadData();
-    });
-
-    $('.prev-page').click(function() {
-        pagination.prev(loadData);
-    });
-
-    $('.next-page').click(function() {
-        pagination.next(loadData);
-    });
-
-    $('#exportXlsx').click(function() {
-        const filters = {
-            start_year: $('#startYear').val(),
-            end_year: $('#endYear').val(),
-            region: $('#regionFilter').val(),
-            program: $('#programFilter').val()
-        };
-        const query = new URLSearchParams(filters).toString();
-        window.exportToXLSX(`/dashboard/export?${query}`, 'overview_report.xlsx');
     });
 
     // Auto-load
