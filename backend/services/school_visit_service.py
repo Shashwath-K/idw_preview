@@ -46,7 +46,50 @@ def get_school_visit_data(region=None, area=None, program=None, year=None, month
             
             where_sql = " AND ".join(where_clauses)
             
-            # Get total count
+            # Get KPIs
+            kpi_sql = f"""
+                SELECT 
+                    COUNT(DISTINCT l.school_name) as total_schools,
+                    SUM(f.session_count) as total_sessions,
+                    SUM(COALESCE(e.students_total, 0)) as total_students
+                FROM dw_data_schema.fact_session_event f
+                JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
+                JOIN dw_data_schema.dim_program p ON f.program_key = p.program_key
+                JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
+                LEFT JOIN dw_data_schema.fact_exposure e ON f.session_key = e.session_key
+                WHERE {where_sql}
+            """
+            cur.execute(kpi_sql, params)
+            kpi_res = cur.fetchone()
+
+            # Monthly Sessions (sessions in the latest month of the selected period)
+            monthly_sql = f"""
+                SELECT SUM(session_count) as monthly_sessions
+                FROM dw_data_schema.fact_session_event f
+                JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
+                JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
+                JOIN dw_data_schema.dim_program p ON f.program_key = p.program_key
+                WHERE {where_sql}
+                AND d.month = (
+                    SELECT MAX(d2.month) 
+                    FROM dw_data_schema.fact_session_event f2
+                    JOIN dw_data_schema.dim_date d2 ON f2.date_key = d2.date_key
+                    JOIN dw_data_schema.dim_location l2 ON f2.location_key = l2.location_key
+                    JOIN dw_data_schema.dim_program p2 ON f2.program_key = p2.program_key
+                    WHERE {where_sql}
+                )
+            """
+            cur.execute(monthly_sql, params)
+            monthly_res = cur.fetchone()
+
+            kpis = {
+                "total_schools": kpi_res["total_schools"] or 0,
+                "total_students": int(kpi_res["total_students"] or 0),
+                "total_sessions": int(kpi_res["total_sessions"] or 0),
+                "monthly_sessions": int(monthly_res["monthly_sessions"] or 0) if monthly_res else 0
+            }
+
+            # Get total row count for pagination
             count_sql = f"""
                 SELECT COUNT(*) FROM (
                     SELECT l.school_name
@@ -81,4 +124,8 @@ def get_school_visit_data(region=None, area=None, program=None, year=None, month
                 LIMIT %s OFFSET %s
             """
             cur.execute(sql, params + [limit, offset])
-            return {"table": cur.fetchall(), "total_count": total_count}
+            return {
+                "table": cur.fetchall(), 
+                "total_count": total_count,
+                "kpis": kpis
+            }
