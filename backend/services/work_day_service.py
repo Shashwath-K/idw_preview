@@ -53,6 +53,7 @@ def get_work_day_data(region=None, area=None, year=None, month=None):
                 WHERE {where_sql}
                 GROUP BY i.instructor_key, i.name, l.region, l.area
                 ORDER BY days_worked DESC, i.name
+                LIMIT 20
             """
             cur.execute(sql, params)
             return cur.fetchall()
