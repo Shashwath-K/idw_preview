@@ -9,8 +9,8 @@ router = APIRouter(prefix="/region", tags=["region"])
 
 @router.get("/kpis", response_model=KPIBundle)
 def region_kpis(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -19,8 +19,8 @@ def region_kpis(
 
 @router.get("/impact", response_model=SeriesBundle)
 def region_impact(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -32,8 +32,8 @@ def region_impact(
 
 @router.get("/monthly-impact", response_model=SeriesBundle)
 def monthly_region_impact(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
