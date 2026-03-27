@@ -50,6 +50,7 @@ def get_programwise_report_data(category=None, year=None, month=None):
                 WHERE {where_sql}
                 GROUP BY p.program_key, p.program_name, p.program_category
                 ORDER BY sessions DESC
+                LIMIT 20
             """
             cur.execute(sql, params)
             return cur.fetchall()
