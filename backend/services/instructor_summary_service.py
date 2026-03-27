@@ -76,6 +76,7 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None):
                 WHERE {where_sql}
                 GROUP BY i.instructor_key, i.name
                 ORDER BY i.name
+                LIMIT 20
             """
             cur.execute(main_sql, params)
             table_data = cur.fetchall()
