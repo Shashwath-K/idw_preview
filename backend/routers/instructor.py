@@ -9,8 +9,8 @@ router = APIRouter(prefix="/instructor", tags=["instructor"])
 
 @router.get("/kpis", response_model=KPIBundle)
 def instructor_kpis(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     instructor: str | None = Query(default=None),
@@ -22,8 +22,8 @@ def instructor_kpis(
 
 @router.get("/session-log")
 def instructor_session_log(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     instructor: str | None = Query(default=None),
@@ -39,8 +39,8 @@ def instructor_session_log(
 
 @router.get("/type-breakdown", response_model=SeriesBundle)
 def instructor_type_breakdown(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     instructor: str | None = Query(default=None),
@@ -55,8 +55,8 @@ def instructor_type_breakdown(
 
 @router.get("/multi-program")
 def instructor_multi_program(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     instructor: str | None = Query(default=None),
@@ -72,8 +72,8 @@ def instructor_multi_program(
 
 @router.get("/productivity", response_model=SeriesBundle)
 def instructor_productivity(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     instructor: str | None = Query(default=None),
@@ -89,8 +89,8 @@ def instructor_productivity(
 
 @router.get("/monthly", response_model=SeriesBundle)
 def monthly_instructor_activity(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     instructor: str | None = Query(default=None),

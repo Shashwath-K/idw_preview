@@ -11,6 +11,6 @@ def get_filters():
 def get_data(
     instructor_name: str | None = Query(None),
     year: str | None = Query(None),
-    month: int | None = Query(None)
+    month: str | None = Query(None)
 ):
     return {"table": instructor_detail_service.get_instructor_detail_data(instructor_name, year, month)}
