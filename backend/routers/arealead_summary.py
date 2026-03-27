@@ -12,6 +12,6 @@ def get_data(
     region: str | None = Query(None),
     area: str | None = Query(None),
     year: str | None = Query(None),
-    month: int | None = Query(None)
+    month: str | None = Query(None)
 ):
     return {"table": arealead_summary_service.get_arealead_summary_data(region, area, year, month)}
