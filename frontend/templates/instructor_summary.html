@@ -1,98 +1,90 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- KPI Cards -->
+{% include "partials/kpi_cards.html" %}
 
-<section class="content">
-    <div class="container-fluid">
-        <!-- Filters -->
-        <div class="card card-default">
-            <div class="card-body">
-                <div class="row align-items-end">
-                    <div class="col-md-2">
-                        <div class="form-group mb-0">
-                            <label>Region</label>
-                            <select id="regionFilter" class="form-control select2">
-                                <option value="">All Regions</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group mb-0">
-                            <label>Area</label>
-                            <select id="areaFilter" class="form-control select2">
-                                <option value="">All Areas</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group mb-0">
-                            <label>Select Year</label>
-                            <select id="yearFilter" class="form-control select2">
-                                <option value="">All Years</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group mb-0">
-                            <label>Month</label>
-                            <select id="monthFilter" class="form-control select2">
-                                <option value="">All Months</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mt-2">
-                        <button id="seeReport" class="btn btn-primary">See Report</button>
-                        <button id="exportReport" class="btn btn-outline-secondary ml-1" disabled>Export</button>
-                        <button id="inactiveUserReport" class="btn btn-outline-dark ml-1">InactiveUserReport</button>
-                    </div>
+<!-- Filters -->
+<div class="card card-default">
+    <div class="card-body">
+        <div class="row align-items-end">
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Region</label>
+                    <select id="regionFilter" class="form-control select2">
+                        <option value="">All Regions</option>
+                    </select>
                 </div>
             </div>
-            
-            <!-- KPI Cards -->
-            {% include "partials/kpi_cards.html" %}
-        </div>
-
-        <!-- Instructor Table -->
-        <div class="card mt-3">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table id="instructorTable" class="table table-striped table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Instructor...</th>
-                                <th>Days worked</th>
-                                <th>School Session</th>
-                                <th>School Exposures</th>
-                                <th>No.of Fair</th>
-                                <th>YIExp Training</th>
-                                <th>SF Expo...</th>
-                                <th>YIL Session</th>
-                                <th>YIL Expo...</th>
-                                <th>CV visit</th>
-                                <th>CV Exps</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Data will be populated by JS -->
-                        </tbody>
-                    </table>
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Area</label>
+                    <select id="areaFilter" class="form-control select2">
+                        <option value="">All Areas</option>
+                    </select>
                 </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Select Year</label>
+                    <select id="yearFilter" class="form-control select2">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Month</label>
+                    <select id="monthFilter" class="form-control select2">
+                        <option value="">All Months</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4 mt-2">
+                <button id="seeReport" class="btn btn-primary">See Report</button>
+                <button id="exportReport" class="btn btn-outline-secondary ml-1" disabled>Export</button>
+                <button id="inactiveUserReport" class="btn btn-outline-dark ml-1">InactiveUserReport</button>
             </div>
         </div>
     </div>
-</section>
+</div>
 
+<!-- Table -->
+<div class="card mt-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table id="instructorTable" class="table table-striped table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Instructor</th>
+                        <th>Days worked</th>
+                        <th>School Session</th>
+                        <th>School Exposures</th>
+                        <th>No.of Fair</th>
+                        <th>YIExp Training</th>
+                        <th>SF Expo</th>
+                        <th>YIL Session</th>
+                        <th>YIL Expo</th>
+                        <th>CV visit</th>
+                        <th>CV Exps</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 $(function () {
-    // Initialize Select2 if available
     if ($.fn.select2) {
         $('.select2').select2({ theme: 'bootstrap4' });
     }
 
-    // Load Filters
     fetch('/instructor-summary/filters')
         .then(res => res.json())
         .then(data => {
@@ -107,7 +99,6 @@ $(function () {
             data.months.forEach(m => monthSelect.append(new Option(m.name, m.id)));
         });
 
-    // See Report Button
     $('#seeReport').click(function () {
         const filters = {
             region: $('#regionFilter').val(),
@@ -117,18 +108,15 @@ $(function () {
         };
 
         const queryParams = new URLSearchParams(filters).toString();
-        
         fetch(`/instructor-summary/data?${queryParams}`)
             .then(res => res.json())
             .then(data => {
                 const tbody = $('#instructorTable tbody');
                 tbody.empty();
-
                 if (data.table.length === 0) {
                     tbody.append('<tr><td colspan="11" class="text-center">No data found</td></tr>');
                     return;
                 }
-
                 data.table.forEach(row => {
                     tbody.append(`
                         <tr>
@@ -150,10 +138,4 @@ $(function () {
     });
 });
 </script>
-<style>
-    .nav-divider hr {
-        margin: 0.5rem 1rem;
-        border-top: 1px solid rgba(255,255,255,0.1);
-    }
-</style>
 {% endblock %}

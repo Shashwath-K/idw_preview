@@ -1,7 +1,39 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- KPI Grid -->
+<div class="row kpi-grid">
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Students Reached</span>
+            <span class="kpi-value" id="regionStudentsReached">0</span>
+            <span class="kpi-copy">total regional student exposure</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">States</span>
+            <span class="kpi-value" id="regionStates">0</span>
+            <span class="kpi-copy">distinct states active in the window</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Programs</span>
+            <span class="kpi-value" id="regionPrograms">0</span>
+            <span class="kpi-copy">session-program footprint in regions</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Avg Impact</span>
+            <span class="kpi-value" id="regionAverageImpact">0</span>
+            <span class="kpi-copy">average student reach per state period</span>
+        </section>
+    </div>
+</div>
 
+<!-- Filters -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card card-outline card-primary filter-panel">
@@ -33,37 +65,6 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="row kpi-grid">
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card">
-            <span class="kpi-label">Students Reached</span>
-            <span class="kpi-value" id="regionStudentsReached">0</span>
-            <span class="kpi-copy">total regional student exposure</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card">
-            <span class="kpi-label">States</span>
-            <span class="kpi-value" id="regionStates">0</span>
-            <span class="kpi-copy">distinct states active in the window</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card">
-            <span class="kpi-label">Programs</span>
-            <span class="kpi-value" id="regionPrograms">0</span>
-            <span class="kpi-copy">session-program footprint in regions</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card">
-            <span class="kpi-label">Avg Impact</span>
-            <span class="kpi-value" id="regionAverageImpact">0</span>
-            <span class="kpi-copy">average student reach per state period</span>
-        </section>
     </div>
 </div>
 

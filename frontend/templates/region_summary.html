@@ -1,7 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- KPI Container (Injected by JS) -->
+<div class="row kpis-grid mb-4" id="kpiContainer">
+    <!-- 4 Placeholder KPI Cards for corporate aesthetics -->
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-info">
+            <div class="inner"><h3>0</h3><p>Total Sessions</p></div>
+            <div class="icon"><i class="fas fa-calendar-check"></i></div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-success">
+            <div class="inner"><h3>0</h3><p>Students Reached</p></div>
+            <div class="icon"><i class="fas fa-user-graduate"></i></div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning">
+            <div class="inner"><h3>0</h3><p>Teachers Trained</p></div>
+            <div class="icon"><i class="fas fa-chalkboard-teacher"></i></div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger">
+            <div class="inner"><h3>0</h3><p>Schools Covered</p></div>
+            <div class="icon"><i class="fas fa-school"></i></div>
+        </div>
+    </div>
+</div>
 
+<!-- Filters -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card card-outline card-primary filter-panel">
@@ -35,10 +64,6 @@
 </div>
 
 <div id="reportContent" style="display: none;">
-    <div class="row kpi-grid mb-4" id="kpiContainer">
-        <!-- KPIs will be injected here -->
-    </div>
-
     <div class="row">
         <div class="col-lg-8">
             <div class="card card-outline card-info">
@@ -132,7 +157,7 @@ $(function () {
                 data.kpis.forEach(kpi => {
                     kpiContainer.append(`
                         <div class="col-lg-3 col-6">
-                            <div class="small-box bg-info">
+                            <div class="small-box ${kpi.color || 'bg-info'}">
                                 <div class="inner">
                                     <h3>${kpi.value.toLocaleString()}</h3>
                                     <p>${kpi.label}</p>

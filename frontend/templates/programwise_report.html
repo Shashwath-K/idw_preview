@@ -1,70 +1,65 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- KPI Cards -->
+{% include "partials/kpi_cards.html" %}
 
-<section class="content">
-    <div class="container-fluid">
-        <!-- Filters -->
-        <div class="card card-default">
-            <div class="card-body">
-                <div class="row align-items-end">
-                    <div class="col-md-3">
-                        <div class="form-group mb-0">
-                            <label>Program Category</label>
-                            <select id="categoryFilter" class="form-control select2">
-                                <option value="">All Categories</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group mb-0">
-                            <label>Select Year</label>
-                            <select id="yearFilter" class="form-control select2">
-                                <option value="">All Years</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group mb-0">
-                            <label>Month</label>
-                            <select id="monthFilter" class="form-control select2">
-                                <option value="">All Months</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <button id="seeReport" class="btn btn-info btn-block">See Report</button>
-                    </div>
+<!-- Filters -->
+<div class="card card-default">
+    <div class="card-body">
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <div class="form-group mb-0">
+                    <label>Program Category</label>
+                    <select id="categoryFilter" class="form-control select2">
+                        <option value="">All Categories</option>
+                    </select>
                 </div>
             </div>
-            
-            <!-- KPI Cards -->
-            {% include "partials/kpi_cards.html" %}
-        </div>
-
-        <!-- Table -->
-        <div class="card mt-3">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table id="programTable" class="table table-striped table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Program Name</th>
-                                <th>Category</th>
-                                <th>Sessions</th>
-                                <th>Students</th>
-                                <th>Schools Covered</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Select Year</label>
+                    <select id="yearFilter" class="form-control select2">
+                        <option value="">All Years</option>
+                    </select>
                 </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Month</label>
+                    <select id="monthFilter" class="form-control select2">
+                        <option value="">All Months</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button id="seeReport" class="btn btn-info btn-block">See Report</button>
             </div>
         </div>
     </div>
-</section>
+</div>
+
+<!-- Table -->
+<div class="card mt-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table id="programTable" class="table table-striped table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Program Name</th>
+                        <th>Category</th>
+                        <th>Sessions</th>
+                        <th>Students</th>
+                        <th>Schools Covered</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}

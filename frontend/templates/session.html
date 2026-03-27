@@ -1,7 +1,39 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- KPI Grid -->
+<div class="row kpi-grid">
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Total Sessions</span>
+            <span class="kpi-value" id="sessionTotalSessions">0</span>
+            <span class="kpi-copy">delivered in the selected window</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Instructors</span>
+            <span class="kpi-value" id="sessionTotalInstructors">0</span>
+            <span class="kpi-copy">active contributors to delivery</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Active Regions</span>
+            <span class="kpi-value" id="sessionActiveRegions">0</span>
+            <span class="kpi-copy">regions with recorded sessions</span>
+        </section>
+    </div>
+    <div class="col-lg-3 col-6 mb-3">
+        <section class="kpi-card">
+            <span class="kpi-label">Programs</span>
+            <span class="kpi-value" id="sessionPrograms">0</span>
+            <span class="kpi-copy">programs running session activity</span>
+        </section>
+    </div>
+</div>
 
+<!-- Filters -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card card-outline card-primary filter-panel">
@@ -33,37 +65,6 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="row kpi-grid">
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card">
-            <span class="kpi-label">Total Sessions</span>
-            <span class="kpi-value" id="sessionTotalSessions">0</span>
-            <span class="kpi-copy">delivered in the selected window</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card">
-            <span class="kpi-label">Instructors</span>
-            <span class="kpi-value" id="sessionTotalInstructors">0</span>
-            <span class="kpi-copy">active contributors to delivery</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card">
-            <span class="kpi-label">Active Regions</span>
-            <span class="kpi-value" id="sessionActiveRegions">0</span>
-            <span class="kpi-copy">regions with recorded sessions</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card">
-            <span class="kpi-label">Programs</span>
-            <span class="kpi-value" id="sessionPrograms">0</span>
-            <span class="kpi-copy">programs running session activity</span>
-        </section>
     </div>
 </div>
 

@@ -1,46 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% block content %}
-
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card card-outline card-primary filter-panel instructor-filter-panel">
-            <div class="card-header border-0 pb-0"><h3 class="card-title">Instructor Filters</h3></div>
-            <div class="card-body pt-3">
-                <div class="row">
-                    <div class="col-md-3">
-                        <label for="startYear">Start Year</label>
-                        <input id="startYear" type="range" min="2020" max="2026" value="2020" class="custom-range">
-                        <div class="filter-value" id="startYearLabel">2020</div>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="endYear">End Year</label>
-                        <input id="endYear" type="range" min="2020" max="2026" value="2026" class="custom-range">
-                        <div class="filter-value" id="endYearLabel">2026</div>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="regionFilter">Region</label>
-                        <select id="regionFilter" class="form-control">
-                            <option value="">All Regions</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="programFilter">Program</label>
-                            <select id="programFilter" class="form-control">
-                                <option value="">All Programs</option>
-                            </select>
-                            <label for="instructorTypeFilter" style="margin-top:8px;">Instructor Type</label>
-                            <select id="instructorTypeFilter" class="form-control">
-                                <option value="">All Types</option>
-                            </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
+<!-- KPI Grid -->
 <div class="row kpi-grid instructor-kpi-grid">
     <div class="col-lg-3 col-6 mb-3">
         <section class="kpi-card instructor-kpi-card instructor-kpi-blue">
@@ -81,6 +42,45 @@
             <span class="kpi-value" id="instructorUnprocessed">0</span>
             <span class="kpi-copy">needs feedback entry</span>
         </section>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card card-outline card-primary filter-panel instructor-filter-panel">
+            <div class="card-header border-0 pb-0"><h3 class="card-title">Instructor Filters</h3></div>
+            <div class="card-body pt-3">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="startYear">Start Year</label>
+                        <input id="startYear" type="range" min="2020" max="2026" value="2020" class="custom-range">
+                        <div class="filter-value" id="startYearLabel">2020</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="endYear">End Year</label>
+                        <input id="endYear" type="range" min="2020" max="2026" value="2026" class="custom-range">
+                        <div class="filter-value" id="endYearLabel">2026</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="regionFilter">Region</label>
+                        <select id="regionFilter" class="form-control">
+                            <option value="">All Regions</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="programFilter">Program</label>
+                        <select id="programFilter" class="form-control">
+                            <option value="">All Programs</option>
+                        </select>
+                        <label for="instructorTypeFilter" style="margin-top:8px;">Instructor Type</label>
+                        <select id="instructorTypeFilter" class="form-control">
+                            <option value="">All Types</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
