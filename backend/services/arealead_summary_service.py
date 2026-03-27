@@ -54,6 +54,7 @@ def get_arealead_summary_data(region=None, area=None, year=None, month=None):
                 WHERE {where_sql}
                 GROUP BY l.area, l.region
                 ORDER BY l.region, l.area
+                LIMIT 20
             """
             cur.execute(sql, params)
             return cur.fetchall()
