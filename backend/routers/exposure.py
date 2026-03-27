@@ -9,8 +9,8 @@ router = APIRouter(prefix="/exposure", tags=["exposure"])
 
 @router.get("/total-students", response_model=CountResponse)
 def total_students(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -21,8 +21,8 @@ def total_students(
 
 @router.get("/kpis", response_model=KPIBundle)
 def exposure_kpis(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -31,8 +31,8 @@ def exposure_kpis(
 
 @router.get("/gender-split")
 def gender_split(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -41,8 +41,8 @@ def gender_split(
 
 @router.get("/community-gender-split")
 def community_gender_split(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -51,8 +51,8 @@ def community_gender_split(
 
 @router.get("/top-schools")
 def top_schools(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     limit: int = Query(default=5, ge=1, le=20),
@@ -65,8 +65,8 @@ def top_schools(
 
 @router.get("/cohort-breakdown", response_model=SeriesBundle)
 def cohort_breakdown(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -78,8 +78,8 @@ def cohort_breakdown(
 
 @router.get("/program-metrics", response_model=SeriesBundle)
 def program_metrics(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
     limit: int = Query(default=10, ge=1, le=25),
@@ -94,8 +94,8 @@ def program_metrics(
 
 @router.get("/program-distribution", response_model=SeriesBundle)
 def program_distribution(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
