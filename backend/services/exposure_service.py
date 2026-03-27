@@ -71,7 +71,7 @@ def get_program_metrics(
     end: int | None = None,
     region: str | None = None,
     program: str | None = None,
-    limit: int = 10,
+    limit: int = 20,
 ) -> list[dict]:
     where_clause, params = _base_where(start, end, region, program)
     rows = fetch_all(
@@ -114,7 +114,7 @@ def get_program_distribution(
         {where_clause}
         GROUP BY COALESCE(p.program_name, 'Unknown')
         ORDER BY value DESC, label
-        LIMIT 10
+        LIMIT 20
         """,
         params,
     )
