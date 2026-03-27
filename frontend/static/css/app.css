@@ -423,6 +423,24 @@ h1, h2, h3, h4, h5, .brand-text {
     }
 }
 
+/* --- UI Size Overrides --- */
+.small-box { padding: 10px; min-height: 80px; }
+.small-box .inner { padding: 10px; }
+.small-box h3 { font-size: 1.5rem !important; margin: 0 0 5px 0; }
+.small-box p { font-size: 0.85rem !important; margin-bottom: 0; }
+.small-box .icon > i { font-size: 40px !important; top: 15px !important; right: 15px !important; }
+
+/* Filters */
+.card-default .card-body { padding: 0.75rem 1.25rem; }
+.form-group label { font-size: 0.85rem; margin-bottom: 0.2rem; }
+.form-control, .select2-container .select2-selection--single { height: calc(1.5em + 0.5rem + 2px) !important; padding: 0.25rem 0.5rem; font-size: 0.85rem; }
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: inherit !important; padding-left: 0 !important; }
+.btn-block, #seeReport { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+
+/* Tables */
+.table th, .table td { padding: 0.5rem 0.75rem !important; font-size: 0.85rem; }
+.card.mt-3 .card-body { padding: 0; }
+
 @media (max-width: 767.98px) {
     .kpi-card {
         min-height: auto;
