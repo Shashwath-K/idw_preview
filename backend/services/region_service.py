@@ -68,7 +68,7 @@ def get_region_impact(
         {where_clause}
         GROUP BY COALESCE(l.state, 'Unknown')
         ORDER BY value DESC, label
-        LIMIT 15
+        LIMIT 20
         """,
         params,
     )
