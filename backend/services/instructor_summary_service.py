@@ -68,13 +68,13 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None, l
                     COUNT(DISTINCT f.session_key) as school_sessions,
                     SUM(COALESCE(f.session_count, 0)) as total_sessions,
                     SUM(COALESCE(e.students_total, 0)) as total_exposures,
-                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%Fair%' THEN f.session_key END) as fair_count,
-                    SUM(CASE WHEN a.activity_name ILIKE '%Training%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as training_exposures,
-                    SUM(CASE WHEN a.activity_name ILIKE '%SF%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as sf_exposures,
-                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%YIL%' THEN f.session_key END) as yil_sessions,
-                    SUM(CASE WHEN a.activity_name ILIKE '%YIL%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as yil_exposures,
-                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%CV%' THEN f.session_key END) as cv_visits,
-                    SUM(CASE WHEN a.activity_name ILIKE '%CV%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as cv_exposures
+                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%Fair%%' THEN f.session_key END) as fair_count,
+                    SUM(CASE WHEN a.activity_name ILIKE '%%Training%%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as training_exposures,
+                    SUM(CASE WHEN a.activity_name ILIKE '%%SF%%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as sf_exposures,
+                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN f.session_key END) as yil_sessions,
+                    SUM(CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as yil_exposures,
+                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%CV%%' THEN f.session_key END) as cv_visits,
+                    SUM(CASE WHEN a.activity_name ILIKE '%%CV%%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as cv_exposures
                 FROM dw_data_schema.dim_instructor i
                 LEFT JOIN dw_data_schema.fact_session_event f ON i.instructor_key = f.instructor_key
                 LEFT JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
