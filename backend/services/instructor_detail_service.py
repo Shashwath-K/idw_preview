@@ -51,6 +51,7 @@ def get_instructor_detail_data(instructor_name=None, year=None, month=None):
                 LEFT JOIN dw_data_schema.fact_exposure e ON f.session_key = e.session_key
                 WHERE {where_sql}
                 ORDER BY d.date DESC
+                LIMIT 20
             """
             cur.execute(sql, params)
             rows = cur.fetchall()
