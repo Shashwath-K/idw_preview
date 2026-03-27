@@ -62,6 +62,7 @@ def get_school_visit_data(region=None, area=None, program=None, year=None, month
                 WHERE {where_sql}
                 GROUP BY l.school_name, p.program_name, l.region, l.area
                 ORDER BY sessions DESC
+                LIMIT 20
             """
             cur.execute(sql, params)
             return cur.fetchall()
