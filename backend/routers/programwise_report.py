@@ -16,3 +16,13 @@ def get_data(
     offset: int = Query(0)
 ):
     return programwise_report_service.get_programwise_report_data(category, year, month, limit, offset)
+
+@router.get("/export")
+def export_data(
+    category: str | None = Query(None),
+    year: str | None = Query(None),
+    month: str | None = Query(None)
+):
+    from backend.services.export_utils import json_to_excel_streaming_response
+    data = programwise_report_service.get_programwise_report_data(category, year, month, limit=100000, offset=0)
+    return json_to_excel_streaming_response(data["table"], "programwise_report.xlsx")
