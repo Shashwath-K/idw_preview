@@ -1,10 +1,10 @@
-﻿# Pramana Dashboard
+# Pramana Dashboard
 
 This project implements a Data Warehouse Analytics Dashboard built on top of a PostgreSQL star schema using FastAPI and AdminLTE.
 
 ## Project Overview
 
-The application provides a production-style analytics interface for the `pramana` PostgreSQL data warehouse. It exposes read-only FastAPI endpoints over existing `dim_*` and `fact_*` tables and renders a professional AdminLTE user interface with Chart.js visualizations for sessions, regional impact, instructor productivity, and program metrics.
+The application provides a professional analytics interface for the `pramana` PostgreSQL data warehouse. It exposes read-only FastAPI endpoints over a star schema (`dw_data_schema`) and renders a modern AdminLTE user interface with Chart.js visualizations.
 
 ## Architecture
 
@@ -19,7 +19,7 @@ The solution follows a layered architecture:
 
 ## Database Schema
 
-The dashboard assumes that the `pramana` database already exists and contains warehouse tables in a star schema layout, including:
+The dashboard connects to the `pramanadb` database and assumes the presence of warehouse tables in a star schema layout within the `dw_data_schema` schema, including:
 
 - `fact_session_event`
 - `fact_exposure`
@@ -90,13 +90,16 @@ Query parameters support filtered analysis using:
 
    `http://127.0.0.1:8000`
 
-If your PostgreSQL credentials differ from the defaults, set these environment variables before starting the server:
+If your PostgreSQL credentials differ from the defaults (configured for localhost), set these environment variables:
 
-- `PRAMANA_DB_NAME`
 - `PRAMANA_DB_USER`
 - `PRAMANA_DB_PASSWORD`
 - `PRAMANA_DB_HOST`
 - `PRAMANA_DB_PORT`
+- `PRAMANA_DB_SSL_MODE` (defaults to `require`)
+- `PRAMANA_ADMIN_DB_NAME`
+- `PRAMANA_SOURCE_DB_NAME`
+- `PRAMANA_DATAMART_DB_NAME`
 
 ## Folder Structure
 
