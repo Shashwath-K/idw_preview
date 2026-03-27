@@ -767,5 +767,92 @@
         }
         return response.json();
     }
-})();
 
+    // Pagination and Export Utilities
+    window.PramanaPagination = {
+        state: {
+            limit: 15,
+            offset: 0,
+            total: 0
+        },
+        updateInfo: function(containerId, totalCount) {
+            this.state.total = totalCount;
+            const start = this.state.offset + 1;
+            const end = Math.min(this.state.offset + this.state.limit, totalCount);
+            const totalPages = Math.ceil(totalCount / this.state.limit) || 1;
+            const currentPage = Math.floor(this.state.offset / this.state.limit) + 1;
+
+            // Search in the specified container, or fall back to the whole document
+            const element = document.getElementById(containerId);
+            const context = element ? element.closest('.card-body') || element.parentElement || document : document;
+            
+            const info = context.querySelector('.pagination-info');
+            if (info) {
+                info.innerHTML = `Showing ${totalCount > 0 ? start : 0} to ${end} of ${totalCount} entries`;
+            }
+            
+            const currentSpan = context.querySelector('.current-page');
+            const totalSpan = context.querySelector('.total-pages');
+            if (currentSpan) currentSpan.textContent = currentPage;
+            if (totalSpan) totalSpan.textContent = totalPages;
+
+            const prevBtn = context.querySelector('.prev-page');
+            const nextBtn = context.querySelector('.next-page');
+            if (prevBtn) prevBtn.disabled = (currentPage <= 1);
+            if (nextBtn) nextBtn.disabled = (currentPage >= totalPages);
+        },
+        reset: function() {
+            this.state.offset = 0;
+            this.state.total = 0;
+        },
+        next: function(callback) {
+            if (this.state.offset + this.state.limit < this.state.total) {
+                this.state.offset += this.state.limit;
+                if (typeof callback === 'function') callback();
+            }
+        },
+        prev: function(callback) {
+            if (this.state.offset >= this.state.limit) {
+                this.state.offset -= this.state.limit;
+                if (typeof callback === 'function') callback();
+            }
+        }
+    };
+
+    // Global Event Delegation for Pagination
+    $(document).on('click', '.prev-page', function(e) {
+        e.preventDefault();
+        window.PramanaPagination.prev(() => {
+            if (window.loadReportData) window.loadReportData();
+            else if (typeof loadData === 'function') loadData();
+        });
+    });
+
+    $(document).on('click', '.next-page', function(e) {
+        e.preventDefault();
+        window.PramanaPagination.next(() => {
+            if (window.loadReportData) window.loadReportData();
+            else if (typeof loadData === 'function') loadData();
+        });
+    });
+
+    // Reset pagination on "See Report"
+    $(document).on('click', '#seeReportBtn, .filter-btn', function() {
+        window.PramanaPagination.reset();
+    });
+
+    window.exportToXLSX = async function(url, filename) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Export failed");
+            const blob = await response.blob();
+            const link = document.createElement("a");
+            link.href = window.URL.createObjectURL(blob);
+            link.download = filename || "export.xlsx";
+            link.click();
+        } catch (error) {
+            console.error(error);
+            alert("Failed to export data");
+        }
+    };
+})();
