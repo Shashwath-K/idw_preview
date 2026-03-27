@@ -76,37 +76,27 @@ def get_region_summary_data(program_type=None, year=None, month=None, limit=15, 
             # To show global filtered totals, let's do one more query.
             kpi_sql = f"""
                 SELECT 
-                    SUM(f.sessions) as sessions,
-                    SUM(f.students_reached) as students_reached,
-                    SUM(f.teachers_trained) as teachers_trained,
-                    SUM(f.schools_covered) as schools_covered,
-                    SUM(f.community_reach) as community_reach
-                FROM dw_data_schema.fact_weekly_program_metrics f
-                JOIN dw_data_schema.dim_date d ON f.week_key = d.date_key
+                    SUM(CASE WHEN (p.program_name ILIKE '%%STEM for Schools%%' OR p.program_name ILIKE '%%School%%') THEN f.session_count ELSE 0 END) as school_visits,
+                    SUM(CASE WHEN a.activity_name ILIKE '%%Fair%%' THEN f.session_count ELSE 0 END) as sf_count,
+                    SUM(CASE WHEN (p.program_name ILIKE '%%Community%%' OR a.activity_name ILIKE '%%CV%%') THEN f.session_count ELSE 0 END) as cv_count,
+                    SUM(CASE WHEN (p.program_name ILIKE '%%Teacher%%' OR a.activity_name ILIKE '%%Training%%') THEN f.session_count ELSE 0 END) as ttp_count
+                FROM dw_data_schema.fact_session_event f
+                JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
                 JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
                 JOIN dw_data_schema.dim_program p ON f.program_key = p.program_key
-                WHERE {where_sql}
+                LEFT JOIN dw_data_schema.dim_activity a ON f.activity_key = a.activity_key
+                WHERE {where_sql.replace('p.program_category', 'p.program_name')}
             """
             cur.execute(kpi_sql, params)
             totals = cur.fetchone()
             
     return {
         "kpis": [
-            {"label": "Total Sessions", "value": int(totals["sessions"] or 0), "icon": "fas fa-video"},
-            {"label": "Students Reached", "value": int(totals["students_reached"] or 0), "icon": "fas fa-user-graduate"},
-            {"label": "Schools Covered", "value": int(totals["schools_covered"] or 0), "icon": "fas fa-school"},
-            {"label": "Community Reach", "value": int(totals["community_reach"] or 0), "icon": "fas fa-users"},
+            {"label": "Total School visits", "value": int(totals["school_visits"] or 0), "icon": "fas fa-school"},
+            {"label": "Total Science Fair (SF)", "value": int(totals["sf_count"] or 0), "icon": "fas fa-flask"},
+            {"label": "Total Community Visit (CV)", "value": int(totals["cv_count"] or 0), "icon": "fas fa-users"},
+            {"label": "Total Teacher Training Program (TTP)", "value": int(totals["ttp_count"] or 0), "icon": "fas fa-chalkboard-teacher"},
         ],
         "table": table_data,
-        "total_count": total_count,
-        "chart": {
-            "labels": [row["region"] for row in table_data],
-            "datasets": [
-                {
-                    "label": "Students Reached",
-                    "data": [int(row["students_reached"] or 0) for row in table_data],
-                    "backgroundColor": "rgba(60,141,188,0.9)"
-                }
-            ]
-        }
+        "total_count": total_count
     }
