@@ -21,6 +21,7 @@ from backend.routers import (
     school_visit,
     session,
     work_day,
+    dashboard,
 )
 
 
@@ -59,6 +60,7 @@ app.mount(
 # -----------------------------
 
 app.include_router(overview.router)
+app.include_router(dashboard.router)
 app.include_router(session.router)
 app.include_router(exposure.router)
 app.include_router(attendance.router)
@@ -159,7 +161,12 @@ def exposure_page(request: Request):
 
 @app.get("/overview", response_class=HTMLResponse)
 def overview_page(request: Request):
-    return render_page(request, "placeholder.html", "Overview", "overview")
+    return render_page(
+        request,
+        "index.html",
+        "Overview",
+        "overview",
+    )
 
 @app.get("/program-visits", response_class=HTMLResponse)
 def program_visits_page(request: Request):
