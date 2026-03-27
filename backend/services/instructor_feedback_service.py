@@ -44,7 +44,7 @@ def get_instructor_feedback_data(instructor_name=None, year=None):
                 JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
                 JOIN dw_data_schema.dim_activity a ON f.activity_key = a.activity_key
                 WHERE {where_sql}
-                LIMIT 50
+                LIMIT 20
             """
             cur.execute(sql, params)
             rows = cur.fetchall()
