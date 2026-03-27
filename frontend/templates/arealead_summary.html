@@ -41,17 +41,22 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <button id="seeReport" class="btn btn-warning btn-block">See Report</button>
+                <button id="seeReport" class="btn btn-warning btn-sm btn-block">See Report</button>
+            </div>
+            <div class="col-md-1">
+                <button id="exportXlsx" class="btn btn-export btn-sm btn-block">
+                    <i class="fas fa-file-excel"></i>
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Table -->
-<div class="card mt-3">
+<div class="card mt-2">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table id="areaTable" class="table table-striped table-hover mb-0">
+            <table id="areaTable" class="table table-striped table-hover mb-0 high-contrast-table">
                 <thead>
                     <tr>
                         <th>Area</th>
@@ -66,6 +71,7 @@
                 </tbody>
             </table>
         </div>
+        {% include "partials/pagination.html" %}
     </div>
 </div>
 {% endblock %}
@@ -73,6 +79,8 @@
 {% block scripts %}
 <script>
 $(function () {
+    const pagination = window.PramanaPagination;
+
     if ($.fn.select2) {
         $('.select2').select2({ theme: 'bootstrap4' });
     }
@@ -91,12 +99,14 @@ $(function () {
             data.months.forEach(m => monthSelect.append(new Option(m.name, m.id)));
         });
 
-    $('#seeReport').click(function () {
+    function loadData() {
         const filters = {
             region: $('#regionFilter').val(),
             area: $('#areaFilter').val(),
             year: $('#yearFilter').val(),
-            month: $('#monthFilter').val()
+            month: $('#monthFilter').val(),
+            limit: pagination.state.limit,
+            offset: pagination.state.offset
         };
 
         const query = new URLSearchParams(filters).toString();
@@ -107,6 +117,7 @@ $(function () {
                 tbody.empty();
                 if (data.table.length === 0) {
                     tbody.append('<tr><td colspan="5" class="text-center">No data found</td></tr>');
+                    pagination.updateInfo('areaTable', 0);
                     return;
                 }
                 data.table.forEach(row => {
@@ -120,8 +131,36 @@ $(function () {
                         </tr>
                     `);
                 });
+                pagination.updateInfo('areaTable', data.total_count);
             });
+    }
+
+    $('#seeReport').click(function () {
+        pagination.reset();
+        loadData();
     });
+
+    $('.prev-page').click(function() {
+        pagination.prev(loadData);
+    });
+
+    $('.next-page').click(function() {
+        pagination.next(loadData);
+    });
+
+    $('#exportXlsx').click(function() {
+        const filters = {
+            region: $('#regionFilter').val(),
+            area: $('#areaFilter').val(),
+            year: $('#yearFilter').val(),
+            month: $('#monthFilter').val()
+        };
+        const query = new URLSearchParams(filters).toString();
+        window.exportToXLSX(`/arealead-summary/export?${query}`, 'arealead_summary.xlsx');
+    });
+
+    // Auto-load
+    setTimeout(loadData, 300);
 });
 </script>
 {% endblock %}

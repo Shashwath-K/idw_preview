@@ -2,128 +2,244 @@
 
 {% block content %}
 <!-- KPI Grid -->
-<div class="row kpi-grid overview-kpi-grid">
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card overview-kpi-card kpi-card-aqua">
-            <div class="overview-kpi-top">
-                <span class="kpi-label">Donors</span>
-                <span class="overview-kpi-icon"><i class="fas fa-donate"></i></span>
+{% include "partials/overview_kpis.html" %}
+
+<!-- Filters -->
+<div class="card card-default">
+    <div class="card-body">
+        <div class="row align-items-end">
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Start Year</label>
+                    <select id="startYear" class="form-control select2">
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                </div>
             </div>
-            <span class="kpi-value" id="kpiDonors">0</span>
-            <span class="kpi-copy">funding active programs</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card overview-kpi-card kpi-card-emerald">
-            <div class="overview-kpi-top">
-                <span class="kpi-label">Programs</span>
-                <span class="overview-kpi-icon"><i class="fas fa-project-diagram"></i></span>
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>End Year</label>
+                    <select id="endYear" class="form-control select2">
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                    </select>
+                </div>
             </div>
-            <span class="kpi-value" id="kpiPrograms">0</span>
-            <span class="kpi-copy"><strong id="kpiProgramsTrack">0</strong> on track, <strong id="kpiProgramsRisk">0</strong> at risk</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card overview-kpi-card kpi-card-amber">
-            <div class="overview-kpi-top">
-                <span class="kpi-label">Target Sessions</span>
-                <span class="overview-kpi-icon"><i class="fas fa-calendar-check"></i></span>
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Region</label>
+                    <select id="regionFilter" class="form-control select2">
+                        <option value="">All Regions</option>
+                    </select>
+                </div>
             </div>
-            <span class="kpi-value" id="kpiTargetSessions">0</span>
-            <span class="kpi-copy"><strong id="kpiCompletedSessions">0</strong> completed (<strong id="kpiSessionsPct">0</strong>%)</span>
-        </section>
-    </div>
-    <div class="col-lg-3 col-6 mb-3">
-        <section class="kpi-card overview-kpi-card kpi-card-rose">
-            <div class="overview-kpi-top">
-                <span class="kpi-label">Target Students</span>
-                <span class="overview-kpi-icon"><i class="fas fa-user-graduate"></i></span>
+            <div class="col-md-2">
+                <div class="form-group mb-0">
+                    <label>Program</label>
+                    <select id="programFilter" class="form-control select2">
+                        <option value="">All Programs</option>
+                    </select>
+                </div>
             </div>
-            <span class="kpi-value" id="kpiTargetStudents">0</span>
-            <span class="kpi-copy"><strong id="kpiReachedStudents">0</strong> reached (<strong id="kpiStudentsPct">0</strong>%)</span>
-        </section>
+            <div class="col-md-2">
+                <button id="seeReport" class="btn btn-primary btn-sm btn-block">See Report</button>
+            </div>
+            <div class="col-md-1">
+                <button id="exportXlsx" class="btn btn-export btn-sm btn-block">
+                    <i class="fas fa-file-excel"></i>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Filters -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card card-outline card-primary filter-panel overview-filter-panel">
-            <div class="card-header border-0 pb-0"><h3 class="card-title">Global Filters</h3></div>
-            <div class="card-body pt-3">
-                <div class="row">
-                    <div class="col-md-3">
-                        <label for="startYear">Start Year</label>
-                        <input id="startYear" type="range" min="2020" max="2026" value="2020" class="custom-range">
-                        <div class="filter-value" id="startYearLabel">2020</div>
+<section class="overview-content-stack mt-2">
+    <div class="card">
+        <div class="card-header border-0">
+            <h3 class="card-title">Program-level targets vs actuals</h3>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0 high-contrast-table" id="overviewTable">
+                    <thead>
+                        <tr>
+                            <th>Program</th>
+                            <th>Donor</th>
+                            <th>Sessions</th>
+                            <th>Progress</th>
+                            <th>Students</th>
+                            <th>End date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="programTargetsBody">
+                        <tr>
+                            <td colspan="7" class="text-center">Select filters to load...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% include "partials/pagination.html" %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-7 mb-3">
+            <div class="card h-100">
+                <div class="card-header border-0">
+                    <h3 class="card-title">Sessions by activity type</h3>
+                </div>
+                <div class="card-body">
+                    <div style="height:240px;">
+                        <canvas id="activityTypeChart"></canvas>
                     </div>
-                    <div class="col-md-3">
-                        <label for="endYear">End Year</label>
-                        <input id="endYear" type="range" min="2020" max="2026" value="2026" class="custom-range">
-                        <div class="filter-value" id="endYearLabel">2026</div>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="regionFilter">Region</label>
-                        <select id="regionFilter" class="form-control">
-                            <option value="">All Regions</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="programFilter">Program</label>
-                        <select id="programFilter" class="form-control">
-                            <option value="">All Programs</option>
-                        </select>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5 mb-3">
+            <div class="card h-100">
+                <div class="card-header border-0">
+                    <h3 class="card-title">Sessions by donor</h3>
+                </div>
+                <div class="card-body">
+                    <div style="height:240px;">
+                        <canvas id="donorSessionsChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<section class="overview-content-stack">
-    <section class="overview-surface overview-table-panel">
-        <div class="overview-panel-head">
-            <h3 class="panel-title">Program-level targets vs actuals</h3>
-        </div>
-        <div class="table-responsive">
-            <table class="overview-table">
-                <thead>
-                    <tr>
-                        <th>Program</th>
-                        <th>Donor</th>
-                        <th>Sessions</th>
-                        <th>Progress</th>
-                        <th>Students</th>
-                        <th>End date</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="programTargetsBody">
-                    <tr>
-                        <td colspan="7" class="overview-empty">Loading program targets...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <div class="overview-dual-grid">
-        <section class="overview-surface overview-list-panel overview-list-panel-wide">
-            <div class="overview-panel-head">
-                <h3 class="panel-title">Sessions by activity type</h3>
-            </div>
-            <div class="overview-list-chart" style="height:240px;">
-                <canvas id="activityTypeChart"></canvas>
-            </div>
-        </section>
-        <section class="overview-surface overview-list-panel overview-list-panel-narrow">
-            <div class="overview-panel-head">
-                <h3 class="panel-title">Sessions by donor</h3>
-            </div>
-            <div class="overview-list-chart donor-list" style="height:240px;">
-                <canvas id="donorSessionsChart"></canvas>
-            </div>
-        </section>
-    </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function () {
+    const pagination = window.PramanaPagination;
+
+    if ($.fn.select2) {
+        $('.select2').select2({ theme: 'bootstrap4' });
+    }
+
+    fetch('/dashboard/filters')
+        .then(res => res.json())
+        .then(data => {
+            const rf = $('#regionFilter');
+            const pf = $('#programFilter');
+            data.regions.forEach(r => rf.append(new Option(r, r)));
+            data.programs.forEach(p => pf.append(new Option(p, p)));
+        });
+
+    function loadData() {
+        const filters = {
+            start_year: $('#startYear').val(),
+            end_year: $('#endYear').val(),
+            region: $('#regionFilter').val(),
+            program: $('#programFilter').val(),
+            limit: pagination.state.limit,
+            offset: pagination.state.offset
+        };
+        
+        const query = new URLSearchParams(filters).toString();
+        fetch(`/dashboard/data?${query}`)
+            .then(res => res.json())
+            .then(data => {
+                // KPIs
+                $('#kpiDonors').text(data.kpis.donors);
+                $('#kpiPrograms').text(data.kpis.programs.total);
+                $('#kpiProgramsTrack').text(data.kpis.programs.on_track);
+                $('#kpiProgramsRisk').text(data.kpis.programs.at_risk);
+                $('#kpiTargetSessions').text(data.kpis.sessions.target.toLocaleString());
+                $('#kpiCompletedSessions').text(data.kpis.sessions.completed.toLocaleString());
+                $('#kpiSessionsPct').text(data.kpis.sessions.percentage);
+                $('#kpiTargetStudents').text(data.kpis.students.target.toLocaleString());
+                $('#kpiReachedStudents').text(data.kpis.students.reached.toLocaleString());
+                $('#kpiStudentsPct').text(data.kpis.students.percentage);
+
+                // Table
+                const tbody = $('#programTargetsBody');
+                tbody.empty();
+                if (data.table.length === 0) {
+                    tbody.append('<tr><td colspan="7" class="text-center">No rows found</td></tr>');
+                    pagination.updateInfo('overviewTable', 0);
+                } else {
+                    data.table.forEach(row => {
+                        tbody.append(`
+                            <tr>
+                                <td><strong>${row.program}</strong></td>
+                                <td>${row.donor}</td>
+                                <td>${row.sessions_actual} / ${row.sessions_target}</td>
+                                <td>
+                                    <div class="progress progress-xs">
+                                        <div class="progress-bar bg-primary" style="width: ${row.progress}%"></div>
+                                    </div>
+                                    <small>${row.progress}%</small>
+                                </td>
+                                <td>${row.students_actual.toLocaleString()}</td>
+                                <td>${row.end_date}</td>
+                                <td><span class="badge ${row.status === 'On Track' ? 'badge-success' : 'badge-danger'}">${row.status}</span></td>
+                            </tr>
+                        `);
+                    });
+                    pagination.updateInfo('overviewTable', data.total_count);
+                }
+
+                // Charts
+                const ctxActivity = document.getElementById('activityTypeChart').getContext('2d');
+                if (window.activityChart) window.activityChart.destroy();
+                window.activityChart = new Chart(ctxActivity, {
+                    type: 'bar',
+                    data: data.charts.activity,
+                    options: { maintainAspectRatio: false, legend: { display: false } }
+                });
+
+                const ctxDonor = document.getElementById('donorSessionsChart').getContext('2d');
+                if (window.donorChart) window.donorChart.destroy();
+                window.donorChart = new Chart(ctxDonor, {
+                    type: 'pie',
+                    data: data.charts.donor,
+                    options: { maintainAspectRatio: false, legend: { position: 'bottom' } }
+                });
+            });
+    }
+
+    $('#seeReport').click(function() {
+        pagination.reset();
+        loadData();
+    });
+
+    $('.prev-page').click(function() {
+        pagination.prev(loadData);
+    });
+
+    $('.next-page').click(function() {
+        pagination.next(loadData);
+    });
+
+    $('#exportXlsx').click(function() {
+        const filters = {
+            start_year: $('#startYear').val(),
+            end_year: $('#endYear').val(),
+            region: $('#regionFilter').val(),
+            program: $('#programFilter').val()
+        };
+        const query = new URLSearchParams(filters).toString();
+        window.exportToXLSX(`/dashboard/export?${query}`, 'overview_report.xlsx');
+    });
+
+    // Auto-load
+    setTimeout(loadData, 300);
+});
+</script>
 {% endblock %}
