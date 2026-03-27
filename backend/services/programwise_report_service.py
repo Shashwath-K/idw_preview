@@ -18,7 +18,7 @@ def get_programwise_report_filters():
         "months": months
     }
 
-def get_programwise_report_data(category=None, year=None, month=None):
+def get_programwise_report_data(category=None, year=None, month=None, limit=15, offset=0):
     with get_datamart_conn() as conn:
         with conn.cursor() as cur:
             where_clauses = ["TRUE"]
@@ -35,6 +35,21 @@ def get_programwise_report_data(category=None, year=None, month=None):
             
             where_sql = " AND ".join(where_clauses)
             
+            # Get total count
+            count_sql = f"""
+                SELECT COUNT(*) FROM (
+                    SELECT p.program_name
+                    FROM dw_data_schema.fact_session_event f
+                    JOIN dw_data_schema.dim_program p ON f.program_key = p.program_key
+                    JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
+                    WHERE {where_sql}
+                    GROUP BY p.program_key, p.program_name, p.program_category
+                ) as sub
+            """
+            cur.execute(count_sql, params)
+            total_count = cur.fetchone()["count"]
+
+            # Get paginated data
             sql = f"""
                 SELECT 
                     p.program_name,
@@ -50,7 +65,7 @@ def get_programwise_report_data(category=None, year=None, month=None):
                 WHERE {where_sql}
                 GROUP BY p.program_key, p.program_name, p.program_category
                 ORDER BY sessions DESC
-                LIMIT 20
+                LIMIT %s OFFSET %s
             """
-            cur.execute(sql, params)
-            return cur.fetchall()
+            cur.execute(sql, params + [limit, offset])
+            return {"table": cur.fetchall(), "total_count": total_count}

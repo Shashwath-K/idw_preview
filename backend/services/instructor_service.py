@@ -81,8 +81,9 @@ def get_instructor_session_log(
     region: str | None = None,
     program: str | None = None,
     instructor: str | None = None,
-    limit: int = 20,
-) -> list[dict]:
+    limit: int = 10,
+    offset: int = 0,
+) -> dict:
     where_clause, params = build_dimension_filters(
         start=start,
         end=end,
@@ -112,21 +113,40 @@ def get_instructor_session_log(
         {where_clause}
         GROUP BY i.instructor_key, COALESCE(NULLIF(i.name, ''), 'Unknown'), {_type_expression()}
         ORDER BY sessions DESC, students DESC, name
-        LIMIT %s
+        LIMIT %s OFFSET %s
         """,
-        [*params, limit],
+        [*params, limit, offset],
     )
-    return [
-        {
-            "name": row["name"],
-            "type": row["instructor_type"],
-            "region": row["region"],
-            "sessions": int(row["sessions"] or 0),
-            "students": int(row["students"] or 0),
-            "last_session": row.get("last_session") or "-",
-        }
-        for row in rows
-    ]
+    
+    # Get total count
+    count_sql = f"""
+        SELECT COUNT(*) FROM (
+            SELECT i.instructor_key
+            FROM fact_session_event f
+            LEFT JOIN dim_date d ON d.date_key = f.date_key
+            LEFT JOIN dim_location l ON l.location_key = f.location_key
+            LEFT JOIN dim_program p ON p.program_key = f.program_key
+            LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
+            {where_clause}
+            GROUP BY i.instructor_key
+        ) as sub
+    """
+    total_count = fetch_one(count_sql, params)["count"]
+
+    return {
+        "table": [
+            {
+                "name": row["name"],
+                "type": row["instructor_type"],
+                "region": row["region"],
+                "sessions": int(row["sessions"] or 0),
+                "students": int(row["students"] or 0),
+                "last_session": row.get("last_session") or "-",
+            }
+            for row in rows
+        ],
+        "total_count": total_count
+    }
 
 
 def get_multi_program_instructors(

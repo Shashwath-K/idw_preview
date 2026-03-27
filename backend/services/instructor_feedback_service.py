@@ -14,11 +14,9 @@ def get_instructor_feedback_filters():
         "years": years
     }
 
-def get_instructor_feedback_data(instructor_name=None, year=None):
+def get_instructor_feedback_data(instructor_name=None, year=None, limit=15, offset=0):
     with get_datamart_conn() as conn:
         with conn.cursor() as cur:
-            # Since no feedback table is found, we use attributes if they exist, 
-            # or return an empty list if not.
             where_clauses = ["TRUE"]
             params = []
             if instructor_name:
@@ -30,6 +28,17 @@ def get_instructor_feedback_data(instructor_name=None, year=None):
             
             where_sql = " AND ".join(where_clauses)
             
+            # Get total count
+            count_sql = f"""
+                SELECT COUNT(*)
+                FROM dw_data_schema.fact_session_event f
+                JOIN dw_data_schema.dim_instructor i ON f.instructor_key = i.instructor_key
+                JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
+                WHERE {where_sql}
+            """
+            cur.execute(count_sql, params)
+            total_count = cur.fetchone()["count"]
+
             # This is a fallback/placeholder query using fact_exposure students as a "reach" metric 
             # until actual feedback data is identified.
             sql = f"""
@@ -44,9 +53,13 @@ def get_instructor_feedback_data(instructor_name=None, year=None):
                 JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
                 JOIN dw_data_schema.dim_activity a ON f.activity_key = a.activity_key
                 WHERE {where_sql}
-                LIMIT 20
+                ORDER BY d.date DESC
+                LIMIT %s OFFSET %s
             """
-            cur.execute(sql, params)
+            cur.execute(sql, params + [limit, offset])
             rows = cur.fetchall()
-            return [{**row, "date": row["date"].strftime("%Y-%m-%d") if row["date"] else None} for row in rows]
+            return {
+                "table": [{**row, "date": row["date"].strftime("%Y-%m-%d") if row["date"] else None} for row in rows],
+                "total_count": total_count
+            }
             

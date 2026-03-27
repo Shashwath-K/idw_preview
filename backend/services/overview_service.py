@@ -81,8 +81,24 @@ def get_overview_kpis(start: int | None = None, end: int | None = None, region: 
     }
 
 
-def get_program_targets(start: int | None = None, end: int | None = None, region: str | None = None, program: str | None = None):
+def get_program_targets(start: int | None = None, end: int | None = None, region: str | None = None, program: str | None = None, limit: int = 10, offset: int = 0):
     where_clause, params = _build_filters(start=start, end=end, region=region, program=program)
+    
+    # Get total count
+    count_sql = f"""
+        SELECT COUNT(*) FROM (
+            SELECT p.program_key
+            FROM fact_session_event f
+            LEFT JOIN dim_date d ON d.date_key = f.date_key
+            LEFT JOIN dim_location l ON l.location_key = f.location_key
+            LEFT JOIN dim_program p ON p.program_key = f.program_key
+            {where_clause}
+            GROUP BY p.program_key
+            HAVING p.program_key IS NOT NULL
+        ) as sub
+    """
+    total_count = fetch_one(count_sql, params)["count"]
+
     rows = fetch_all(
         f"""
         SELECT
@@ -104,9 +120,9 @@ def get_program_targets(start: int | None = None, end: int | None = None, region
         GROUP BY p.program_key
         HAVING p.program_key IS NOT NULL
         ORDER BY completed_sessions DESC, label
-        LIMIT 20
+        LIMIT %s OFFSET %s
         """,
-        params,
+        [*params, limit, offset],
     )
 
     items = []
@@ -133,7 +149,7 @@ def get_program_targets(start: int | None = None, end: int | None = None, region
                 "status": status,
             }
         )
-    return items
+    return {"table": items, "total_count": total_count}
 
 
 def get_sessions_by_activity(start: int | None = None, end: int | None = None, region: str | None = None, program: str | None = None):

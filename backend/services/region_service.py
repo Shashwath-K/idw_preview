@@ -111,11 +111,13 @@ def get_monthly_region_impact(
 
 
 def get_region_options() -> list[str]:
+    # Strictly return states (Andhra, Karnataka, etc.) as requested
     rows = fetch_all(
         """
         SELECT DISTINCT state
         FROM dim_location
-        WHERE state IS NOT NULL
+        WHERE state IS NOT NULL 
+          AND state NOT IN ('Central', 'East', 'North', 'NORTH', 'South', 'SOUTH', 'West', 'WEST', 'west')
         ORDER BY state
         """
     )
