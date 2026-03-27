@@ -22,62 +22,71 @@ def get_overview_kpis(start: int | None = None, end: int | None = None, region: 
 
     kpis_row = fetch_one(
         f"""
-        WITH program_rollup AS (
-            SELECT
-                p.program_key,
-                MAX(p.program_name) AS program_name,
-                MAX(dnr.donor_name) AS donor_name,
-                COALESCE(MAX(p.target_sessions), 0) AS target_sessions,
-                COALESCE(MAX(p.target_students), 0) AS target_students,
-                COALESCE(SUM(f.session_count), 0) AS completed_sessions
-            FROM fact_session_event f
-            LEFT JOIN dim_date d ON d.date_key = f.date_key
-            LEFT JOIN dim_location l ON l.location_key = f.location_key
-            LEFT JOIN dim_program p ON p.program_key = f.program_key
-            LEFT JOIN dim_donor dnr ON dnr.donor_key = p.donor_key
-            {where_clause}
-            GROUP BY p.program_key
-            HAVING p.program_key IS NOT NULL
-        )
         SELECT
-            COUNT(*) AS total_programs,
-            COUNT(DISTINCT donor_name) AS total_donors,
-            COALESCE(SUM(target_sessions), 0) AS target_sessions,
-            COALESCE(SUM(target_students), 0) AS target_students,
-            COALESCE(SUM(completed_sessions), 0) AS completed_sessions,
-            COUNT(*) FILTER (
-                WHERE target_sessions > 0 AND completed_sessions::numeric / NULLIF(target_sessions, 0) >= 0.80
-            ) AS programs_on_track,
-            COUNT(*) FILTER (
-                WHERE target_sessions > 0 AND completed_sessions::numeric / NULLIF(target_sessions, 0) < 0.80
-            ) AS programs_at_risk
-        FROM program_rollup
-        """,
-        params,
-    )
-
-    reached_row = fetch_one(
-        f"""
-        SELECT COALESCE(SUM(e.students_total), 0) AS reached_students
-        FROM fact_exposure e
-        LEFT JOIN fact_session_event f ON f.session_key = e.session_key
+            COUNT(DISTINCT i.instructor_key) AS total_instructors,
+            COUNT(DISTINCT l.state) AS total_states,
+            COUNT(DISTINCT p.program_name) AS total_programs
+        FROM fact_session_event f
         LEFT JOIN dim_date d ON d.date_key = f.date_key
         LEFT JOIN dim_location l ON l.location_key = f.location_key
         LEFT JOIN dim_program p ON p.program_key = f.program_key
+        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
         {where_clause}
         """,
         params,
     )
 
     return {
-        "total_donors": int(kpis_row.get("total_donors", 0) or 0),
+        "total_instructors": int(kpis_row.get("total_instructors", 0) or 0),
+        "total_drivers": 0,  # Placeholder until driver schema is added
+        "total_states": int(kpis_row.get("total_states", 0) or 0),
         "total_programs": int(kpis_row.get("total_programs", 0) or 0),
-        "programs_on_track": int(kpis_row.get("programs_on_track", 0) or 0),
-        "programs_at_risk": int(kpis_row.get("programs_at_risk", 0) or 0),
-        "target_sessions": int(kpis_row.get("target_sessions", 0) or 0),
-        "completed_sessions": int(kpis_row.get("completed_sessions", 0) or 0),
-        "target_students": int(kpis_row.get("target_students", 0) or 0),
-        "reached_students": int(reached_row.get("reached_students", 0) or 0),
+    }
+
+def get_overview_charts(start: int | None = None, end: int | None = None, region: str | None = None, program: str | None = None):
+    where_clause, params = _build_filters(start=start, end=end, region=region, program=program)
+    
+    # 1. Instructors per region
+    instructors_rows = fetch_all(
+        f"""
+        SELECT
+            COALESCE(l.state, 'Unknown') AS label,
+            COUNT(DISTINCT i.instructor_key) AS value
+        FROM fact_session_event f
+        LEFT JOIN dim_date d ON d.date_key = f.date_key
+        LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_program p ON p.program_key = f.program_key
+        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
+        {where_clause} AND l.state IS NOT NULL
+        GROUP BY l.state
+        ORDER BY value DESC
+        LIMIT 10
+        """,
+        params,
+    )
+    
+    # 2. Programs per region
+    programs_rows = fetch_all(
+        f"""
+        SELECT
+            COALESCE(l.state, 'Unknown') AS label,
+            COUNT(DISTINCT p.program_name) AS value
+        FROM fact_session_event f
+        LEFT JOIN dim_date d ON d.date_key = f.date_key
+        LEFT JOIN dim_location l ON l.location_key = f.location_key
+        LEFT JOIN dim_program p ON p.program_key = f.program_key
+        {where_clause} AND l.state IS NOT NULL
+        GROUP BY l.state
+        ORDER BY value DESC
+        LIMIT 10
+        """,
+        params,
+    )
+
+    return {
+        "instructors_by_region": [{"label": r["label"], "value": float(r["value"])} for r in instructors_rows],
+        "drivers_by_region": [], # Placeholder
+        "programs_by_region": [{"label": r["label"], "value": float(r["value"])} for r in programs_rows]
     }
 
 
