@@ -18,3 +18,16 @@ def get_data(
     offset: int = Query(0)
 ):
     return school_visit_service.get_school_visit_data(region, area, program, year, month, limit, offset)
+
+@router.get("/export")
+def export_data(
+    region: str | None = Query(None),
+    area: str | None = Query(None),
+    program: str | None = Query(None),
+    year: str | None = Query(None),
+    month: str | None = Query(None)
+):
+    from backend.services.export_utils import json_to_excel_streaming_response
+    # Fetch all data without limit
+    data = school_visit_service.get_school_visit_data(region, area, program, year, month, limit=100000, offset=0)
+    return json_to_excel_streaming_response(data["table"], "school_visits.xlsx")
