@@ -81,7 +81,7 @@ def get_instructor_session_log(
     region: str | None = None,
     program: str | None = None,
     instructor: str | None = None,
-    limit: int = 8,
+    limit: int = 20,
 ) -> list[dict]:
     where_clause, params = build_dimension_filters(
         start=start,
@@ -237,7 +237,7 @@ def get_instructor_productivity(
     region: str | None = None,
     program: str | None = None,
     instructor: str | None = None,
-    limit: int = 10,
+    limit: int = 20,
 ) -> list[dict]:
     rows = get_instructor_session_log(start=start, end=end, region=region, program=program, instructor=instructor, limit=limit)
     return [{"label": row["name"], "value": float(row["sessions"])} for row in rows]
