@@ -104,7 +104,7 @@ def get_program_targets(start: int | None = None, end: int | None = None, region
         GROUP BY p.program_key
         HAVING p.program_key IS NOT NULL
         ORDER BY completed_sessions DESC, label
-        LIMIT 6
+        LIMIT 20
         """,
         params,
     )
