@@ -1,88 +1,130 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- KPI Cards -->
-{% include "partials/kpi_cards.html" %}
-
-<!-- Filters -->
-<div class="card card-default">
-    <div class="card-body">
-        <div class="row align-items-end">
-            <div class="col-md-2">
-                <div class="form-group mb-0">
+<div class="row">
+    <!-- Left Column: Filter Slicers -->
+    <div class="col-md-2 mb-3">
+        <div class="card card-outline card-primary h-100">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-filter mr-1"></i> Filters</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
                     <label>Region</label>
                     <select id="regionFilter" class="form-control select2">
                         <option value="">All Regions</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group mb-0">
+                <div class="form-group">
                     <label>Area</label>
                     <select id="areaFilter" class="form-control select2">
                         <option value="">All Areas</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group mb-0">
+                <div class="form-group">
                     <label>Select Year</label>
                     <select id="yearFilter" class="form-control select2">
                         <option value="">All Years</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group mb-0">
+                <div class="form-group">
                     <label>Month</label>
                     <select id="monthFilter" class="form-control select2">
                         <option value="">All Months</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <button id="seeReport" class="btn btn-primary btn-sm btn-block">See Report</button>
-            </div>
-            <div class="col-md-1">
-                <button id="exportXlsx" class="btn btn-export btn-sm btn-block">
-                    <i class="fas fa-file-excel"></i>
+                <hr>
+                <button id="seeReport" class="btn btn-primary btn-block mb-2">
+                    <i class="fas fa-sync-alt mr-1"></i> See Report
                 </button>
-            </div>
-            <div class="col-md-1">
-                <button id="inactiveUserReport" class="btn btn-outline-dark btn-sm btn-block">
-                    <i class="fas fa-user-slash"></i>
+                <button id="exportXlsx" class="btn btn-export btn-block mb-2">
+                    <i class="fas fa-file-excel mr-1"></i> Export to XLSX
+                </button>
+                <button id="inactiveUserReport" class="btn btn-outline-dark btn-block">
+                    <i class="fas fa-user-slash mr-1"></i> Inactive Users
                 </button>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Table -->
-<div class="card mt-2">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table id="instructorTable" class="table table-striped table-hover mb-0 high-contrast-table">
-                <thead>
-                    <tr>
-                        <th>Instructor</th>
-                        <th>Days worked</th>
-                        <th>School Session</th>
-                        <th>School Exposures</th>
-                        <th>No.of Fair</th>
-                        <th>YIExp Training</th>
-                        <th>SF Expo</th>
-                        <th>YIL Session</th>
-                        <th>YIL Expo</th>
-                        <th>CV visit</th>
-                        <th>CV Exps</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Data populated by JS -->
-                </tbody>
-            </table>
+    <!-- Right Column: Dashboard Content -->
+    <div class="col-md-10">
+        <!-- Dynamic KPI Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3 id="kpiDaysWorked">0</h3>
+                        <p>Days worked</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3 id="kpiNoOfSessions">0</h3>
+                        <p>No of sessions</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3 id="kpiSchoolExposures">0</h3>
+                        <p>School Exposures</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-school"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                    <div class="inner">
+                        <h3 id="kpiCombinedExposures">0</h3>
+                        <p>Total Exposures (YIL, SF, CV)</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            </div>
         </div>
-        {% include "partials/pagination.html" %}
+
+        <!-- Table -->
+        <div class="card mt-2">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table id="instructorTable" class="table table-striped table-hover mb-0 high-contrast-table">
+                        <thead>
+                            <tr>
+                                <th>Instructor</th>
+                                <th>Days worked</th>
+                                <th>School Session</th>
+                                <th>School Exposures</th>
+                                <th>No.of Fair</th>
+                                <th>YIExp Training</th>
+                                <th>SF Expo</th>
+                                <th>YIL Session</th>
+                                <th>YIL Expo</th>
+                                <th>CV visit</th>
+                                <th>CV Exps</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Data populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                {% include "partials/pagination.html" %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -126,6 +168,15 @@ $(function () {
             .then(data => {
                 const tbody = $('#instructorTable tbody');
                 tbody.empty();
+
+                // Update KPIs
+                if (data.kpis) {
+                    $('#kpiDaysWorked').text(data.kpis.days_worked.toLocaleString());
+                    $('#kpiNoOfSessions').text(data.kpis.total_sessions.toLocaleString());
+                    $('#kpiSchoolExposures').text(data.kpis.school_exposures.toLocaleString());
+                    $('#kpiCombinedExposures').text(data.kpis.combined_exposures.toLocaleString());
+                }
+
                 if (data.table.length === 0) {
                     tbody.append('<tr><td colspan="11" class="text-center">No data found</td></tr>');
                     pagination.updateInfo('instructorTable', 0);
