@@ -1685,6 +1685,17 @@ body[data-page="programs"] .exposure-empty {
     cursor: pointer !important;
 }
 
+.btn-export {
+    background-color: #16a34a !important;
+    color: #ffffff !important;
+    border: none;
+    transition: background-color 0.2s;
+}
+.btn-export:hover {
+    background-color: #15803d !important;
+    color: #ffffff !important;
+}
+
 .pagination-btn:hover:not(:disabled) {
     background: #eff6ff !important;
     border-color: #3b82f6 !important;
