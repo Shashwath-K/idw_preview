@@ -8,14 +8,14 @@ router = APIRouter(prefix="/session", tags=["session"])
 
 
 @router.get("/count", response_model=CountResponse)
-def session_count(start: int | None = Query(default=None), end: int | None = Query(default=None)):
+def session_count(start: str | None = Query(default=None), end: str | None = Query(default=None)):
     return {"count": session_service.get_session_count(start=start, end=end)}
 
 
 @router.get("/kpis", response_model=KPIBundle)
 def session_kpis(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -24,8 +24,8 @@ def session_kpis(
 
 @router.get("/monthly", response_model=SeriesBundle)
 def monthly_sessions(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
@@ -37,8 +37,8 @@ def monthly_sessions(
 
 @router.get("/by-region", response_model=SeriesBundle)
 def sessions_by_region(
-    start: int | None = Query(default=None),
-    end: int | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
     region: str | None = Query(default=None),
     program: str | None = Query(default=None),
 ):
