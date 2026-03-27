@@ -12,6 +12,6 @@ def get_data(
     region: str | None = Query(None),
     area: str | None = Query(None),
     year: str | None = Query(None),
-    month: int | None = Query(None)
+    month: str | None = Query(None)
 ):
     return {"table": attendance_service.get_attendance_data(region, area, year, month)}
