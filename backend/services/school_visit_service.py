@@ -79,7 +79,7 @@ def get_school_visit_data(region=None, area=None, program=None, year=None, month
                     WHERE {where_sql}
                 )
             """
-            cur.execute(monthly_sql, params)
+            cur.execute(monthly_sql, params + params)
             monthly_res = cur.fetchone()
 
             kpis = {

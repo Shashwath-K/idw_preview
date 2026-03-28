@@ -85,7 +85,7 @@ def get_region_summary_data(program_type=None, year=None, month=None, limit=15, 
                 JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
                 JOIN dw_data_schema.dim_program p ON f.program_key = p.program_key
                 LEFT JOIN dw_data_schema.dim_activity a ON f.activity_key = a.activity_key
-                WHERE {where_sql.replace('p.program_category', 'p.program_name')}
+                WHERE {where_sql}
             """
             cur.execute(kpi_sql, params)
             totals = cur.fetchone()
