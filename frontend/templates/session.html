@@ -66,8 +66,10 @@
 
 <div class="row mt-2">
     <div class="col-lg-7 mb-3">
-        <section class="card h-100">
-            <div class="card-header border-0"><h3 class="card-title">Monthly sessions</h3></div>
+        <section class="card h-100 white-chart-card">
+            <div class="card-header border-0">
+                <h3 class="card-title">Monthly sessions</h3>
+            </div>
             <div class="card-body">
                 <div style="height:250px;">
                     <canvas id="sessionMonthlyChart"></canvas>
@@ -76,8 +78,10 @@
         </section>
     </div>
     <div class="col-lg-5 mb-3">
-        <section class="card h-100">
-            <div class="card-header border-0"><h3 class="card-title">Sessions by region</h3></div>
+        <section class="card h-100 white-chart-card">
+            <div class="card-header border-0">
+                <h3 class="card-title">Sessions by region</h3>
+            </div>
             <div class="card-body">
                 <div style="height:250px;">
                     <canvas id="sessionRegionChart"></canvas>
@@ -90,74 +94,114 @@
 
 {% block scripts %}
 <script>
-$(function () {
-    if ($.fn.select2) {
-        $('.select2').select2({ theme: 'bootstrap4' });
-    }
+    $(function () {
+        if ($.fn.select2) {
+            $('.select2').select2({ theme: 'bootstrap4' });
+        }
 
-    fetch('/session/filters')
-        .then(res => res.json())
-        .then(data => {
-            const rf = $('#regionFilter');
-            const pf = $('#programFilter');
-            data.regions.forEach(r => rf.append(new Option(r, r)));
-            data.programs.forEach(p => pf.append(new Option(p, p)));
-        });
-
-    function loadData() {
-        const filters = {
-            start_year: $('#startYear').val(),
-            end_year: $('#endYear').val(),
-            region: $('#regionFilter').val(),
-            program: $('#programFilter').val()
-        };
-        
-        const query = new URLSearchParams(filters).toString();
-        fetch(`/session/data?${query}`)
+        fetch('/session/filters')
             .then(res => res.json())
             .then(data => {
-                $('#sessionTotalSessions').text(data.kpis.total_sessions.toLocaleString());
-                $('#sessionTotalInstructors').text(data.kpis.total_instructors);
-                $('#sessionActiveRegions').text(data.kpis.active_regions);
-                $('#sessionPrograms').text(data.kpis.total_programs);
-
-                // Monthly Chart
-                const ctxMonthly = document.getElementById('sessionMonthlyChart').getContext('2d');
-                if (window.monthlyChart) window.monthlyChart.destroy();
-                window.monthlyChart = new Chart(ctxMonthly, {
-                    type: 'line',
-                    data: data.charts.monthly,
-                    options: { maintainAspectRatio: false, legend: { position: 'bottom' } }
-                });
-
-                // Region Chart
-                const ctxRegion = document.getElementById('sessionRegionChart').getContext('2d');
-                if (window.regionChart) window.regionChart.destroy();
-                window.regionChart = new Chart(ctxRegion, {
-                    type: 'bar',
-                    data: data.charts.region,
-                    options: { maintainAspectRatio: false, legend: { display: false } }
-                });
+                const rf = $('#regionFilter');
+                const pf = $('#programFilter');
+                data.regions.forEach(r => rf.append(new Option(r, r)));
+                data.programs.forEach(p => pf.append(new Option(p, p)));
             });
-    }
 
-    $('#seeReport').click(function() {
-        loadData();
+        function loadData() {
+            const filters = {
+                start_year: $('#startYear').val(),
+                end_year: $('#endYear').val(),
+                region: $('#regionFilter').val(),
+                program: $('#programFilter').val()
+            };
+
+            const query = new URLSearchParams(filters).toString();
+            fetch(`/session/data?${query}`)
+                .then(res => res.json())
+                .then(data => {
+                    $('#sessionTotalSessions').text(data.kpis.total_sessions.toLocaleString());
+                    $('#sessionTotalInstructors').text(data.kpis.total_instructors);
+                    $('#sessionActiveRegions').text(data.kpis.active_regions);
+                    $('#sessionPrograms').text(data.kpis.total_programs);
+
+                    // Monthly Chart
+                    const ctxMonthly = document.getElementById('sessionMonthlyChart').getContext('2d');
+                    if (window.monthlyChart) window.monthlyChart.destroy();
+                    window.monthlyChart = new Chart(ctxMonthly, {
+                        type: 'line',
+                        data: data.charts.monthly,
+                        options: {
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'left',
+                                    labels: { color: '#000000' }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: '#000000' }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { display: false },
+                                    ticks: { color: '#000000' }
+                                }
+                            }
+                        }
+                    });
+
+                    // Region Chart
+                    const ctxRegion = document.getElementById('sessionRegionChart').getContext('2d');
+                    if (window.regionChart) window.regionChart.destroy();
+                    window.regionChart = new Chart(ctxRegion, {
+                        type: 'bar',
+                        data: data.charts.region,
+                        options: {
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'left',
+                                    labels: { color: '#000000' }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: '#000000' }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { display: false },
+                                    ticks: { color: '#000000' }
+                                }
+                            }
+                        }
+                    });
+                });
+        }
+
+        $('#seeReport').click(function () {
+            loadData();
+        });
+
+        $('#exportXlsx').click(function () {
+            const filters = {
+                start_year: $('#startYear').val(),
+                end_year: $('#endYear').val(),
+                region: $('#regionFilter').val(),
+                program: $('#programFilter').val()
+            };
+            const query = new URLSearchParams(filters).toString();
+            window.exportToXLSX(`/session/export?${query}`, 'session_report.xlsx');
+        });
+
+        // Auto-load
+        setTimeout(loadData, 300);
     });
-
-    $('#exportXlsx').click(function() {
-        const filters = {
-            start_year: $('#startYear').val(),
-            end_year: $('#endYear').val(),
-            region: $('#regionFilter').val(),
-            program: $('#programFilter').val()
-        };
-        const query = new URLSearchParams(filters).toString();
-        window.exportToXLSX(`/session/export?${query}`, 'session_report.xlsx');
-    });
-
-    // Auto-load
-    setTimeout(loadData, 300);
-});
 </script>
 {% endblock %}

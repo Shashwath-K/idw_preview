@@ -66,7 +66,7 @@
 
 <div class="row mt-2">
     <div class="col-lg-7 mb-3">
-        <section class="card h-100">
+        <section class="card h-100 white-chart-card">
             <div class="card-header border-0"><h3 class="card-title">Region impact</h3></div>
             <div class="card-body">
                 <div style="height:250px;">
@@ -76,7 +76,7 @@
         </section>
     </div>
     <div class="col-lg-5 mb-3">
-        <section class="card h-100">
+        <section class="card h-100 white-chart-card">
             <div class="card-header border-0"><h3 class="card-title">Monthly region impact</h3></div>
             <div class="card-body">
                 <div style="height:250px;">
@@ -127,7 +127,27 @@ $(function () {
                 window.stateChart = new Chart(ctxState, {
                     type: 'bar',
                     data: data.charts.state,
-                    options: { maintainAspectRatio: false, legend: { display: false } }
+                    options: { 
+                        maintainAspectRatio: false, 
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'left',
+                                labels: { color: '#000000' }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { display: false },
+                                ticks: { color: '#000000' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#000000' }
+                            }
+                        }
+                    }
                 });
 
                 // Monthly Chart
@@ -136,7 +156,27 @@ $(function () {
                 window.monthlyChart = new Chart(ctxMonthly, {
                     type: 'line',
                     data: data.charts.monthly,
-                    options: { maintainAspectRatio: false, legend: { position: 'bottom' } }
+                    options: { 
+                        maintainAspectRatio: false, 
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'left',
+                                labels: { color: '#000000' }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { display: false },
+                                ticks: { color: '#000000' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#000000' }
+                            }
+                        }
+                    }
                 });
             });
     }

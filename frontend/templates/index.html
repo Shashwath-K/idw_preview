@@ -60,10 +60,10 @@
 
         <section class="overview-content-stack mt-2">
             <div class="row">
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100">
+                <div class="col-md-6 mb-2">
+                    <div class="card h-100 white-chart-card">
                         <div class="card-header border-0 pb-0">
-                            <h3 class="card-title text-muted text-sm uppercase">Number of Instructors per Region</h3>
+                            <h3 class="card-title  text-sm uppercase">Number of Instructors per Region</h3>
                         </div>
                         <div class="card-body">
                             <div style="height:280px;">
@@ -72,22 +72,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100">
+
+                <div class="col-md-6 mb-2">
+                    <div class="card h-100 white-chart-card">
                         <div class="card-header border-0 pb-0">
-                            <h3 class="card-title text-muted text-sm uppercase">Number of Drivers per Region</h3>
-                        </div>
-                        <div class="card-body">
-                            <div style="height:280px;">
-                                <canvas id="driverRegionChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <div class="card h-100">
-                        <div class="card-header border-0 pb-0">
-                            <h3 class="card-title text-muted text-sm uppercase">Number of Programs by Region</h3>
+                            <h3 class="card-title text-sm uppercase">Number of Programs by Region</h3>
                         </div>
                         <div class="card-body">
                             <div style="height:280px;">
@@ -104,72 +93,90 @@
 
 {% block scripts %}
 <script>
-$(function () {
-    const pagination = window.PramanaPagination;
+    $(function () {
+        const pagination = window.PramanaPagination;
 
-    if ($.fn.select2) {
-        $('.select2').select2({ theme: 'bootstrap4' });
-    }
+        if ($.fn.select2) {
+            $('.select2').select2({ theme: 'bootstrap4' });
+        }
 
-    fetch('/dashboard/filters')
-        .then(res => res.json())
-        .then(data => {
-            const rf = $('#regionFilter');
-            const pf = $('#programFilter');
-            data.regions.forEach(r => rf.append(new Option(r, r)));
-            data.programs.forEach(p => pf.append(new Option(p, p)));
-        });
-
-    function loadData() {
-        const filters = {
-            start_year: $('#startYear').val(),
-            end_year: $('#endYear').val(),
-            region: $('#regionFilter').val(),
-            program: $('#programFilter').val(),
-            limit: pagination.state.limit,
-            offset: pagination.state.offset
-        };
-        
-        const query = new URLSearchParams(filters).toString();
-        fetch(`/dashboard/data?${query}`)
+        fetch('/dashboard/filters')
             .then(res => res.json())
             .then(data => {
-                // KPIs
-                $('#kpiInstructors').text(data.kpis.total_instructors.toLocaleString());
-                $('#kpiDrivers').text(data.kpis.total_drivers.toLocaleString());
-                $('#kpiStates').text(data.kpis.total_states.toLocaleString());
-                $('#kpiPrograms').text(data.kpis.total_programs.toLocaleString());
-
-                // Charts
-                function renderBarChart(canvasId, chartData, chartRef) {
-                    const ctx = document.getElementById(canvasId).getContext('2d');
-                    if (window[chartRef]) window[chartRef].destroy();
-                    window[chartRef] = new Chart(ctx, {
-                        type: 'bar',
-                        data: chartData,
-                        options: { 
-                            maintainAspectRatio: false, 
-                            legend: { display: false },
-                            scales: {
-                                yAxes: [{ ticks: { beginAtZero: true, precision: 0 } }],
-                                xAxes: [{ gridLines: { display: false } }]
-                            }
-                        }
-                    });
-                }
-
-                renderBarChart('instructorRegionChart', data.charts.instructors_by_region, 'instructorChartInst');
-                renderBarChart('driverRegionChart', data.charts.drivers_by_region, 'driverChartInst');
-                renderBarChart('programChart', data.charts.programs_by_region, 'programChartInst');
+                const rf = $('#regionFilter');
+                const pf = $('#programFilter');
+                data.regions.forEach(r => rf.append(new Option(r, r)));
+                data.programs.forEach(p => pf.append(new Option(p, p)));
             });
-    }
 
-    $('#seeReport').click(function() {
-        loadData();
+        function loadData() {
+            const filters = {
+                start_year: $('#startYear').val(),
+                end_year: $('#endYear').val(),
+                region: $('#regionFilter').val(),
+                program: $('#programFilter').val(),
+                limit: pagination.state.limit,
+                offset: pagination.state.offset
+            };
+
+            const query = new URLSearchParams(filters).toString();
+            fetch(`/dashboard/data?${query}`)
+                .then(res => res.json())
+                .then(data => {
+                    // KPIs
+                    $('#kpiInstructors').text(data.kpis.total_instructors.toLocaleString());
+                    $('#kpiDrivers').text(data.kpis.total_drivers.toLocaleString());
+                    $('#kpiStates').text(data.kpis.total_states.toLocaleString());
+                    $('#kpiPrograms').text(data.kpis.total_programs.toLocaleString());
+
+                    // Charts
+                    function renderBarChart(canvasId, chartData, chartRef) {
+                        const el = document.getElementById(canvasId);
+                        if (!el) return;
+                        const ctx = el.getContext('2d');
+                        if (window[chartRef]) window[chartRef].destroy();
+                        window[chartRef] = new Chart(ctx, {
+                            type: 'bar',
+                            data: chartData,
+                            options: {
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: true,
+                                        position: 'left',
+                                        labels: { color: '#000000' }
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        grid: { display: false },
+                                        ticks: {
+                                            color: '#000000',
+                                            precision: 0
+                                        }
+                                    },
+                                    x: {
+                                        grid: { display: false },
+                                        ticks: { color: '#000000' }
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    renderBarChart('instructorRegionChart', data.charts.instructors_by_region, 'instructorChartInst');
+                    renderBarChart('driverRegionChart', data.charts.drivers_by_region, 'driverChartInst');
+                    renderBarChart('programChart', data.charts.programs_by_region, 'programChartInst');
+                });
+        }
+
+        $('#seeReport').click(function () {
+            loadData();
+        });
+
+        // Auto-load
+        setTimeout(loadData, 300);
     });
-
-    // Auto-load
-    setTimeout(loadData, 300);
-});
 </script>
 {% endblock %}

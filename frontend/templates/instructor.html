@@ -152,7 +152,7 @@
 
 <div class="row">
     <div class="col-lg-5 mb-3">
-        <section class="card h-100">
+        <section class="card h-100 white-chart-card">
             <div class="card-header border-0"><h3 class="card-title">Sessions by instructor type</h3></div>
             <div class="card-body">
                 <div style="height:220px;">
@@ -238,7 +238,16 @@ $(function () {
                 window.typeChart = new Chart(ctxType, {
                     type: 'pie',
                     data: data.charts.type,
-                    options: { maintainAspectRatio: false, legend: { position: 'bottom' } }
+                    options: { 
+                        maintainAspectRatio: false, 
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'left',
+                                labels: { color: '#000000' }
+                            }
+                        }
+                    }
                 });
 
                 // Multi-program list
