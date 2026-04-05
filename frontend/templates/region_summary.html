@@ -42,7 +42,7 @@
     <div class="col-md-10">
         <!-- Dynamic KPI Cards -->
         <div class="row mb-4">
-            <div class="col-lg-3 col-6">
+            <div class="col-lg-4 col-6">
                 <div class="small-box bg-info">
                     <div class="inner">
                         <h3 id="kpiSchoolVisits">0</h3>
@@ -53,7 +53,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-3 col-6">
+            <div class="col-lg-4 col-6">
                 <div class="small-box bg-success">
                     <div class="inner">
                         <h3 id="kpiScienceFairs">0</h3>
@@ -64,18 +64,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-navy-blue">
-                    <div class="inner">
-                        <h3 id="kpiCommunityVisits">0</h3>
-                        <p>Total Community Visit (CV)</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6">
+            <div class="col-lg-4 col-6">
                 <div class="small-box bg-danger">
                     <div class="inner">
                         <h3 id="kpiTeacherTraining">0</h3>
@@ -101,7 +90,6 @@
                                         <th>Students</th>
                                         <th>Teachers</th>
                                         <th>Schools</th>
-                                        <th>Community</th>
                                     </tr>
                                 </thead>
                                 <tbody id="summaryTableBody">
@@ -156,16 +144,15 @@
                     const tbody = $('#summaryTableBody');
                     tbody.empty();
 
-                    // Update KPIs
+                    // Update KPIs (Now 3 instead of 4)
                     if (data.kpis) {
                         $('#kpiSchoolVisits').text(data.kpis[0].value.toLocaleString());
                         $('#kpiScienceFairs').text(data.kpis[1].value.toLocaleString());
-                        $('#kpiCommunityVisits').text(data.kpis[2].value.toLocaleString());
-                        $('#kpiTeacherTraining').text(data.kpis[3].value.toLocaleString());
+                        $('#kpiTeacherTraining').text(data.kpis[2].value.toLocaleString());
                     }
 
                     if (!data.table || data.table.length === 0) {
-                        tbody.append('<tr><td colspan="6" class="text-center">No data found</td></tr>');
+                        tbody.append('<tr><td colspan="5" class="text-center">No data found</td></tr>');
                         pagination.updateInfo('regionTable', 0);
                         return;
                     }
@@ -179,13 +166,13 @@
                             <td>${row.students_reached.toLocaleString()}</td>
                             <td>${row.teachers_trained.toLocaleString()}</td>
                             <td>${row.schools_covered.toLocaleString()}</td>
-                            <td>${row.community_reach.toLocaleString()}</td>
                         </tr>
                     `);
                     });
                     pagination.updateInfo('regionTable', data.total_count);
                 });
         }
+
 
         $('#seeReportBtn').on('click', function () {
             pagination.reset();
