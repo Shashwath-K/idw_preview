@@ -3,8 +3,15 @@ from backend.config import DATAMART_SCHEMA_NAME
 
 
 def get_instructor_summary_filters():
-    # Fetch from new dim_geography and dim_date
-    locations = fetch_all(f"SELECT DISTINCT region_name, area_name AS area FROM {DATAMART_SCHEMA_NAME}.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name, area_name")
+    # Fetch from new dim_geography joined with fact_session to show only locations with data
+    locations_query = f"""
+        SELECT DISTINCT g.region_name, g.area_name AS area 
+        FROM {DATAMART_SCHEMA_NAME}.dim_geography g
+        INNER JOIN {DATAMART_SCHEMA_NAME}.fact_session f ON g.sk_geography_id = f.sk_geography_id
+        WHERE g.region_name IS NOT NULL 
+        ORDER BY g.region_name, g.area_name
+    """
+    locations = fetch_all(locations_query)
     
     years = [row["year_actual"] for row in fetch_all(f"SELECT DISTINCT year_actual FROM {DATAMART_SCHEMA_NAME}.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
     
