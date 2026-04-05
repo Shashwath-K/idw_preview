@@ -100,14 +100,35 @@
             $('.select2').select2({ theme: 'bootstrap4' });
         }
 
+        const rf = $('#regionFilter');
+        const pf = $('#programFilter');
+
+        // Initially disable programs
+        pf.prop('disabled', true);
+
         fetch('/dashboard/filters')
             .then(res => res.json())
             .then(data => {
-                const rf = $('#regionFilter');
-                const pf = $('#programFilter');
                 data.regions.forEach(r => rf.append(new Option(r, r)));
-                data.programs.forEach(p => pf.append(new Option(p, p)));
             });
+
+        rf.on('change', function () {
+            const selectedRegion = $(this).val();
+            pf.empty().append(new Option('All Programs', ''));
+            
+            if (selectedRegion) {
+                // Fetch programs for this regional specifically
+                fetch(`/dashboard/filters?region_name=${encodeURIComponent(selectedRegion)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        data.programs.forEach(p => pf.append(new Option(p, p)));
+                        pf.prop('disabled', false);
+                    });
+            } else {
+                pf.prop('disabled', true);
+            }
+        });
+
 
         function loadData() {
             const filters = {
