@@ -136,21 +136,56 @@ $(function () {
         $('.select2').select2({ theme: 'bootstrap4' });
     }
 
-    fetch('/school-visit/filters')
-        .then(res => res.json())
-        .then(data => {
-            const regionSelect = $('#regionFilter');
-            const areaSelect = $('#areaFilter');
-            const programSelect = $('#programFilter');
-            const yearSelect = $('#yearFilter');
-            const monthSelect = $('#monthFilter');
+    // Initial load: Only fetch regions
+    function initFilters() {
+        const regionSelect = $('#regionFilter');
+        const areaSelect = $('#areaFilter');
+        const programSelect = $('#programFilter');
+        const yearSelect = $('#yearFilter');
+        const monthSelect = $('#monthFilter');
 
-            data.regions.forEach(r => regionSelect.append(new Option(r, r)));
-            data.areas.forEach(a => areaSelect.append(new Option(a, a)));
-            data.programs.forEach(p => programSelect.append(new Option(p, p)));
-            data.years.forEach(y => yearSelect.append(new Option(y, y)));
-            data.months.forEach(m => monthSelect.append(new Option(m.name, m.id)));
-        });
+        // Initially disable dependent filters
+        areaSelect.prop('disabled', true);
+        programSelect.prop('disabled', true);
+
+        fetch('/school-visit/filters')
+            .then(res => res.json())
+            .then(data => {
+                regionSelect.empty().append('<option value="">All Regions</option>');
+                data.regions.forEach(r => regionSelect.append(new Option(r, r)));
+                
+                yearSelect.empty().append('<option value="">All Years</option>');
+                data.years.forEach(y => yearSelect.append(new Option(y, y)));
+                
+                monthSelect.empty().append('<option value="">All Months</option>');
+                data.months.forEach(m => monthSelect.append(new Option(m.name, m.id)));
+            });
+    }
+
+    function refreshDependentFilters(regionName) {
+        const areaSelect = $('#areaFilter');
+        const programSelect = $('#programFilter');
+
+        if (!regionName) {
+            areaSelect.empty().append('<option value="">All Areas</option>').prop('disabled', true);
+            programSelect.empty().append('<option value="">All Programs</option>').prop('disabled', true);
+            return;
+        }
+
+        fetch(`/school-visit/filters?region_name=${encodeURIComponent(regionName)}`)
+            .then(res => res.json())
+            .then(data => {
+                areaSelect.empty().append('<option value="">All Areas</option>').prop('disabled', false);
+                data.areas.forEach(a => areaSelect.append(new Option(a, a)));
+
+                programSelect.empty().append('<option value="">All Programs</option>').prop('disabled', false);
+                data.programs.forEach(p => programSelect.append(new Option(p, p)));
+            });
+    }
+
+    $('#regionFilter').on('change', function() {
+        refreshDependentFilters($(this).val());
+    });
 
     function loadData() {
         const filters = {
@@ -179,19 +214,20 @@ $(function () {
                 }
 
                 if (data.table.length === 0) {
-                    tbody.append('<tr><td colspan="6" class="text-center">No data found</td></tr>');
+                    tbody.append('<tr><td colspan="6" class="text-center">No visits found matching these filters</td></tr>');
                     pagination.updateInfo('visitTable', 0);
                     return;
                 }
+                
                 data.table.forEach(row => {
                     tbody.append(`
                         <tr>
-                            <td>${row.school_name}</td>
-                            <td>${row.program_name}</td>
+                            <td><strong>${row.school_name}</strong></td>
+                            <td><span class="badge badge-info">${row.program_name}</span></td>
                             <td>${row.region}</td>
                             <td>${row.area}</td>
-                            <td>${row.sessions}</td>
-                            <td>${row.students}</td>
+                            <td class="text-center font-weight-bold">${row.sessions}</td>
+                            <td class="text-center font-weight-bold text-primary">${row.students.toLocaleString()}</td>
                         </tr>
                     `);
                 });
@@ -224,8 +260,10 @@ $(function () {
         window.exportToXLSX(`/school-visit/export?${query}`, 'school_visits.xlsx');
     });
 
-    // Auto-load
-    setTimeout(loadData, 300);
+    // Initialize
+    initFilters();
+    setTimeout(loadData, 400);
 });
 </script>
+
 {% endblock %}
