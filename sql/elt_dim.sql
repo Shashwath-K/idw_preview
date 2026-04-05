@@ -1,145 +1,119 @@
-TRUNCATE TABLE
-    fact_session_attribute,
-    fact_exposure,
-    fact_session_event,
-    fact_monthly_region_impact,
-    fact_weekly_program_metrics,
-    fact_instructor_productivity,
-    dim_program,
-    dim_donor,
-    dim_location,
-    dim_instructor,
-    dim_activity,
-    dim_shift,
-    dim_date
-RESTART IDENTITY CASCADE;
+-- [ELT] elt_dim.sql
+-- Description: Dimension loading logic (SCD Type 1).
+-- Includes Date Dimension generation and transformation logic.
 
-INSERT INTO dim_donor (donor_id, donor_name)
-SELECT
-    donor_id,
-    donor_name
-FROM {{SOURCE_FDW_SCHEMA}}.mst_donor
-ORDER BY donor_id;
+SET search_path TO dw, source;
 
-INSERT INTO dim_program (
-    program_id,
-    program_name,
-    donor_key,
-    start_date,
-    end_date,
-    target_sessions,
-    target_students
-)
-SELECT
-    p.program_id,
-    p.program_name,
-    d.donor_key,
+--------------------------------------------------------------------------------
+-- 1. DIM_DATE (Calendar Generation)
+--------------------------------------------------------------------------------
+TRUNCATE TABLE dw.dim_date CASCADE;
+INSERT INTO dw.dim_date (date_id, full_date, day_of_week, day_name, day_of_month, month_name, month_actual, quarter_actual, year_actual, is_weekend)
+SELECT 
+    CAST(TO_CHAR(datum, 'YYYYMMDD') AS INT) AS date_id,
+    datum AS full_date,
+    EXTRACT(DOW FROM datum) + 1 AS day_of_week,
+    TO_CHAR(datum, 'Day') AS day_name,
+    EXTRACT(DAY FROM datum) AS day_of_month,
+    TO_CHAR(datum, 'Month') AS month_name,
+    EXTRACT(MONTH FROM datum) AS month_actual,
+    EXTRACT(QUARTER FROM datum) AS quarter_actual,
+    EXTRACT(YEAR FROM datum) AS year_actual,
+    CASE WHEN EXTRACT(DOW FROM datum) IN (0, 6) THEN TRUE ELSE FALSE END AS is_weekend
+FROM generate_series('2010-01-01'::DATE, '2030-12-31'::DATE, '1 day'::INTERVAL) AS datum;
+
+--------------------------------------------------------------------------------
+-- 2. DIM_GEOGRAPHY (Area + Region)
+--------------------------------------------------------------------------------
+INSERT INTO dw.dim_geography (nk_area_id, nk_region_id, area_name, region_name, area_code, region_code, is_deleted)
+SELECT 
+    a.id as nk_area_id,
+    r.id as nk_region_id,
+    a.name as area_name,
+    r.name as region_name,
+    a.code as area_code,
+    r.code as region_code,
+    COALESCE(a.is_deleted::BOOLEAN, false) OR COALESCE(r.is_deleted::BOOLEAN, false)
+FROM source.mst_area a
+JOIN source.mst_region r ON a.region_id = r.id;
+
+--------------------------------------------------------------------------------
+-- 3. DIM_USER (SCD Type 1)
+--------------------------------------------------------------------------------
+INSERT INTO dw.dim_user (nk_user_id, user_name, user_code, email, role_name, manager_name, joining_date, has_b_ed, has_d_ed, pg_degree, ug_degree, is_active)
+SELECT 
+    u.id as nk_user_id,
+    u.name as user_name,
+    u.code as user_code,
+    u.email,
+    r.name as role_name,
+    m.name as manager_name,
+    u.joining_date,
+    u.has_b_ed_degree::BOOLEAN,
+    u.has_d_ed_degree::BOOLEAN,
+    u.pg_degree,
+    u.ug_degree,
+    u.is_deleted = 0 as is_active
+
+FROM source.mst_user u
+LEFT JOIN source.mst_role r ON u.role_id = r.id
+LEFT JOIN source.mst_user m ON u.report_id = m.id;
+
+--------------------------------------------------------------------------------
+-- 4. DIM_SCHOOL
+--------------------------------------------------------------------------------
+INSERT INTO dw.dim_school (nk_school_id, school_name, school_code, udise_code, address, pincode, school_type_name, school_category_id, state_management_id, is_deleted)
+SELECT 
+    s.id as nk_school_id,
+    s.name as school_name,
+    s.code as school_code,
+    s.udise_code,
+    s.address,
+    s.pincode,
+    st.name as school_type_name,
+    s.school_category as school_category_id,
+    s.state_management as state_management_id,
+    s.is_deleted::BOOLEAN
+FROM source.mst_school s
+LEFT JOIN source.mst_school_type st ON s.school_type = st.id;
+
+--------------------------------------------------------------------------------
+-- 5. DIM_PROGRAM
+--------------------------------------------------------------------------------
+INSERT INTO dw.dim_program (nk_program_id, program_name, donor_name, donor_code, start_date, end_date, instructor_capacity, periodicity, is_deleted)
+SELECT 
+    p.id as nk_program_id,
+    p.name as program_name,
+    d.name as donor_name,
+    d.code as donor_code,
     p.start_date,
     p.end_date,
-    p.target_sessions,
-    p.target_students
-FROM {{SOURCE_FDW_SCHEMA}}.mst_program p
-LEFT JOIN dim_donor d ON d.donor_id = p.donor_id::varchar
-ORDER BY p.program_id;
+    p.instructor_capacity,
+    CAST(p.periodicity_id AS TEXT), 
+    p.is_deleted = 1
 
-INSERT INTO dim_location (
-    school_id,
-    school_name,
-    area,
-    region,
-    district,
-    state,
-    center_name
-)
-SELECT DISTINCT
-    s.school_id::varchar,
-    s.school_name,
-    s.area,
-    s.region,
-    s.district,
-    s.state,
-    s.center_name
-FROM {{SOURCE_FDW_SCHEMA}}.mst_school s
-ORDER BY s.school_id::varchar;
+FROM source.txn_program p
+LEFT JOIN source.mst_donor d ON p.donor_id = d.id;
 
-INSERT INTO dim_instructor (
-    instructor_id,
-    name,
-    instructor_type,
-    region_assigned
-)
-SELECT
-    i.instructor_id::varchar,
-    i.instructor_name,
-    i.instructor_type,
-    i.assigned_region
-FROM {{SOURCE_FDW_SCHEMA}}.mst_instructor i
-ORDER BY i.instructor_id;
+--------------------------------------------------------------------------------
+-- 6. DIM_ACTIVITY_TYPE
+--------------------------------------------------------------------------------
+INSERT INTO dw.dim_activity_type (nk_activity_type_id, activity_code, activity_name, is_adhoc)
+SELECT 
+    id as nk_activity_type_id,
+    code as activity_code,
+    name as activity_name,
+    is_adhoc::BOOLEAN
+FROM source.mst_activity_type;
 
-INSERT INTO dim_activity (
-    activity_type_id,
-    activity_name,
-    activity_category
-)
-SELECT
-    a.activity_id::varchar,
-    a.activity_name,
-    a.category
-FROM {{SOURCE_FDW_SCHEMA}}.mst_activity_type a
-ORDER BY a.activity_id;
-
-INSERT INTO dim_shift (
-    shift_key,
-    shift_name
-)
-SELECT DISTINCT
-    s.shift_id,
-    s.shift_name
-FROM {{SOURCE_FDW_SCHEMA}}.mst_shift s
-ORDER BY s.shift_id;
-
-WITH source_dates AS (
-    SELECT session_date::date AS actual_date
-    FROM {{SOURCE_FDW_SCHEMA}}.txn_session
-    WHERE session_date IS NOT NULL
-
-    UNION
-
-    SELECT feedback_date::date AS actual_date
-    FROM {{SOURCE_FDW_SCHEMA}}.mst_adhoc_session_feedback_answers
-    WHERE feedback_date IS NOT NULL
-),
-date_bounds AS (
-    SELECT DATE_TRUNC('month', MIN(actual_date))::date AS min_date, MAX(actual_date) AS max_date
-    FROM source_dates
-),
-calendar AS (
-    SELECT generate_series(min_date, max_date, interval '1 day')::date AS actual_date
-    FROM date_bounds
-    WHERE min_date IS NOT NULL
-)
-INSERT INTO dim_date (
-    date_key,
-    date,
-    day,
-    week,
-    month,
-    quarter,
-    year,
-    financial_year
-)
-SELECT
-    TO_CHAR(actual_date, 'YYYYMMDD')::int AS date_key,
-    actual_date AS date,
-    EXTRACT(DAY FROM actual_date)::int AS day,
-    EXTRACT(WEEK FROM actual_date)::int AS week,
-    EXTRACT(MONTH FROM actual_date)::int AS month,
-    EXTRACT(QUARTER FROM actual_date)::int AS quarter,
-    EXTRACT(YEAR FROM actual_date)::int AS year,
-    CASE
-        WHEN EXTRACT(MONTH FROM actual_date) >= 4 THEN (EXTRACT(YEAR FROM actual_date)::int + 1)::varchar
-        ELSE EXTRACT(YEAR FROM actual_date)::character varying
-    END AS financial_year
-FROM calendar
-ORDER BY actual_date;
-
+--------------------------------------------------------------------------------
+-- 7. DIM_SUBJECT_TOPIC
+--------------------------------------------------------------------------------
+INSERT INTO dw.dim_subject_topic (nk_topic_id, topic_description, subject_name, subject_code)
+SELECT 
+    t.id as nk_topic_id,
+    t.description as topic_description,
+    s.name as subject_name,
+    s.code as subject_code
+FROM source.mst_topic t
+LEFT JOIN source.mst_subject s ON t.subject_id = s.id;
