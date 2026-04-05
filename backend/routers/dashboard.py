@@ -6,17 +6,21 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/filters")
 def get_filters():
+    from backend.services.query_utils import fetch_all
+    from backend.config import DATAMART_SCHEMA_NAME
+    
+    # 1. Fetch Regions via service
     regions = region_service.get_region_options()
-    # For now, just a distinct list from dim_program, let's keep it simple or use region options.
-    from backend.db import get_datamart_conn
-    with get_datamart_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT DISTINCT program_name FROM dw_data_schema.dim_program WHERE program_name IS NOT NULL ORDER BY program_name")
-            programs = [r["program_name"] for r in cur.fetchall()]
+    
+    # 2. Fetch Programs via standardized query helper
+    prog_rows = fetch_all(f"SELECT DISTINCT program_name FROM {DATAMART_SCHEMA_NAME}.dim_program WHERE program_name IS NOT NULL ORDER BY program_name")
+    programs = [r["program_name"] for r in prog_rows if r.get("program_name")]
+    
     return {
         "regions": regions,
         "programs": programs
     }
+
 
 @router.get("/data")
 def get_data(
