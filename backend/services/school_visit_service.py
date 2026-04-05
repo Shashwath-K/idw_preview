@@ -3,31 +3,38 @@ from backend.config import DATAMART_SCHEMA_NAME
 
 
 def get_school_visit_filters(region_name: str | None = None):
-    # 1. Fetch Regions
-    regions = [row["region_name"] for row in fetch_all(f"SELECT DISTINCT region_name FROM {DATAMART_SCHEMA_NAME}.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name")]
+    # 1. Fetch all Regions always
+    region_query = f"SELECT DISTINCT region_name FROM {DATAMART_SCHEMA_NAME}.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name"
+    regions = [row["region_name"] for row in fetch_all(region_query)]
     
-    # 2. Fetch Areas and Programs based on Region (Dependent Logic)
-    areas_query = f"SELECT DISTINCT area_name AS area FROM {DATAMART_SCHEMA_NAME}.dim_geography WHERE area_name IS NOT NULL"
+    # 2. Fetch Areas and Programs based on Region (Dependent Logic & Data > 0)
+    # Both Area and Program should now ONLY show if they have data in fact_session
+    areas_query = f"""
+        SELECT DISTINCT g.area_name AS area 
+        FROM {DATAMART_SCHEMA_NAME}.fact_session f
+        INNER JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        WHERE g.area_name IS NOT NULL
+    """
+    
     prog_query = f"""
         SELECT DISTINCT p.program_name 
         FROM {DATAMART_SCHEMA_NAME}.fact_session f
-        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_program p ON p.sk_program_id = f.sk_program_id
-        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        INNER JOIN {DATAMART_SCHEMA_NAME}.dim_program p ON p.sk_program_id = f.sk_program_id
+        INNER JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON g.sk_geography_id = f.sk_geography_id
         WHERE p.program_name IS NOT NULL
     """
     
     params = []
-    if region_name:
-        areas_query += " AND region_name = %s"
+    if region_name and region_name != "Select Region":
+        areas_query += " AND g.region_name = %s"
         prog_query += " AND g.region_name = %s"
         params.append(region_name)
     
     areas = [row["area"] for row in fetch_all(areas_query + " ORDER BY area", params)]
     
-    # For Programs, if region is selected, only show programs with data. 
-    # If not selected, show empty list to signify "inactive" as per main dashboard pattern.
+    # Only show programs if region is selected, and ONLY those with data
     programs = []
-    if region_name:
+    if region_name and region_name != "Select Region":
         programs = [row["program_name"] for row in fetch_all(prog_query + " ORDER BY p.program_name", params)]
 
     years = [row["year_actual"] for row in fetch_all(f"SELECT DISTINCT year_actual FROM {DATAMART_SCHEMA_NAME}.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
@@ -106,39 +113,40 @@ def get_school_visit_data(region=None, area=None, program=None, year=None, month
         "monthly_sessions": int(monthly_res.get("monthly_sessions") or 0) if monthly_res else 0
     }
 
-    # Get total row count for pagination
+    # Get total row count for pagination (Grouping by School, Program, Class, Section)
     count_sql = f"""
         SELECT COUNT(*) FROM (
-            SELECT f.sk_school_id
+            SELECT s.school_name, p.program_name, e.class_name, e.section_name
             FROM {DATAMART_SCHEMA_NAME}.fact_session f
-            LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_school s ON f.sk_school_id = s.sk_school_id
-            LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_program p ON f.sk_program_id = p.sk_program_id
-            LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
-            LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+            INNER JOIN {DATAMART_SCHEMA_NAME}.dim_school s ON f.sk_school_id = s.sk_school_id
+            INNER JOIN {DATAMART_SCHEMA_NAME}.dim_program p ON f.sk_program_id = p.sk_program_id
+            INNER JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            INNER JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+            INNER JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
             WHERE {where_sql}
-            GROUP BY f.sk_school_id, p.program_name, g.region_name, g.area_name
+            GROUP BY s.school_name, p.program_name, e.class_name, e.section_name
         ) as sub
     """
     total_count = fetch_one(count_sql, params).get("count", 0)
 
-    # Get paginated data
+    # Get paginated data (Granular breakdown by Class and Section)
     sql = f"""
         SELECT 
             COALESCE(s.school_name, 'Unknown') as school_name,
             COALESCE(p.program_name, 'Unknown') as program_name,
-            COALESCE(g.region_name, 'Unknown') as region,
-            COALESCE(g.area_name, 'N/A') as area,
-            COUNT(f.sk_fact_session_id) as sessions,
-            SUM(COALESCE(e.total_exposure_count, 0)) as students
+            COALESCE(e.class_name, 'N/A') as class_name,
+            COALESCE(e.section_name, 'N/A') as section_name,
+            COUNT(DISTINCT f.session_nk_id) as sessions,
+            SUM(COALESCE(e.total_exposure_count, 0)) as exposures
         FROM {DATAMART_SCHEMA_NAME}.fact_session f
-        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_school s ON f.sk_school_id = s.sk_school_id
-        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_program p ON f.sk_program_id = p.sk_program_id
-        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
-        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
-        LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+        INNER JOIN {DATAMART_SCHEMA_NAME}.dim_school s ON f.sk_school_id = s.sk_school_id
+        INNER JOIN {DATAMART_SCHEMA_NAME}.dim_program p ON f.sk_program_id = p.sk_program_id
+        INNER JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        INNER JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+        INNER JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
         WHERE {where_sql}
-        GROUP BY s.school_name, p.program_name, g.region_name, g.area_name
-        ORDER BY sessions DESC
+        GROUP BY s.school_name, p.program_name, e.class_name, e.section_name
+        ORDER BY s.school_name, p.program_name, e.class_name, e.section_name
         LIMIT %s OFFSET %s
     """
     rows = fetch_all(sql, params + [limit, offset])
@@ -148,6 +156,7 @@ def get_school_visit_data(region=None, area=None, program=None, year=None, month
         "total_count": total_count,
         "kpis": kpis
     }
+
 
 
 
