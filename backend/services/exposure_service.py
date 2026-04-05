@@ -50,7 +50,6 @@ def get_exposure_kpis(
              LEFT JOIN dw.dim_date d ON d.date_id = fae.date_id 
              LEFT JOIN dw.dim_geography g ON g.sk_geography_id = fae.sk_geography_id 
              LEFT JOIN dw.dim_program p ON p.sk_program_id = fae.sk_program_id {where_clause}) AS total_students,
-            COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS community_members,
             COALESCE(SUM(f.no_of_teachers_participated), 0) AS teachers_reached,
             (SELECT COALESCE(AVG(total_exposure_count), 0) FROM dw.fact_attendance_exposure fae 
              LEFT JOIN dw.dim_date d ON d.date_id = fae.date_id 
@@ -66,7 +65,6 @@ def get_exposure_kpis(
     )
     return {
         "total_students": int(row.get("total_students", 0) or 0),
-        "community_members": int(row.get("community_members", 0) or 0),
         "teachers_reached": int(row.get("teachers_reached", 0) or 0),
         "avg_students_per_exposure": round(float(row.get("avg_students_per_exposure", 0) or 0), 1),
     }
@@ -151,30 +149,6 @@ def get_gender_split(
 
 
 
-def get_community_gender_split(
-    start: int | None = None,
-    end: int | None = None,
-    region: str | None = None,
-    program: str | None = None,
-) -> dict[str, int]:
-    where_clause, params = _base_where(start, end, region, program)
-    row = fetch_one(
-        f"""
-        SELECT
-            COALESCE(SUM(f.community_women_count), 0) AS women,
-            COALESCE(SUM(f.community_men_count), 0) AS men
-        FROM dw.fact_session f
-        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
-        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
-        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
-        {where_clause}
-        """,
-        params,
-    )
-    return {"women": int(row.get("women", 0) or 0), "men": int(row.get("men", 0) or 0)}
-
-
-
 def get_top_schools(
     start: int | None = None,
     end: int | None = None,
@@ -225,8 +199,7 @@ def get_cohort_breakdown(
              LEFT JOIN dw.dim_date d ON d.date_id = fae.date_id 
              LEFT JOIN dw.dim_geography g ON g.sk_geography_id = fae.sk_geography_id 
              LEFT JOIN dw.dim_program p ON p.sk_program_id = fae.sk_program_id {where_clause}) AS students,
-            COALESCE(SUM(f.no_of_teachers_participated), 0) AS teachers,
-            COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS community
+            COALESCE(SUM(f.no_of_teachers_participated), 0) AS teachers
         FROM dw.fact_session f
         LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
         LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
@@ -238,7 +211,6 @@ def get_cohort_breakdown(
     return [
         {"label": "Students", "value": float(row.get("students", 0) or 0)},
         {"label": "Teachers", "value": float(row.get("teachers", 0) or 0)},
-        {"label": "Community", "value": float(row.get("community", 0) or 0)},
     ]
 
 
@@ -246,10 +218,11 @@ def get_cohort_breakdown(
 def get_program_options() -> list[str]:
     rows = fetch_all(
         """
-        SELECT DISTINCT program_name
-        FROM dw.dim_program
-        WHERE program_name IS NOT NULL
-        ORDER BY program_name
+        SELECT DISTINCT p.program_name
+        FROM dw.dim_program p
+        INNER JOIN dw.fact_session f ON p.sk_program_id = f.sk_program_id
+        WHERE p.program_name IS NOT NULL
+        ORDER BY p.program_name
         """
     )
 
