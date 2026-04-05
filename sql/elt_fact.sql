@@ -1,112 +1,101 @@
-WITH regular_sessions AS (
-    SELECT
-        s.session_id,
-        s.session_date,
-        m.school_id,
-        m.program_id,
-        s.activity_id,
-        COALESCE(s.instructor_id, m.instructor_id) AS instructor_id,
-        m.shift_id,
-        s.status
-    FROM {{SOURCE_FDW_SCHEMA}}.txn_session s
-    LEFT JOIN {{SOURCE_FDW_SCHEMA}}.conf_program_school_mapping m
-        ON m.mapping_id = s.mapping_id
-),
-adhoc_sessions AS (
-    SELECT
-        -1 * a.id AS session_id,
-        a.feedback_date AS session_date,
-        a.school_id,
-        a.program_id,
-        a.activity_id,
-        a.instructor_id,
-        NULL::int AS shift_id,
-        'adhoc'::varchar AS status
-    FROM {{SOURCE_FDW_SCHEMA}}.mst_adhoc_session_feedback_answers a
-),
-all_sessions AS (
-    SELECT * FROM regular_sessions
-    UNION ALL
-    SELECT * FROM adhoc_sessions
-)
-INSERT INTO fact_session_event (
-    session_key,
-    date_key,
-    location_key,
-    program_key,
-    activity_key,
-    instructor_key,
-    shift_key,
-    session_duration,
-    engagement_mode,
-    is_overdue,
-    session_count
-)
-SELECT
-    s.session_id,
-    d.date_key,
-    l.location_key,
-    p.program_key,
-    a.activity_key,
-    i.instructor_key,
-    sh.shift_key,
-    1 AS session_duration,
-    'Offline' AS engagement_mode,
-    COALESCE(LOWER(s.status), '') IN ('overdue', 'late', 'delayed') AS is_overdue,
-    1 AS session_count
-FROM all_sessions s
-LEFT JOIN dim_date d ON d.date = s.session_date
-LEFT JOIN dim_location l ON l.school_id = s.school_id::varchar
-LEFT JOIN dim_program p ON p.program_id = s.program_id::varchar
-LEFT JOIN dim_activity a ON a.activity_type_id = s.activity_id::varchar
-LEFT JOIN dim_instructor i ON i.instructor_id = s.instructor_id::varchar
-LEFT JOIN dim_shift sh ON sh.shift_key = s.shift_id;
+-- [ELT] elt_fact.sql
+-- Description: Fact table loading logic.
+-- Populates measures and lookups surrogate keys from dimensions.
 
-WITH exposure_by_session AS (
-    SELECT
-        fa.session_id,
-        SUM(COALESCE(fe.boys, 0)) AS boys_count,
-        SUM(COALESCE(fe.girls, 0)) AS girls_count,
-        SUM(COALESCE(fe.total_students, 0)) AS students_total,
-        SUM(COALESCE(fe.teachers, 0)) AS teachers_count,
-        SUM(COALESCE(fe.community_men, 0)) AS community_men,
-        SUM(COALESCE(fe.community_women, 0)) AS community_women,
-        SUM(COALESCE(fe.guests, 0)) AS guests_count
-    FROM {{SOURCE_FDW_SCHEMA}}.txn_feedback_exposure fe
-    JOIN {{SOURCE_FDW_SCHEMA}}.txn_feedback_answer fa
-        ON fa.feedback_id = fe.feedback_id
-    GROUP BY fa.session_id
-)
-INSERT INTO fact_exposure (
-    session_key,
-    boys_count,
-    girls_count,
-    students_total,
-    teachers_count,
-    community_men,
-    community_women,
-    guests_count
-)
-SELECT
-    f.session_key,
-    e.boys_count,
-    e.girls_count,
-    e.students_total,
-    e.teachers_count,
-    e.community_men,
-    e.community_women,
-    e.guests_count
-FROM exposure_by_session e
-JOIN fact_session_event f ON f.session_key = e.session_id;
+SET search_path TO dw, source;
 
-INSERT INTO fact_session_attribute (
-    session_key,
-    attribute_name,
-    attribute_value
+--------------------------------------------------------------------------------
+-- 1. FACT_SESSION (Measures from TXN_SESSION + RPT_FEEDBACK)
+--------------------------------------------------------------------------------
+INSERT INTO dw.fact_session (
+    date_id, sk_user_id, sk_school_id, sk_program_id, sk_activity_type_id, 
+    sk_subject_topic_id, sk_geography_id, session_nk_id, 
+    demo_session_count, hands_on_session_count, session_duration_minutes, 
+    no_of_teachers_participated, no_of_models_displayed, 
+    community_men_count, community_women_count, is_overdue
+
 )
-SELECT
-    f.session_key,
-    COALESCE(NULLIF(a.question_called, ''), CONCAT('question_', a.question_id::text)) AS attribute_name,
-    a.question_answer AS attribute_value
-FROM {{SOURCE_FDW_SCHEMA}}.txn_feedback_answer a
-JOIN fact_session_event f ON f.session_key = a.session_id;
+SELECT 
+    d.date_id, 
+    u.sk_user_id, 
+    s.sk_school_id, 
+    p.sk_program_id, 
+    at.sk_activity_type_id,
+    st.sk_subject_topic_id,
+    g.sk_geography_id,
+    ts.id as session_nk_id,
+    COALESCE(rf.demo_session, 0) as demo_session_count,
+    COALESCE(rf.hands_on_session, 0) as hands_on_session_count,
+    COALESCE(rf.session_duration, 0) as session_duration_minutes,
+    COALESCE(rf.no_of_teachers, 0) as no_of_teachers_participated,
+    COALESCE(rf.no_of_model_displayed, 0) as no_of_models_displayed,
+    COALESCE(rf.no_of_men, 0) as community_men_count,
+    COALESCE(rf.no_of_women, 0) as community_women_count,
+    ts.is_overdue = 1
+
+FROM source.txn_session ts
+-- Lookups
+LEFT JOIN dw.dim_date d ON ts.date = d.full_date
+LEFT JOIN dw.dim_user u ON ts.instructor_id = u.nk_user_id
+LEFT JOIN source.conf_program_school_mapping cpsm ON ts.program_school_mapped_id = cpsm.id
+LEFT JOIN dw.dim_school s ON cpsm.school_id = s.nk_school_id
+LEFT JOIN dw.dim_program p ON cpsm.program_id = p.nk_program_id
+LEFT JOIN dw.dim_activity_type at ON cpsm.activity_type_id = at.nk_activity_type_id
+LEFT JOIN source.rpt_feedback rf ON ts.id = rf.session_id
+LEFT JOIN dw.dim_subject_topic st ON rf.topic_id = st.nk_topic_id
+LEFT JOIN source.mst_school ms ON cpsm.school_id = ms.id
+LEFT JOIN dw.dim_geography g ON ms.area_id = g.nk_area_id;
+
+--------------------------------------------------------------------------------
+-- 2. FACT_ATTENDANCE_EXPOSURE (Detailed metrics from TXN_FEEDBACK_EXPOSURE)
+--------------------------------------------------------------------------------
+INSERT INTO dw.fact_attendance_exposure (
+    date_id, sk_user_id, sk_school_id, sk_program_id, sk_geography_id, 
+    session_nk_id, class_name, section_name, boys_count, girls_count, total_exposure_count
+)
+SELECT 
+    d.date_id,
+    u.sk_user_id,
+    s.sk_school_id,
+    p.sk_program_id,
+    g.sk_geography_id,
+    tfe.session_id as session_nk_id,
+    mc.name as class_name,
+    tfe.section as section_name,
+    COALESCE(tfe.boys, 0) as boys_count,
+    COALESCE(tfe.girls, 0) as girls_count,
+    COALESCE(tfe.boys, 0) + COALESCE(tfe.girls, 0) as total_exposure_count
+FROM source.txn_feedback_exposure tfe
+JOIN source.txn_session ts ON tfe.session_id = ts.id
+LEFT JOIN dw.dim_date d ON ts.date = d.full_date
+LEFT JOIN dw.dim_user u ON ts.instructor_id = u.nk_user_id
+LEFT JOIN source.conf_program_school_mapping cpsm ON ts.program_school_mapped_id = cpsm.id
+LEFT JOIN dw.dim_school s ON cpsm.school_id = s.nk_school_id
+LEFT JOIN dw.dim_program p ON cpsm.program_id = p.nk_program_id
+LEFT JOIN source.mst_school ms ON cpsm.school_id = ms.id
+LEFT JOIN dw.dim_geography g ON ms.area_id = g.nk_area_id
+LEFT JOIN source.mst_class mc ON tfe.class_id = mc.id;
+
+--------------------------------------------------------------------------------
+-- 3. FACT_VEHICLE_OPERATIONS (Metrics from TXN_VEHICLE_LOG)
+--------------------------------------------------------------------------------
+INSERT INTO dw.fact_vehicle_operations (
+    date_id, sk_user_id, sk_program_id, sk_geography_id, 
+    vehicle_nk_id, distance_travelled, fuel_quantity, fuel_cost, was_vehicle_used
+)
+SELECT 
+    d.date_id,
+    u.sk_user_id, -- Using instructor/driver user SK
+    p.sk_program_id,
+    g.sk_geography_id,
+    tvl.vehicle_id as vehicle_nk_id,
+    COALESCE(tvl.closed_reading - tvl.open_reading, 0) as distance_travelled,
+    COALESCE(tvl.fuel_quantity, 0),
+    COALESCE(tvl.fuel_quantity * tvl.fuel_price, 0) as fuel_cost,
+    tvl.vehicle_used_flag = 1
+FROM source.txn_vehicle_log tvl
+LEFT JOIN dw.dim_date d ON tvl.date = d.full_date
+LEFT JOIN dw.dim_user u ON tvl.instructor_id = u.nk_user_id
+LEFT JOIN dw.dim_program p ON tvl.program_id = p.nk_program_id
+LEFT JOIN source.txn_program sp ON tvl.program_id = sp.id
+LEFT JOIN dw.dim_geography g ON sp.area_id = g.nk_area_id;
