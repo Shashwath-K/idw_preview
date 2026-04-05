@@ -123,13 +123,14 @@ def get_monthly_region_impact(
 
 
 def get_region_options() -> list[str]:
-    # Strictly return states (Andhra, Karnataka, etc.) as requested
+    # Strictly return states (Andhra, Karnataka, etc.) that have data
     rows = fetch_all(
-        """
-        SELECT DISTINCT region_name as state
-        FROM dw.dim_geography
-        WHERE region_name IS NOT NULL 
-        ORDER BY region_name
+        f"""
+        SELECT DISTINCT g.region_name as state
+        FROM dw.dim_geography g
+        INNER JOIN dw.fact_session f ON g.sk_geography_id = f.sk_geography_id
+        WHERE g.region_name IS NOT NULL 
+        ORDER BY g.region_name
         """
     )
 
