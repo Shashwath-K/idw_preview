@@ -18,53 +18,86 @@ def get_instructor_detail_filters():
 
 
 def get_instructor_detail_data(instructor_name=None, year=None, month=None, limit=15, offset=0):
-    where_clauses = ["TRUE"]
-    params = []
-    
-    if instructor_name:
-        where_clauses.append("u.user_name = %s")
-        params.append(instructor_name)
-    if year:
-        where_clauses.append("d.year_actual = %s")
-        params.append(int(year))
-    if month:
-        where_clauses.append("d.month_actual = %s")
-        params.append(int(month))
-    
-    where_sql = " AND ".join(where_clauses)
-    
-    # Get total count
-    count_sql = f"""
-        SELECT COUNT(*)
-        FROM {DATAMART_SCHEMA_NAME}.fact_session f
-        JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
-        JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
-        WHERE {where_sql}
-    """
-    total_count = fetch_one(count_sql, params).get("count", 0)
+    try:
+        where_clauses = ["TRUE"]
+        params = []
+        
+        if instructor_name and str(instructor_name).strip() not in ["", "null", "undefined", "All Instructors"]:
+            where_clauses.append("u.user_name = %s")
+            params.append(instructor_name)
+        if year and str(year).strip() not in ["", "null", "undefined", "All Years"]:
+            where_clauses.append("d.year_actual = %s")
+            params.append(int(year))
+        if month and str(month).strip() not in ["", "null", "undefined", "All Months"]:
+            where_clauses.append("d.month_actual = %s")
+            params.append(int(month))
+        
+        where_sql = " AND ".join(where_clauses)
+        
+        # 1. Aggregated KPIs for top cards (4 cards)
+        # Using a subquery for exposures to avoid over-counting sessions
+        kpi_sql = f"""
+            SELECT 
+                COUNT(DISTINCT f.session_nk_id) as total_sessions,
+                SUM(COALESCE(e.total_exposure_count, 0)) as total_students,
+                COUNT(DISTINCT f.sk_school_id) as unique_schools,
+                SUM(COALESCE(f.no_of_teachers_participated, 0)) as teachers_trained
+            FROM {DATAMART_SCHEMA_NAME}.fact_session f
+            JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+            LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+            WHERE {where_sql}
+        """
+        kpi_res = fetch_one(kpi_sql, params)
+        
+        # 2. Get total count of granular rows (Session + Class)
+        count_sql = f"""
+            SELECT COUNT(*) as count
+            FROM {DATAMART_SCHEMA_NAME}.fact_session f
+            JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+            LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+            WHERE {where_sql}
+        """
+        count_res = fetch_one(count_sql, params)
+        total_count = int(count_res.get("count", 0))
 
-    # Get paginated data
-    sql = f"""
-        SELECT 
-            d.full_date as date,
-            s.school_name,
-            a.activity_name,
-            f.session_duration_minutes as session_duration,
-            COALESCE(e.total_exposure_count, 0) as students,
-            CASE WHEN f.is_overdue THEN 'Overdue' ELSE 'Completed' END as status
-        FROM {DATAMART_SCHEMA_NAME}.fact_session f
-        JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
-        JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
-        JOIN {DATAMART_SCHEMA_NAME}.dim_school s ON f.sk_school_id = s.sk_school_id
-        JOIN {DATAMART_SCHEMA_NAME}.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
-        LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
-        WHERE {where_sql}
-        ORDER BY d.full_date DESC
-        LIMIT %s OFFSET %s
-    """
-    rows = fetch_all(sql, params + [limit, offset])
-    
-    return {
-        "table": [{**row, "date": row["date"].strftime("%Y-%m-%d") if row["date"] else None} for row in rows],
-        "total_count": total_count
-    }
+        # 3. Get paginated granular data (9 Columns)
+        sql = f"""
+            SELECT 
+                p.program_name,
+                d.full_date as date,
+                a.activity_name,
+                s.school_name,
+                COALESCE(e.class_name, 'N/A') as class_name,
+                'N/A' as topic_name,
+                COALESCE(e.boys_count, 0) as boys,
+                COALESCE(e.girls_count, 0) as girls,
+                COALESCE(f.no_of_teachers_participated, 0) as teachers
+            FROM {DATAMART_SCHEMA_NAME}.fact_session f
+            JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_school s ON f.sk_school_id = s.sk_school_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
+            LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_program p ON f.sk_program_id = p.sk_program_id
+            LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+            WHERE {where_sql}
+            ORDER BY d.full_date DESC
+            LIMIT %s OFFSET %s
+        """
+        rows = fetch_all(sql, params + [limit, offset])
+        
+        return {
+            "kpis": [
+                {"label": "Total Sessions", "value": int(kpi_res.get("total_sessions", 0) or 0), "icon": "fas fa-clock", "color": "bg-info"},
+                {"label": "Total Students Reach", "value": int(kpi_res.get("total_students", 0) or 0), "icon": "fas fa-user-graduate", "color": "bg-success"},
+                {"label": "Schools Covered", "value": int(kpi_res.get("unique_schools", 0) or 0), "icon": "fas fa-school", "color": "bg-navy-blue"},
+                {"label": "Teachers Trained", "value": int(kpi_res.get("teachers_trained", 0) or 0), "icon": "fas fa-chalkboard-teacher", "color": "bg-danger"},
+            ],
+            "table": [{**row, "date": row["date"].strftime("%Y-%m-%d") if row["date"] else None} for row in rows],
+            "total_count": total_count
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"kpis": [], "table": [], "total_count": 0, "error": str(e)}
