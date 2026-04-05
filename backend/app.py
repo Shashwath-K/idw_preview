@@ -22,6 +22,7 @@ from backend.routers import (
     session,
     work_day,
     dashboard,
+    vehicle_report,
 )
 
 
@@ -74,6 +75,7 @@ app.include_router(instructor_detail.router)
 app.include_router(instructor_feedback.router)
 app.include_router(school_visit.router)
 app.include_router(work_day.router)
+app.include_router(vehicle_report.router)
 app.include_router(upload.router)
 
 
@@ -207,7 +209,7 @@ def instructor_detail_page(request: Request):
 
 @app.get("/vehicle-report", response_class=HTMLResponse)
 def vehicle_report_page(request: Request):
-    return render_page(request, "placeholder.html", "Vehicle Report", "vehicle-report")
+    return render_page(request, "vehicle_report.html", "Vehicle Report", "vehicle-report")
 
 @app.get("/work-days-report", response_class=HTMLResponse)
 def work_days_report_page(request: Request):
