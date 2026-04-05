@@ -2,11 +2,12 @@ from backend.services.query_utils import build_dimension_filters, fetch_all, fet
 
 
 def _type_expression() -> str:
-    return "COALESCE(NULLIF(INITCAP(TRIM(i.instructor_type)), ''), 'Unknown')"
+    return "COALESCE(NULLIF(INITCAP(TRIM(u.role_name)), ''), 'Unknown')"
 
 
 def _region_expression() -> str:
-    return "COALESCE(NULLIF(MAX(l.state), ''), NULLIF(MAX(i.region_assigned), ''), 'Unknown')"
+    return "COALESCE(NULLIF(g.region_name, ''), 'Unknown')"
+
 
 
 def get_instructor_kpis(
@@ -21,52 +22,54 @@ def get_instructor_kpis(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
+        year_expression="d.year_actual",
+        location_expression="g.region_name",
         program_expression="p.program_name",
         instructor=instructor,
-        instructor_expression="i.instructor_type",
+        instructor_expression="u.role_name",
     )
+
     row = fetch_one(
         f"""
         SELECT
-            COUNT(DISTINCT i.instructor_key) AS total_instructors,
-            COALESCE(SUM(f.session_count), 0) AS sessions_conducted,
+            COUNT(DISTINCT f.sk_user_id) AS total_instructors,
+            COUNT(f.sk_fact_session_id) AS sessions_conducted,
             COALESCE(
-                SUM(f.session_count)::numeric / NULLIF(COUNT(DISTINCT i.instructor_key), 0),
+                COUNT(f.sk_fact_session_id)::numeric / NULLIF(COUNT(DISTINCT f.sk_user_id), 0),
                 0
             ) AS avg_sessions_per_instructor,
             COALESCE(
-                COUNT(DISTINCT CASE WHEN COALESCE(f.is_overdue, FALSE) THEN f.session_key END),
+                COUNT(CASE WHEN f.is_overdue THEN 1 END),
                 0
             ) AS unprocessed_sessions
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
+        LEFT JOIN dw.dim_user u ON u.sk_user_id = f.sk_user_id
         {where_clause}
         """,
         params,
     )
+
     top_region = fetch_one(
         f"""
         SELECT
-            COALESCE(NULLIF(l.state, ''), NULLIF(i.region_assigned, ''), 'Unknown') AS top_region,
-            COALESCE(SUM(f.session_count), 0) AS top_region_sessions
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
+            COALESCE(g.region_name, 'Unknown') AS top_region,
+            COUNT(f.sk_fact_session_id) AS top_region_sessions
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_user u ON u.sk_user_id = f.sk_user_id
         {where_clause}
-        GROUP BY COALESCE(NULLIF(l.state, ''), NULLIF(i.region_assigned, ''), 'Unknown')
+        GROUP BY g.region_name
         ORDER BY top_region_sessions DESC, top_region
         LIMIT 1
         """,
         params,
     )
     return {
+
         "total_instructors": int(row.get("total_instructors", 0) or 0),
         "avg_sessions_per_instructor": round(float(row.get("avg_sessions_per_instructor", 0) or 0), 1),
         "top_region": top_region.get("top_region", "-") or "-",
@@ -89,49 +92,49 @@ def get_instructor_session_log(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
+        year_expression="d.year_actual",
+        location_expression="g.region_name",
         program_expression="p.program_name",
         instructor=instructor,
-        instructor_expression="i.instructor_type",
+        instructor_expression="u.role_name",
     )
+
     rows = fetch_all(
         f"""
         SELECT
-            COALESCE(NULLIF(i.name, ''), 'Unknown') AS name,
+            COALESCE(u.user_name, 'Unknown') AS name,
             {_type_expression()} AS instructor_type,
             {_region_expression()} AS region,
-            COALESCE(SUM(f.session_count), 0) AS sessions,
-            COALESCE(SUM(COALESCE(e.students_total, 0)), 0) AS students,
-            TO_CHAR(MAX(d.date), 'Mon DD') AS last_session
-        FROM fact_session_event f
-        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
+            COUNT(f.sk_fact_session_id) AS sessions,
+            (SELECT COALESCE(SUM(total_exposure_count), 0) FROM dw.fact_attendance_exposure fae 
+             JOIN dw.fact_session fs ON fae.session_nk_id = fs.session_nk_id 
+             WHERE fs.sk_user_id = u.sk_user_id) AS students,
+            TO_CHAR(MAX(d.full_date), 'Mon DD') AS last_session
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_user u ON u.sk_user_id = f.sk_user_id
         {where_clause}
-        GROUP BY i.instructor_key, COALESCE(NULLIF(i.name, ''), 'Unknown'), {_type_expression()}
+        GROUP BY u.sk_user_id, u.user_name, u.role_name, g.region_name
         ORDER BY sessions DESC, students DESC, name
         LIMIT %s OFFSET %s
         """,
         [*params, limit, offset],
     )
+
     
-    # Get total count
-    count_sql = f"""
-        SELECT COUNT(*) FROM (
-            SELECT i.instructor_key
-            FROM fact_session_event f
-            LEFT JOIN dim_date d ON d.date_key = f.date_key
-            LEFT JOIN dim_location l ON l.location_key = f.location_key
-            LEFT JOIN dim_program p ON p.program_key = f.program_key
-            LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
-            {where_clause}
-            GROUP BY i.instructor_key
-        ) as sub
-    """
-    total_count = fetch_one(count_sql, params)["count"]
+    total_count = fetch_one(
+        f"""
+        SELECT COUNT(DISTINCT f.sk_user_id) 
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_user u ON u.sk_user_id = f.sk_user_id
+        {where_clause}
+        """,
+        params,
+    )["count"]
+
 
     return {
         "table": [
@@ -162,33 +165,34 @@ def get_multi_program_instructors(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
+        year_expression="d.year_actual",
+        location_expression="g.region_name",
         program_expression="p.program_name",
         instructor=instructor,
-        instructor_expression="i.instructor_type",
+        instructor_expression="u.role_name",
     )
+
     rows = fetch_all(
         f"""
         SELECT
-            COALESCE(NULLIF(i.name, ''), 'Unknown') AS name,
+            COALESCE(u.user_name, 'Unknown') AS name,
             {_type_expression()} AS instructor_type,
             {_region_expression()} AS region,
-            COUNT(DISTINCT f.program_key) AS programs,
-            COALESCE(SUM(f.session_count), 0) AS sessions
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
+            COUNT(DISTINCT f.sk_program_id) AS programs,
+            COUNT(f.sk_fact_session_id) AS sessions
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_user u ON u.sk_user_id = f.sk_user_id
         {where_clause}
-        GROUP BY i.instructor_key, COALESCE(NULLIF(i.name, ''), 'Unknown'), {_type_expression()}
-        HAVING COUNT(DISTINCT f.program_key) > 1
+        GROUP BY u.sk_user_id, u.user_name, u.role_name, g.region_name
+        HAVING COUNT(DISTINCT f.sk_program_id) > 1
         ORDER BY programs DESC, sessions DESC, name
         LIMIT %s
         """,
         [*params, limit],
     )
+
     return [
         {
             "name": row["name"],
@@ -214,24 +218,24 @@ def get_sessions_by_instructor_type(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
+        year_expression="d.year_actual",
+        location_expression="g.region_name",
         program_expression="p.program_name",
         instructor=instructor,
-        instructor_expression="i.instructor_type",
+        instructor_expression="u.role_name",
     )
+
     rows = fetch_all(
         f"""
         SELECT
             {_type_expression()} AS label,
-            COALESCE(SUM(f.session_count), 0) AS value
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
+            COUNT(f.sk_fact_session_id) AS value
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_user u ON u.sk_user_id = f.sk_user_id
         {where_clause}
-        GROUP BY {_type_expression()}
+        GROUP BY u.role_name
         ORDER BY value DESC, label
         """,
         params,
@@ -239,16 +243,18 @@ def get_sessions_by_instructor_type(
     return [{"label": row["label"], "value": float(row["value"] or 0)} for row in rows]
 
 
+
 def get_instructor_type_options() -> list[str]:
     rows = fetch_all(
         """
-        SELECT DISTINCT instructor_type
-        FROM dim_instructor
-        WHERE instructor_type IS NOT NULL
-        ORDER BY instructor_type
+        SELECT DISTINCT role_name as name
+        FROM dw.dim_user
+        WHERE role_name IS NOT NULL
+        ORDER BY role_name
         """
     )
-    return [str(row["instructor_type"]) for row in rows if row.get("instructor_type")]
+    return [str(row["name"]) for row in rows if row.get("name")]
+
 
 
 def get_instructor_productivity(
@@ -275,26 +281,27 @@ def get_monthly_instructor_activity(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
+        year_expression="d.year_actual",
+        location_expression="g.region_name",
         program_expression="p.program_name",
         instructor=instructor,
-        instructor_expression="i.instructor_type",
+        instructor_expression="u.role_name",
     )
+
     rows = fetch_all(
         f"""
         SELECT
-            TO_CHAR(DATE_TRUNC('month', d.date), 'YYYY-MM') AS label,
-            COALESCE(SUM(f.session_count), 0) AS value,
-            DATE_TRUNC('month', d.date) AS sort_key
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+            TO_CHAR(DATE_TRUNC('month', d.full_date), 'YYYY-MM') AS label,
+            COUNT(f.sk_fact_session_id) AS value,
+            DATE_TRUNC('month', d.full_date) AS sort_key
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
         {where_clause}
-        GROUP BY DATE_TRUNC('month', d.date)
-        ORDER BY DATE_TRUNC('month', d.date)
+        GROUP BY DATE_TRUNC('month', d.full_date)
+        ORDER BY sort_key
         """,
         params,
     )
     return [{"label": row["label"], "value": float(row["value"])} for row in rows]
+
