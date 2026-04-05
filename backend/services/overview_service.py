@@ -1,8 +1,9 @@
 from backend.services.query_utils import build_dimension_filters, fetch_all, fetch_one
 
 
-LOCATION_EXPRESSION = "l.state"
+LOCATION_EXPRESSION = "g.region_name"
 PROGRAM_EXPRESSION = "p.program_name"
+
 
 
 def _build_filters(start: int | None = None, end: int | None = None, region: str | None = None, program: str | None = None):
@@ -11,10 +12,11 @@ def _build_filters(start: int | None = None, end: int | None = None, region: str
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
+        year_expression="d.year_actual",
         location_expression=LOCATION_EXPRESSION,
         program_expression=PROGRAM_EXPRESSION,
     )
+
 
 
 def get_overview_kpis(start: int | None = None, end: int | None = None, region: str | None = None, program: str | None = None):
@@ -23,18 +25,18 @@ def get_overview_kpis(start: int | None = None, end: int | None = None, region: 
     kpis_row = fetch_one(
         f"""
         SELECT
-            COUNT(DISTINCT i.instructor_key) AS total_instructors,
-            COUNT(DISTINCT l.state) AS total_states,
+            COUNT(DISTINCT f.sk_user_id) AS total_instructors,
+            COUNT(DISTINCT g.nk_region_id) AS total_states,
             COUNT(DISTINCT p.program_name) AS total_programs
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
         {where_clause}
         """,
         params,
     )
+
 
     return {
         "total_instructors": int(kpis_row.get("total_instructors", 0) or 0),
@@ -50,38 +52,39 @@ def get_overview_charts(start: int | None = None, end: int | None = None, region
     instructors_rows = fetch_all(
         f"""
         SELECT
-            COALESCE(l.state, 'Unknown') AS label,
-            COUNT(DISTINCT i.instructor_key) AS value
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_instructor i ON i.instructor_key = f.instructor_key
-        {where_clause} AND l.state IS NOT NULL
-        GROUP BY l.state
+            COALESCE(g.region_name, 'Unknown') AS label,
+            COUNT(DISTINCT f.sk_user_id) AS value
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
+        {where_clause} AND g.region_name IS NOT NULL
+        GROUP BY g.region_name
         ORDER BY value DESC
         LIMIT 10
         """,
         params,
     )
+
     
     # 2. Programs per region
     programs_rows = fetch_all(
         f"""
         SELECT
-            COALESCE(l.state, 'Unknown') AS label,
+            COALESCE(g.region_name, 'Unknown') AS label,
             COUNT(DISTINCT p.program_name) AS value
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        {where_clause} AND l.state IS NOT NULL
-        GROUP BY l.state
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
+        {where_clause} AND g.region_name IS NOT NULL
+        GROUP BY g.region_name
         ORDER BY value DESC
         LIMIT 10
         """,
         params,
     )
+
 
     return {
         "instructors_by_region": [{"label": r["label"], "value": float(r["value"])} for r in instructors_rows],
@@ -93,46 +96,36 @@ def get_overview_charts(start: int | None = None, end: int | None = None, region
 def get_program_targets(start: int | None = None, end: int | None = None, region: str | None = None, program: str | None = None, limit: int = 10, offset: int = 0):
     where_clause, params = _build_filters(start=start, end=end, region=region, program=program)
     
-    # Get total count
-    count_sql = f"""
-        SELECT COUNT(*) FROM (
-            SELECT p.program_key
-            FROM fact_session_event f
-            LEFT JOIN dim_date d ON d.date_key = f.date_key
-            LEFT JOIN dim_location l ON l.location_key = f.location_key
-            LEFT JOIN dim_program p ON p.program_key = f.program_key
-            {where_clause}
-            GROUP BY p.program_key
-            HAVING p.program_key IS NOT NULL
-        ) as sub
-    """
-    total_count = fetch_one(count_sql, params)["count"]
+    total_count = fetch_one(
+        f"""
+        SELECT COUNT(*) FROM dw.dim_program
+        """
+    )["count"]
+
 
     rows = fetch_all(
         f"""
         SELECT
-            p.program_key,
-            COALESCE(MAX(p.program_name), 'Unknown') AS label,
-            COALESCE(MAX(dnr.donor_name), 'Unknown') AS donor,
-            COALESCE(MAX(p.target_sessions), 0) AS target_sessions,
-            COALESCE(SUM(f.session_count), 0) AS completed_sessions,
-            COALESCE(MAX(p.target_students), 0) AS target_students,
-            COALESCE(SUM(e.students_total), 0) AS reached_students,
-            MAX(p.end_date) AS end_date
-        FROM fact_session_event f
-        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_donor dnr ON dnr.donor_key = p.donor_key
+            p.sk_program_id,
+            COALESCE(p.program_name, 'Unknown') AS label,
+            COALESCE(p.donor_name, 'Unknown') AS donor,
+            COALESCE(p.instructor_capacity, 0) AS target_sessions,
+            COALESCE(COUNT(DISTINCT f.sk_fact_session_id), 0) AS completed_sessions,
+            COALESCE(SUM(fa.total_exposure_count), 0) AS reached_students,
+            p.end_date AS end_date
+        FROM dw.dim_program p
+        LEFT JOIN dw.fact_session f ON p.sk_program_id = f.sk_program_id
+        LEFT JOIN dw.fact_attendance_exposure fa ON f.session_nk_id = fa.session_nk_id
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
         {where_clause}
-        GROUP BY p.program_key
-        HAVING p.program_key IS NOT NULL
+        GROUP BY p.sk_program_id
         ORDER BY completed_sessions DESC, label
         LIMIT %s OFFSET %s
         """,
         [*params, limit, offset],
     )
+
 
     items = []
     for row in rows:
@@ -167,12 +160,12 @@ def get_sessions_by_activity(start: int | None = None, end: int | None = None, r
         f"""
         SELECT
             COALESCE(a.activity_name, 'Unknown') AS label,
-            COALESCE(SUM(f.session_count), 0) AS value
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_activity a ON a.activity_key = f.activity_key
+            COALESCE(COUNT(DISTINCT f.sk_fact_session_id), 0) AS value
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
+        LEFT JOIN dw.dim_activity_type a ON a.sk_activity_type_id = f.sk_activity_type_id
         {where_clause}
         GROUP BY COALESCE(a.activity_name, 'Unknown')
         ORDER BY value DESC, label
@@ -180,6 +173,7 @@ def get_sessions_by_activity(start: int | None = None, end: int | None = None, r
         """,
         params,
     )
+
     return [{"label": row["label"], "value": float(row["value"])} for row in rows]
 
 
@@ -188,18 +182,18 @@ def get_sessions_by_donor(start: int | None = None, end: int | None = None, regi
     rows = fetch_all(
         f"""
         SELECT
-            COALESCE(dnr.donor_name, 'Unknown') AS label,
-            COALESCE(SUM(f.session_count), 0) AS value
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
-        LEFT JOIN dim_donor dnr ON dnr.donor_key = p.donor_key
+            COALESCE(p.donor_name, 'Unknown') AS label,
+            COALESCE(COUNT(DISTINCT f.sk_fact_session_id), 0) AS value
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
         {where_clause}
-        GROUP BY COALESCE(dnr.donor_name, 'Unknown')
+        GROUP BY COALESCE(p.donor_name, 'Unknown')
         ORDER BY value DESC, label
         LIMIT 6
         """,
         params,
     )
+
     return [{"label": row["label"], "value": float(row["value"])} for row in rows]
