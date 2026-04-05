@@ -1,13 +1,14 @@
 from backend.services.query_utils import fetch_all, fetch_one
+from backend.config import DATAMART_SCHEMA_NAME
 
 
 def get_attendance_filters():
     # Fetch from new dim_geography and dim_date
-    locations = fetch_all("SELECT DISTINCT region_name, district AS area FROM dw.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name, district")
+    locations = fetch_all(f"SELECT DISTINCT region_name, area_name AS area FROM {DATAMART_SCHEMA_NAME}.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name, area_name")
     
-    years = [row["year_actual"] for row in fetch_all("SELECT DISTINCT year_actual FROM dw.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
+    years = [row["year_actual"] for row in fetch_all(f"SELECT DISTINCT year_actual FROM {DATAMART_SCHEMA_NAME}.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
     
-    months = [{"id": row["month_actual"], "name": row["month_name"].strip()} for row in fetch_all("SELECT DISTINCT month_actual, TO_CHAR(TO_DATE(month_actual::text, 'MM'), 'Month') as month_name FROM dw.dim_date ORDER BY month_actual")]
+    months = [{"id": row["month_actual"], "name": row["month_name"].strip()} for row in fetch_all(f"SELECT DISTINCT month_actual, TO_CHAR(TO_DATE(month_actual::text, 'MM'), 'Month') as month_name FROM {DATAMART_SCHEMA_NAME}.dim_date ORDER BY month_actual")]
     
     return {
         "regions": sorted(list(set(row["region_name"] for row in locations))),
@@ -25,7 +26,7 @@ def get_attendance_data(region=None, area=None, year=None, month=None, limit=15,
         where_clauses.append("g.region_name = %s")
         params.append(region)
     if area:
-        where_clauses.append("g.district = %s")
+        where_clauses.append("g.area_name = %s")
         params.append(area)
     if year:
         where_clauses.append("d.year_actual = %s")
@@ -40,12 +41,12 @@ def get_attendance_data(region=None, area=None, year=None, month=None, limit=15,
     count_sql = f"""
         SELECT COUNT(*) FROM (
             SELECT u.sk_user_id
-            FROM dw.fact_session f
-            JOIN dw.dim_user u ON f.sk_user_id = u.sk_user_id
-            JOIN dw.dim_date d ON f.date_id = d.date_id
-            JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            FROM {DATAMART_SCHEMA_NAME}.fact_session f
+            JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
             WHERE {where_sql}
-            GROUP BY u.sk_user_id, u.full_name, g.region_name, g.district
+            GROUP BY u.sk_user_id, u.user_name, g.region_name, g.area_name
         ) as sub
     """
     total_count = fetch_one(count_sql, params).get("count", 0)
@@ -53,20 +54,21 @@ def get_attendance_data(region=None, area=None, year=None, month=None, limit=15,
     # Get paginated data
     sql = f"""
         SELECT 
-            u.full_name as instructor_name,
+            u.user_name as instructor_name,
             g.region_name as region,
-            COALESCE(g.district, 'N/A') as area,
+            COALESCE(g.area_name, 'N/A') as area,
             COUNT(DISTINCT d.full_date) as days_present,
-            SUM(f.session_count) as total_sessions
-        FROM dw.fact_session f
-        JOIN dw.dim_user u ON f.sk_user_id = u.sk_user_id
-        JOIN dw.dim_date d ON f.date_id = d.date_id
-        JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            COUNT(f.sk_fact_session_id) as total_sessions
+        FROM {DATAMART_SCHEMA_NAME}.fact_session f
+        JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
+        JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+        JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
         WHERE {where_sql}
-        GROUP BY u.sk_user_id, u.full_name, g.region_name, g.district
-        ORDER BY u.full_name
+        GROUP BY u.sk_user_id, u.user_name, g.region_name, g.area_name
+        ORDER BY u.user_name
         LIMIT %s OFFSET %s
     """
     rows = fetch_all(sql, params + [limit, offset])
     return {"table": rows, "total_count": total_count}
+
 
