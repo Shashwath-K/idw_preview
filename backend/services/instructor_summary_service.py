@@ -1,124 +1,113 @@
-from backend.db import get_datamart_conn
+from backend.services.query_utils import fetch_all, fetch_one
+
 
 def get_instructor_summary_filters():
-    with get_datamart_conn() as conn:
-        with conn.cursor() as cur:
-            # Regions and Areas
-            cur.execute("SELECT DISTINCT state, area FROM dw_data_schema.dim_location WHERE state IS NOT NULL ORDER BY state, area")
-            rows = cur.fetchall()
-            regions = sorted(list(set(row["state"] for row in rows)))
-            areas = sorted(list(set(row["area"] for row in rows)))
-            
-            # Years (Financial Years)
-            cur.execute("SELECT DISTINCT financial_year FROM dw_data_schema.dim_date WHERE financial_year IS NOT NULL ORDER BY financial_year DESC")
-            years = [row["financial_year"] for row in cur.fetchall()]
-            
-            # Months
-            cur.execute("SELECT DISTINCT month, TO_CHAR(TO_DATE(month::text, 'MM'), 'Month') as month_name FROM dw_data_schema.dim_date ORDER BY month")
-            months = [{"id": row["month"], "name": row["month_name"].strip()} for row in cur.fetchall()]
-            
+    # Fetch from new dim_geography and dim_date
+    locations = fetch_all("SELECT DISTINCT region_name, district AS area FROM dw.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name, district")
+    
+    years = [row["year_actual"] for row in fetch_all("SELECT DISTINCT year_actual FROM dw.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
+    
+    months = [{"id": row["month_actual"], "name": row["month_name"].strip()} for row in fetch_all("SELECT DISTINCT month_actual, TO_CHAR(TO_DATE(month_actual::text, 'MM'), 'Month') as month_name FROM dw.dim_date ORDER BY month_actual")]
+    
     return {
-        "regions": regions,
-        "areas": areas,
+        "regions": sorted(list(set(row["region_name"] for row in locations))),
+        "areas": sorted(list(set(row["area"] for row in locations if row.get("area")))),
         "years": years,
         "months": months
     }
 
+
 def get_instructor_summary_data(region=None, area=None, year=None, month=None, limit=15, offset=0):
-    with get_datamart_conn() as conn:
-        with conn.cursor() as cur:
-            where_clauses = ["TRUE"]
-            params = []
-            
-            if region:
-                where_clauses.append("l.state = %s")
-                params.append(region)
-            if area:
-                where_clauses.append("l.area = %s")
-                params.append(area)
-            if year:
-                where_clauses.append("d.financial_year = %s")
-                params.append(year)
-            if month:
-                where_clauses.append("d.month = %s")
-                params.append(int(month))
-            
-            where_sql = " AND ".join(where_clauses)
-            
-            # Get KPIs
-            kpi_sql = f"""
-                SELECT 
-                    COUNT(DISTINCT d.date) as days_worked,
-                    SUM(COALESCE(f.session_count, 0)) as total_sessions,
-                    SUM(COALESCE(e.students_total, 0)) as total_exposures,
-                    SUM(CASE WHEN a.activity_name ILIKE ANY (ARRAY['%%YIL%%', '%%SF%%', '%%CV%%']) THEN COALESCE(e.students_total, 0) ELSE 0 END) as combined_exposures
-                FROM dw_data_schema.dim_instructor i
-                LEFT JOIN dw_data_schema.fact_session_event f ON i.instructor_key = f.instructor_key
-                LEFT JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
-                LEFT JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
-                LEFT JOIN dw_data_schema.dim_activity a ON f.activity_key = a.activity_key
-                LEFT JOIN dw_data_schema.fact_exposure e ON f.session_key = e.session_key
-                WHERE {where_sql}
-            """
-            cur.execute(kpi_sql, params)
-            kpi_res = cur.fetchone()
-            
-            total_exp = int(kpi_res["total_exposures"] or 0)
-            comb_exp = int(kpi_res["combined_exposures"] or 0)
-            
-            kpis = {
-                "days_worked": kpi_res["days_worked"] or 0,
-                "total_sessions": int(kpi_res["total_sessions"] or 0),
-                "school_exposures": total_exp - comb_exp,
-                "combined_exposures": comb_exp
-            }
+    where_clauses = ["TRUE"]
+    params = []
+    
+    if region:
+        where_clauses.append("g.region_name = %s")
+        params.append(region)
+    if area:
+        where_clauses.append("g.district = %s")
+        params.append(area)
+    if year:
+        where_clauses.append("d.year_actual = %s")
+        params.append(int(year))
+    if month:
+        where_clauses.append("d.month_actual = %s")
+        params.append(int(month))
+    
+    where_sql = " AND ".join(where_clauses)
+    
+    # Get KPIs
+    kpi_sql = f"""
+        SELECT 
+            COUNT(DISTINCT d.full_date) as days_worked,
+            SUM(COALESCE(f.session_count, 0)) as total_sessions,
+            SUM(COALESCE(e.total_students, 0)) as total_exposures,
+            SUM(CASE WHEN a.activity_name ILIKE ANY (ARRAY['%%YIL%%', '%%SF%%', '%%CV%%']) THEN COALESCE(e.total_students, 0) ELSE 0 END) as combined_exposures
+        FROM dw.dim_user u
+        LEFT JOIN dw.fact_session f ON u.sk_user_id = f.sk_user_id
+        LEFT JOIN dw.fact_attendance_exposure e ON f.sk_session_id = e.sk_session_id
+        LEFT JOIN dw.dim_date d ON f.date_id = d.date_id
+        LEFT JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        LEFT JOIN dw.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
+        WHERE {where_sql}
+    """
+    kpi_res = fetch_one(kpi_sql, params)
+    
+    total_exp = int(kpi_res["total_exposures"] or 0)
+    comb_exp = int(kpi_res["combined_exposures"] or 0)
+    
+    kpis = {
+        "days_worked": kpi_res["days_worked"] or 0,
+        "total_sessions": int(kpi_res["total_sessions"] or 0),
+        "school_exposures": total_exp - comb_exp,
+        "combined_exposures": comb_exp
+    }
 
-            # Get total count for pagination
-            count_sql = f"""
-                SELECT COUNT(*) FROM (
-                    SELECT i.instructor_key
-                    FROM dw_data_schema.dim_instructor i
-                    LEFT JOIN dw_data_schema.fact_session_event f ON i.instructor_key = f.instructor_key
-                    LEFT JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
-                    LEFT JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
-                    WHERE {where_sql}
-                    GROUP BY i.instructor_key
-                ) as sub
-            """
-            cur.execute(count_sql, params)
-            total_count = cur.fetchone()["count"]
+    # Get total count for pagination
+    count_sql = f"""
+        SELECT COUNT(*) FROM (
+            SELECT u.sk_user_id
+            FROM dw.dim_user u
+            JOIN dw.fact_session f ON u.sk_user_id = f.sk_user_id
+            JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            JOIN dw.dim_date d ON f.date_id = d.date_id
+            WHERE {where_sql}
+            GROUP BY u.sk_user_id
+        ) as sub
+    """
+    total_count = fetch_one(count_sql, params).get("count", 0)
 
-            # Main query to aggregate instructor metrics
-            main_sql = f"""
-                SELECT 
-                    i.name as instructor_name,
-                    COUNT(DISTINCT d.date) as days_worked,
-                    COUNT(DISTINCT f.session_key) as school_sessions,
-                    SUM(COALESCE(f.session_count, 0)) as total_sessions,
-                    SUM(COALESCE(e.students_total, 0)) as total_exposures,
-                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%Fair%%' THEN f.session_key END) as fair_count,
-                    SUM(CASE WHEN a.activity_name ILIKE '%%Training%%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as training_exposures,
-                    SUM(CASE WHEN a.activity_name ILIKE '%%SF%%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as sf_exposures,
-                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN f.session_key END) as yil_sessions,
-                    SUM(CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as yil_exposures,
-                    COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%CV%%' THEN f.session_key END) as cv_visits,
-                    SUM(CASE WHEN a.activity_name ILIKE '%%CV%%' THEN COALESCE(e.students_total, 0) ELSE 0 END) as cv_exposures
-                FROM dw_data_schema.dim_instructor i
-                LEFT JOIN dw_data_schema.fact_session_event f ON i.instructor_key = f.instructor_key
-                LEFT JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
-                LEFT JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
-                LEFT JOIN dw_data_schema.dim_activity a ON f.activity_key = a.activity_key
-                LEFT JOIN dw_data_schema.fact_exposure e ON f.session_key = e.session_key
-                WHERE {where_sql}
-                GROUP BY i.instructor_key, i.name
-                ORDER BY i.name
-                LIMIT %s OFFSET %s
-            """
-            cur.execute(main_sql, params + [limit, offset])
-            table_data = cur.fetchall()
-            
+    # Main query to aggregate instructor metrics
+    main_sql = f"""
+        SELECT 
+            u.full_name as instructor_name,
+            COUNT(DISTINCT d.full_date) as days_worked,
+            COUNT(DISTINCT f.sk_session_id) as school_sessions,
+            SUM(COALESCE(f.session_count, 0)) as total_sessions,
+            SUM(COALESCE(e.total_students, 0)) as total_exposures,
+            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%Fair%%' THEN f.sk_session_id END) as fair_count,
+            SUM(CASE WHEN a.activity_name ILIKE '%%Training%%' THEN COALESCE(e.total_students, 0) ELSE 0 END) as training_exposures,
+            SUM(CASE WHEN a.activity_name ILIKE '%%SF%%' THEN COALESCE(e.total_students, 0) ELSE 0 END) as sf_exposures,
+            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN f.sk_session_id END) as yil_sessions,
+            SUM(CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN COALESCE(e.total_students, 0) ELSE 0 END) as yil_exposures,
+            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%CV%%' THEN f.sk_session_id END) as cv_visits,
+            SUM(CASE WHEN a.activity_name ILIKE '%%CV%%' THEN COALESCE(e.total_students, 0) ELSE 0 END) as cv_exposures
+        FROM dw.dim_user u
+        LEFT JOIN dw.fact_session f ON u.sk_user_id = f.sk_user_id
+        LEFT JOIN dw.fact_attendance_exposure e ON f.sk_session_id = e.sk_session_id
+        LEFT JOIN dw.dim_date d ON f.date_id = d.date_id
+        LEFT JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        LEFT JOIN dw.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
+        WHERE {where_sql}
+        GROUP BY u.sk_user_id, u.full_name
+        ORDER BY u.full_name
+        LIMIT %s OFFSET %s
+    """
+    table_data = fetch_all(main_sql, params + [limit, offset])
+    
     return {
         "table": table_data,
         "total_count": total_count,
         "kpis": kpis
     }
+
