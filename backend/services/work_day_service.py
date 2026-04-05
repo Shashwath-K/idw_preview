@@ -37,19 +37,45 @@ def get_work_day_data(region=None, area=None, year=None, month=None, limit=15, o
     
     where_sql = " AND ".join(where_clauses)
     
-    # Get total count
+    # KPI Query
+    kpi_sql = f"""
+        SELECT 
+            COUNT(DISTINCT f.sk_user_id) as total_instructors,
+            COUNT(DISTINCT CONCAT(f.sk_user_id, '_', f.date_id)) as total_working_days,
+            COUNT(DISTINCT f.sk_geography_id) as active_centers
+        FROM {DATAMART_SCHEMA_NAME}.fact_session f
+        JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+        JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        WHERE {where_sql}
+    """
+    kpis_raw = fetch_one(kpi_sql, params)
+    
+    instructors = kpis_raw.get('total_instructors', 0)
+    working_days = kpis_raw.get('total_working_days', 0)
+    avg_days = round(working_days / instructors, 2) if instructors > 0 else 0
+    active_centers = kpis_raw.get('active_centers', 0)
+
+    kpi_list = [
+        {"label": "Total Instructors", "value": instructors, "icon": "fas fa-users", "color": "bg-info"},
+        {"label": "Total Working Days", "value": working_days, "icon": "fas fa-calendar-check", "color": "bg-success"},
+        {"label": "Avg Days/Instructor", "value": avg_days, "icon": "fas fa-chart-line", "color": "bg-navy-blue"},
+        {"label": "Active Centers", "value": active_centers, "icon": "fas fa-map-marker-alt", "color": "bg-danger"}
+    ]
+
+    # Get total count for pagination
     count_sql = f"""
         SELECT COUNT(*) FROM (
-            SELECT u.sk_user_id
+            SELECT f.sk_user_id
             FROM {DATAMART_SCHEMA_NAME}.fact_session f
             JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
             JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
             JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
             WHERE {where_sql}
-            GROUP BY u.sk_user_id, u.user_name, g.region_name, g.area_name
+            GROUP BY f.sk_user_id, g.sk_geography_id
         ) as sub
     """
-    total_count = fetch_one(count_sql, params).get("count", 0)
+    total_count_row = fetch_one(count_sql, params)
+    total_count = total_count_row.get("count", 0) if total_count_row else 0
 
     # Get paginated data
     sql = f"""
@@ -64,11 +90,16 @@ def get_work_day_data(region=None, area=None, year=None, month=None, limit=15, o
         JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
         JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
         WHERE {where_sql}
-        GROUP BY u.sk_user_id, u.user_name, g.region_name, g.area_name
+        GROUP BY u.user_name, g.region_name, g.area_name
         ORDER BY days_worked DESC, u.user_name
         LIMIT %s OFFSET %s
     """
     rows = fetch_all(sql, params + [limit, offset])
-    return {"table": rows, "total_count": total_count}
+    
+    return {
+        "kpis": kpi_list,
+        "table": rows, 
+        "total_count": total_count
+    }
 
 
