@@ -1,19 +1,24 @@
 from backend.services.query_utils import build_dimension_filters, fetch_all, fetch_one
 
 
+LOCATION_EXPRESSION = "g.region_name"
+PROGRAM_EXPRESSION = "p.program_name"
+YEAR_EXPRESSION = "d.year_actual"
+
+
 def get_session_count(start: int | None = None, end: int | None = None) -> int:
     where_clause, params = build_dimension_filters(
         start=start,
         end=end,
         region=None,
         program=None,
-        year_expression="d.year",
+        year_expression=YEAR_EXPRESSION,
     )
     row = fetch_one(
         f"""
-        SELECT COALESCE(SUM(f.session_count), COUNT(*), 0) AS count
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
+        SELECT COALESCE(SUM(f.session_count), 0) AS count
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
         {where_clause}
         """,
         params,
@@ -32,21 +37,21 @@ def get_session_kpis(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
-        program_expression="p.program_name",
+        year_expression=YEAR_EXPRESSION,
+        location_expression=LOCATION_EXPRESSION,
+        program_expression=PROGRAM_EXPRESSION,
     )
     row = fetch_one(
         f"""
         SELECT
-            COALESCE(SUM(f.session_count), COUNT(*), 0) AS total_sessions,
-            COUNT(DISTINCT f.instructor_key) AS total_instructors,
-            COUNT(DISTINCT l.state) AS active_regions,
+            COALESCE(SUM(f.session_count), 0) AS total_sessions,
+            COUNT(DISTINCT f.sk_user_id) AS total_instructors,
+            COUNT(DISTINCT g.region_name) AS active_regions,
             COUNT(DISTINCT p.program_name) AS total_programs
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
         {where_clause}
         """,
         params,
@@ -70,22 +75,22 @@ def get_monthly_sessions(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
-        program_expression="p.program_name",
+        year_expression=YEAR_EXPRESSION,
+        location_expression=LOCATION_EXPRESSION,
+        program_expression=PROGRAM_EXPRESSION,
     )
     rows = fetch_all(
         f"""
         SELECT
-            TO_CHAR(DATE_TRUNC('month', d.date), 'YYYY-MM') AS label,
-            COALESCE(SUM(f.session_count), COUNT(*), 0) AS value
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+            TO_CHAR(DATE_TRUNC('month', d.full_date), 'YYYY-MM') AS label,
+            COALESCE(SUM(f.session_count), 0) AS value
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
         {where_clause}
-        GROUP BY DATE_TRUNC('month', d.date)
-        ORDER BY DATE_TRUNC('month', d.date)
+        GROUP BY DATE_TRUNC('month', d.full_date)
+        ORDER BY DATE_TRUNC('month', d.full_date)
         """,
         params,
     )
@@ -103,21 +108,21 @@ def get_sessions_by_region(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
-        program_expression="p.program_name",
+        year_expression=YEAR_EXPRESSION,
+        location_expression=LOCATION_EXPRESSION,
+        program_expression=PROGRAM_EXPRESSION,
     )
     rows = fetch_all(
         f"""
         SELECT
-            COALESCE(l.state, 'Unknown') AS label,
-            COALESCE(SUM(f.session_count), COUNT(*), 0) AS value
-        FROM fact_session_event f
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = f.location_key
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+            COALESCE(g.region_name, 'Unknown') AS label,
+            COALESCE(SUM(f.session_count), 0) AS value
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
         {where_clause}
-        GROUP BY COALESCE(l.state, 'Unknown')
+        GROUP BY COALESCE(g.region_name, 'Unknown')
         ORDER BY value DESC, label
         LIMIT 20
         """,
@@ -128,12 +133,13 @@ def get_sessions_by_region(
 
 def get_available_years() -> list[int]:
     rows = fetch_all(
-        """
-        SELECT DISTINCT d.year AS year
-        FROM fact_session_event f
-        JOIN dim_date d ON d.date_key = f.date_key
-        WHERE d.year IS NOT NULL
-        ORDER BY d.year
+        f"""
+        SELECT DISTINCT d.year_actual AS year
+        FROM dw.fact_session f
+        JOIN dw.dim_date d ON d.date_id = f.date_id
+        WHERE d.year_actual IS NOT NULL
+        ORDER BY d.year_actual
         """
     )
     return [int(row["year"]) for row in rows if row.get("year") is not None]
+

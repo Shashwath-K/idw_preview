@@ -1,75 +1,72 @@
-from backend.db import get_datamart_conn
+from backend.services.query_utils import fetch_all, fetch_one
+
 
 def get_work_day_filters():
-    with get_datamart_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT DISTINCT state, area FROM dw_data_schema.dim_location WHERE state IS NOT NULL ORDER BY state, area")
-            locations = cur.fetchall()
-            
-            cur.execute("SELECT DISTINCT financial_year FROM dw_data_schema.dim_date WHERE financial_year IS NOT NULL ORDER BY financial_year DESC")
-            years = [row["financial_year"] for row in cur.fetchall()]
-            
-            cur.execute("SELECT DISTINCT month, TO_CHAR(TO_DATE(month::text, 'MM'), 'Month') as month_name FROM dw_data_schema.dim_date ORDER BY month")
-            months = [{"id": row["month"], "name": row["month_name"].strip()} for row in cur.fetchall()]
-            
+    # Fetch from new dim_geography and dim_date
+    locations = fetch_all("SELECT DISTINCT region_name, district AS area FROM dw.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name, district")
+    
+    years = [row["year_actual"] for row in fetch_all("SELECT DISTINCT year_actual FROM dw.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
+    
+    months = [{"id": row["month_actual"], "name": row["month_name"].strip()} for row in fetch_all("SELECT DISTINCT month_actual, TO_CHAR(TO_DATE(month_actual::text, 'MM'), 'Month') as month_name FROM dw.dim_date ORDER BY month_actual")]
+    
     return {
-        "regions": sorted(list(set(row["state"] for row in locations))),
-        "areas": sorted(list(set(row["area"] for row in locations))),
+        "regions": sorted(list(set(row["region_name"] for row in locations))),
+        "areas": sorted(list(set(row["area"] for row in locations if row.get("area")))),
         "years": years,
         "months": months
     }
 
-def get_work_day_data(region=None, area=None, year=None, month=None, limit=15, offset=0):
-    with get_datamart_conn() as conn:
-        with conn.cursor() as cur:
-            where_clauses = ["TRUE"]
-            params = []
-            if region:
-                where_clauses.append("l.state = %s")
-                params.append(region)
-            if area:
-                where_clauses.append("l.area = %s")
-                params.append(area)
-            if year:
-                where_clauses.append("d.financial_year = %s")
-                params.append(year)
-            if month:
-                where_clauses.append("d.month = %s")
-                params.append(int(month))
-            
-            where_sql = " AND ".join(where_clauses)
-            
-            # Get total count
-            count_sql = f"""
-                SELECT COUNT(*) FROM (
-                    SELECT i.instructor_key
-                    FROM dw_data_schema.fact_session_event f
-                    JOIN dw_data_schema.dim_instructor i ON f.instructor_key = i.instructor_key
-                    JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
-                    JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
-                    WHERE {where_sql}
-                    GROUP BY i.instructor_key, i.name, l.state, l.area
-                ) as sub
-            """
-            cur.execute(count_sql, params)
-            total_count = cur.fetchone()["count"]
 
-            # Get paginated data
-            sql = f"""
-                SELECT 
-                    i.name as instructor_name,
-                    l.state as region,
-                    l.area,
-                    COUNT(DISTINCT d.date) as days_worked,
-                    STRING_AGG(DISTINCT TO_CHAR(d.date, 'DD'), ', ' ORDER BY TO_CHAR(d.date, 'DD')) as dates_active
-                FROM dw_data_schema.fact_session_event f
-                JOIN dw_data_schema.dim_instructor i ON f.instructor_key = i.instructor_key
-                JOIN dw_data_schema.dim_date d ON f.date_key = d.date_key
-                JOIN dw_data_schema.dim_location l ON f.location_key = l.location_key
-                WHERE {where_sql}
-                GROUP BY i.instructor_key, i.name, l.state, l.area
-                ORDER BY days_worked DESC, i.name
-                LIMIT %s OFFSET %s
-            """
-            cur.execute(sql, params + [limit, offset])
-            return {"table": cur.fetchall(), "total_count": total_count}
+def get_work_day_data(region=None, area=None, year=None, month=None, limit=15, offset=0):
+    where_clauses = ["TRUE"]
+    params = []
+    
+    if region:
+        where_clauses.append("g.region_name = %s")
+        params.append(region)
+    if area:
+        where_clauses.append("g.district = %s")
+        params.append(area)
+    if year:
+        where_clauses.append("d.year_actual = %s")
+        params.append(int(year))
+    if month:
+        where_clauses.append("d.month_actual = %s")
+        params.append(int(month))
+    
+    where_sql = " AND ".join(where_clauses)
+    
+    # Get total count
+    count_sql = f"""
+        SELECT COUNT(*) FROM (
+            SELECT u.sk_user_id
+            FROM dw.fact_session f
+            JOIN dw.dim_user u ON f.sk_user_id = u.sk_user_id
+            JOIN dw.dim_date d ON f.date_id = d.date_id
+            JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            WHERE {where_sql}
+            GROUP BY u.sk_user_id, u.full_name, g.region_name, g.district
+        ) as sub
+    """
+    total_count = fetch_one(count_sql, params).get("count", 0)
+
+    # Get paginated data
+    sql = f"""
+        SELECT 
+            u.full_name as instructor_name,
+            g.region_name as region,
+            COALESCE(g.district, 'N/A') as area,
+            COUNT(DISTINCT d.full_date) as days_worked,
+            STRING_AGG(DISTINCT TO_CHAR(d.full_date, 'DD'), ', ' ORDER BY TO_CHAR(d.full_date, 'DD')) as dates_active
+        FROM dw.fact_session f
+        JOIN dw.dim_user u ON f.sk_user_id = u.sk_user_id
+        JOIN dw.dim_date d ON f.date_id = d.date_id
+        JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        WHERE {where_sql}
+        GROUP BY u.sk_user_id, u.full_name, g.region_name, g.district
+        ORDER BY days_worked DESC, u.full_name
+        LIMIT %s OFFSET %s
+    """
+    rows = fetch_all(sql, params + [limit, offset])
+    return {"table": rows, "total_count": total_count}
+
