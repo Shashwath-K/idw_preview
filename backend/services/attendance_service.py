@@ -37,19 +37,48 @@ def get_attendance_data(region=None, area=None, year=None, month=None, limit=15,
     
     where_sql = " AND ".join(where_clauses)
     
-    # Get total count
+    # KPI Query
+    # 1. Total Field Staff (Unique Users)
+    # 2. Total Sessions Conducted
+    # 3. Cumulative Days Present
+    kpi_sql = f"""
+        SELECT 
+            COUNT(DISTINCT f.sk_user_id) as total_staff,
+            COUNT(f.sk_fact_session_id) as total_sessions,
+            COUNT(DISTINCT CONCAT(f.sk_user_id, '_', f.date_id)) as total_days_present
+        FROM {DATAMART_SCHEMA_NAME}.fact_session f
+        JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+        JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        WHERE {where_sql}
+    """
+    kpis_raw = fetch_one(kpi_sql, params)
+    
+    staff = kpis_raw.get('total_staff', 0)
+    sessions = kpis_raw.get('total_sessions', 0)
+    days_present = kpis_raw.get('total_days_present', 0)
+    avg_sessions = round(sessions / days_present, 2) if days_present > 0 else 0
+
+    kpi_list = [
+        {"label": "Total Field Staff", "value": staff, "icon": "fas fa-users-cog", "color": "bg-info"},
+        {"label": "Cumulative Days Present", "value": days_present, "icon": "fas fa-calendar-check", "color": "bg-success"},
+        {"label": "Total Sessions Conducted", "value": sessions, "icon": "fas fa-chalkboard-teacher", "color": "bg-navy-blue"},
+        {"label": "Avg Sessions / Day", "value": avg_sessions, "icon": "fas fa-chart-line", "color": "bg-danger"}
+    ]
+
+    # Get total count for pagination
     count_sql = f"""
         SELECT COUNT(*) FROM (
-            SELECT u.sk_user_id
+            SELECT f.sk_user_id
             FROM {DATAMART_SCHEMA_NAME}.fact_session f
             JOIN {DATAMART_SCHEMA_NAME}.dim_user u ON f.sk_user_id = u.sk_user_id
             JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
             JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
             WHERE {where_sql}
-            GROUP BY u.sk_user_id, u.user_name, g.region_name, g.area_name
+            GROUP BY f.sk_user_id, g.sk_geography_id
         ) as sub
     """
-    total_count = fetch_one(count_sql, params).get("count", 0)
+    total_count_row = fetch_one(count_sql, params)
+    total_count = total_count_row.get("count", 0) if total_count_row else 0
 
     # Get paginated data
     sql = f"""
@@ -64,11 +93,16 @@ def get_attendance_data(region=None, area=None, year=None, month=None, limit=15,
         JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
         JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
         WHERE {where_sql}
-        GROUP BY u.sk_user_id, u.user_name, g.region_name, g.area_name
-        ORDER BY u.user_name
+        GROUP BY u.user_name, g.region_name, g.area_name
+        ORDER BY days_present DESC, u.user_name
         LIMIT %s OFFSET %s
     """
     rows = fetch_all(sql, params + [limit, offset])
-    return {"table": rows, "total_count": total_count}
+    
+    return {
+        "kpis": kpi_list,
+        "table": rows, 
+        "total_count": total_count
+    }
 
 
