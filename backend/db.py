@@ -34,10 +34,12 @@ def get_source_conn():
 
 
 def get_datamart_conn():
+    from backend.config import DATAMART_SCHEMA_NAME
     conn = _connect(DATAMART_DB_NAME)
     with conn.cursor() as cur:
-        cur.execute("SET search_path TO dw_data_schema, public")
+        cur.execute(f"SET search_path TO {DATAMART_SCHEMA_NAME}, public")
     return conn
+
 
 
 def get_conn():
