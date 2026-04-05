@@ -113,13 +113,12 @@ def get_program_distribution(
         SELECT
             COALESCE(p.program_name, 'Unknown') AS label,
             COUNT(*) AS value
-        FROM fact_exposure e
-        LEFT JOIN fact_session_event f ON f.session_key = e.session_key
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
-        LEFT JOIN dim_program p ON p.program_key = COALESCE(f.program_key, e.program_key)
+        FROM dw.fact_attendance_exposure fae
+        LEFT JOIN dw.dim_date d ON d.date_id = fae.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = fae.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = fae.sk_program_id
         {where_clause}
-        GROUP BY COALESCE(p.program_name, 'Unknown')
+        GROUP BY p.program_name
         ORDER BY value DESC, label
         LIMIT 20
         """,
@@ -189,15 +188,15 @@ def get_top_schools(
         SELECT
             COALESCE(s.school_name, 'Unknown') AS label,
             COALESCE(g.region_name, 'Unknown') AS state,
-            COALESCE(g.area_name, 'Unknown') AS district,
+            COALESCE(g.district, 'Unknown') AS district,
             COALESCE(SUM(fae.total_exposure_count), 0) AS value
         FROM dw.fact_attendance_exposure fae
-        LEFT JOIN dw.dim_school s ON s.nk_school_id = fae.sk_school_id
+        LEFT JOIN dw.dim_school s ON s.sk_school_id = fae.sk_school_id
         LEFT JOIN dw.dim_date d ON d.date_id = fae.date_id
         LEFT JOIN dw.dim_geography g ON g.sk_geography_id = fae.sk_geography_id
         LEFT JOIN dw.dim_program p ON p.sk_program_id = fae.sk_program_id
         {where_clause}
-        GROUP BY s.school_name, g.region_name, g.area_name
+        GROUP BY s.school_name, g.region_name, g.district
         ORDER BY value DESC, label
         LIMIT %s
         """,
@@ -207,6 +206,7 @@ def get_top_schools(
         {"label": row["label"], "subtitle": f"{row['state']} - {row['district']}", "value": float(row["value"] or 0)}
         for row in rows
     ]
+
 
 
 
