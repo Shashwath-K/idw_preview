@@ -5,21 +5,38 @@ from backend.services import region_service
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/filters")
-def get_filters():
+def get_filters(region_name: str | None = Query(None)):
     from backend.services.query_utils import fetch_all
     from backend.config import DATAMART_SCHEMA_NAME
     
     # 1. Fetch Regions via service
     regions = region_service.get_region_options()
     
-    # 2. Fetch Programs via standardized query helper
-    prog_rows = fetch_all(f"SELECT DISTINCT program_name FROM {DATAMART_SCHEMA_NAME}.dim_program WHERE program_name IS NOT NULL ORDER BY program_name")
+    # 2. Fetch Programs (Conditional or All)
+    if region_name:
+        # Fetch only programs with data for this region
+        prog_query = f"""
+            SELECT DISTINCT p.program_name 
+            FROM {DATAMART_SCHEMA_NAME}.fact_session f
+            JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_program p ON p.sk_program_id = f.sk_program_id
+            WHERE g.region_name = %s
+            ORDER BY p.program_name
+        """
+        prog_rows = fetch_all(prog_query, [region_name])
+    else:
+        # If no region, we can either return empty or all. 
+        # User requested: "only make the program dropdown active if the region is selected"
+        # So we return empty to signify it's inactive.
+        prog_rows = []
+    
     programs = [r["program_name"] for r in prog_rows if r.get("program_name")]
     
     return {
         "regions": regions,
         "programs": programs
     }
+
 
 
 @router.get("/data")
