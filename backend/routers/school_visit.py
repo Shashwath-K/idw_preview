@@ -4,8 +4,9 @@ from backend.services import school_visit_service
 router = APIRouter(prefix="/school-visit", tags=["school-visit"])
 
 @router.get("/filters")
-def get_filters():
-    return school_visit_service.get_school_visit_filters()
+def get_filters(region_name: str | None = Query(None)):
+    return school_visit_service.get_school_visit_filters(region_name)
+
 
 @router.get("/data")
 def get_data(
