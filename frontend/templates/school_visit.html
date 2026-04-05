@@ -108,11 +108,11 @@
                         <thead>
                             <tr>
                                 <th>School Name</th>
-                                <th>Program</th>
-                                <th>Region</th>
-                                <th>Area</th>
-                                <th>Sessions</th>
-                                <th>Students Reached</th>
+                                <th>Program Name</th>
+                                <th>Class</th>
+                                <th>SECTION</th>
+                                <th class="text-center">No. of Sessions</th>
+                                <th class="text-center">Exposures</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -224,10 +224,10 @@ $(function () {
                         <tr>
                             <td><strong>${row.school_name}</strong></td>
                             <td><span class="badge badge-info">${row.program_name}</span></td>
-                            <td>${row.region}</td>
-                            <td>${row.area}</td>
+                            <td>${row.class_name}</td>
+                            <td>${row.section_name}</td>
                             <td class="text-center font-weight-bold">${row.sessions}</td>
-                            <td class="text-center font-weight-bold text-primary">${row.students.toLocaleString()}</td>
+                            <td class="text-center font-weight-bold text-primary">${row.exposures.toLocaleString()}</td>
                         </tr>
                     `);
                 });

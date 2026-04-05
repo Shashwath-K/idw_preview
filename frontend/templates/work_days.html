@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Work Days Report{% endblock %}
+
+{% block content %}
+<div class="content-wrapper p-3">
+    <!-- Filters Sidebar Integration (Standardized Dashboard Layout) -->
+    <div class="row">
+        <!-- Filter Pane -->
+        <div class="col-md-3">
+            <div class="card card-outline card-navy">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-filter mr-1"></i> Report Filters</h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group mb-3">
+                        <label for="region_filter">Region</label>
+                        <select id="region_filter" class="form-control select2">
+                            <option value="">All Regions</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="area_filter">Area</label>
+                        <select id="area_filter" class="form-control select2">
+                            <option value="">All Areas</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="year_filter">Year</label>
+                        <select id="year_filter" class="form-control select2">
+                            <option value="">All Years</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="month_filter">Month</label>
+                        <select id="month_filter" class="form-control select2">
+                            <option value="">All Months</option>
+                        </select>
+                    </div>
+                    <div class="mt-4">
+                        <button id="apply_filters" class="btn btn-navy-blue btn-block">
+                            <i class="fas fa-sync-alt mr-1"></i> Update Data
+                        </button>
+                        <button id="reset_filters" class="btn btn-outline-secondary btn-block mt-2">
+                            Reset Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Visualization Area -->
+        <div class="col-md-9">
+            <!-- KPI Cards -->
+            <div id="kpi_container" class="row">
+                <!-- KPIs will be injected here -->
+                <div class="col-lg-3 col-6">
+                    <div class="small-box bg-info">
+                        <div class="inner">
+                            <h3 id="total_instructors">0</h3>
+                            <p>Total Instructors</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- ... other KPI placeholders ... -->
+            </div>
+
+            <!-- Granular Data Table -->
+            <div class="card card-outline card-navy">
+                <div class="card-header border-0">
+                    <h3 class="card-title font-weight-bold">
+                        <i class="fas fa-table mr-1"></i> Instructor Working Days Detail
+                    </h3>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-valign-middle mb-0" id="work_days_table">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Instructor Name</th>
+                                    <th>Region / Area</th>
+                                    <th class="text-center">Total Working Days</th>
+                                    <th>Dates Active (DD)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table_body">
+                                <!-- Data will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer clearfix bg-white border-top-0">
+                    <div id="pagination_info" class="float-left text-muted mt-2"></div>
+                    <ul class="pagination pagination-sm m-0 float-right" id="pagination_links"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-navy-blue { background-color: #001f3f; color: white; border: none; }
+    .btn-navy-blue:hover { background-color: #001a35; color: white; }
+    .bg-navy-blue { background-color: #001f3f !important; color: white !important; }
+    .small-box .icon > i { top: 15px; right: 15px; font-size: 50px; }
+    .table-valign-middle td { vertical-align: middle !important; }
+</style>
+
+<script nonce="{{ request.state.nonce if request.state.nonce else '' }}">
+document.addEventListener('DOMContentLoaded', function() {
+    let currentPage = 1;
+    const itemsPerPage = 15;
+
+    // Load Filters
+    function loadFilters(regionId = null) {
+        fetch(`/api/work-days/filters?region_id=${regionId || ''}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!regionId) {
+                    populateDropdown('#region_filter', data.regions);
+                    populateDropdown('#year_filter', data.years.map(y => ({id: y, name: y})));
+                    populateDropdown('#month_filter', data.months);
+                }
+                populateDropdown('#area_filter', data.areas);
+            });
+    }
+
+    function populateDropdown(selector, data) {
+        const select = $(selector);
+        const currentVal = select.val();
+        select.empty().append('<option value="">All</option>');
+        data.forEach(item => {
+            const selected = item.id == currentVal ? 'selected' : '';
+            select.append(`<option value="${item.id}" ${selected}>${item.name}</option>`);
+        });
+        select.trigger('change.select2');
+    }
+
+    // Load Data
+    function loadData(page = 1) {
+        const filters = {
+            region: $('#region_filter').val(),
+            area: $('#area_filter').val(),
+            year: $('#year_filter').val(),
+            month: $('#month_filter').val(),
+            limit: itemsPerPage,
+            offset: (page - 1) * itemsPerPage
+        };
+
+        const queryParams = new URLSearchParams(filters).toString();
+        
+        fetch(`/api/work-days/data?${queryParams}`)
+            .then(res => res.json())
+            .then(data => {
+                renderKPIs(data.kpis);
+                renderTable(data.table_data);
+                renderPagination(data.total_rows, page);
+            })
+            .catch(err => console.error("Error fetching data:", err));
+    }
+
+    function renderKPIs(kpis) {
+        const container = $('#kpi_container');
+        container.empty();
+        kpis.forEach(kpi => {
+            container.append(`
+                <div class="col-lg-3 col-6">
+                    <div class="small-box ${kpi.color}">
+                        <div class="inner">
+                            <h3>${kpi.value}</h3>
+                            <p>${kpi.label}</p>
+                        </div>
+                        <div class="icon">
+                            <i class="${kpi.icon}"></i>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+    }
+
+    function renderTable(data) {
+        const body = $('#table_body');
+        body.empty();
+        if (data.length === 0) {
+            body.append('<tr><td colspan="4" class="text-center py-4 text-muted">No records found for selected period</td></tr>');
+            return;
+        }
+        data.forEach(row => {
+            body.append(`
+                <tr>
+                    <td><div class="d-flex align-items-center"><i class="fas fa-user-circle text-navy-blue mr-2"></i> ${row.instructor_name}</div></td>
+                    <td><small class="text-muted"><i class="fas fa-map-marker-alt mr-1"></i> ${row.region_area}</small></td>
+                    <td class="text-center"><span class="badge bg-olive py-2 px-3 font-weight-bold" style="font-size: 1rem;">${row.total_days}</span></td>
+                    <td><div class="text-primary font-weight-bold" style="word-break: break-all;">${row.dates_active}</div></td>
+                </tr>
+            `);
+        });
+    }
+
+    function renderPagination(total, page) {
+        const totalPages = Math.ceil(total / itemsPerPage);
+        const start = total === 0 ? 0 : (page - 1) * itemsPerPage + 1;
+        const end = Math.min(page * itemsPerPage, total);
+        
+        $('#pagination_info').text(`Showing ${start} to ${end} of ${total} records`);
+        
+        const links = $('#pagination_links');
+        links.empty();
+        
+        if (totalPages <= 1) return;
+
+        // Simple pagination buttons
+        links.append(`<li class="page-item ${page === 1 ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${page - 1}">Previous</a></li>`);
+        
+        let startPage = Math.max(1, page - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+        for (let i = startPage; i <= endPage; i++) {
+            links.append(`<li class="page-item ${i === page ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`);
+        }
+
+        links.append(`<li class="page-item ${page === totalPages ? 'disabled' : ''}"><a class="page-link" href="#" data-page="${page + 1}">Next</a></li>`);
+    }
+
+    // Events
+    $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
+    
+    $('#region_filter').on('change', function() {
+        loadFilters($(this).val());
+    });
+
+    $('#apply_filters').on('click', () => { loadData(1); });
+    $('#reset_filters').on('click', () => {
+        $('.select2').val('').trigger('change');
+        loadData(1);
+    });
+
+    $('#pagination_links').on('click', 'a', function(e) {
+        e.preventDefault();
+        const p = $(this).data('page');
+        if (p) {
+            currentPage = p;
+            loadData(p);
+        }
+    });
+
+    // Initial Load
+    loadFilters();
+    loadData();
+});
+</script>
+{% endblock %}

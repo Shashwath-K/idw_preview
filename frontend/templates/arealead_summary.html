@@ -47,7 +47,52 @@
     <!-- Right Column: Dashboard Content -->
     <div class="col-md-10">
         <!-- KPI Cards -->
-        {% include "partials/kpi_cards.html" %}
+        <div id="kpiContainer" class="row mb-4">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3 id="kpiTotalLeads">0</h3>
+                        <p>Total Area Leads</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3 id="kpiTotalInstructors">0</h3>
+                        <p>Total Instructors</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-navy-blue">
+                    <div class="inner">
+                        <h3 id="kpiTotalSessions">0</h3>
+                        <p>Total Sessions</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                    <div class="inner">
+                        <h3 id="kpiTotalStudents">0</h3>
+                        <p>Total Students Impacted</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Table -->
         <div class="card mt-2">
@@ -58,9 +103,9 @@
                             <tr>
                                 <th>Area</th>
                                 <th>Region</th>
-                                <th>Total Instructors</th>
-                                <th>Total Sessions</th>
-                                <th>Total Students</th>
+                                <th class="text-center">Total Instructors</th>
+                                <th class="text-center">Total Sessions</th>
+                                <th class="text-center">Total Students</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -114,24 +159,35 @@ $(function () {
             .then(data => {
                 const tbody = $('#areaTable tbody');
                 tbody.empty();
-                if (data.table.length === 0) {
-                    tbody.append('<tr><td colspan="5" class="text-center">No data found</td></tr>');
+
+                // Update KPIs
+                if (data.kpis && data.kpis.length >= 4) {
+                    $('#kpiTotalLeads').text(data.kpis[0].value.toLocaleString());
+                    $('#kpiTotalInstructors').text(data.kpis[1].value.toLocaleString());
+                    $('#kpiTotalSessions').text(data.kpis[2].value.toLocaleString());
+                    $('#kpiTotalStudents').text(data.kpis[3].value.toLocaleString());
+                }
+
+                if (!data.table || data.table.length === 0) {
+                    tbody.append('<tr><td colspan="5" class="text-center py-4 text-muted">No records found for selected period</td></tr>');
                     pagination.updateInfo('areaTable', 0);
                     return;
                 }
+
                 data.table.forEach(row => {
                     tbody.append(`
                         <tr>
-                            <td>${row.area}</td>
-                            <td>${row.region}</td>
-                            <td><span class="badge badge-primary">${row.total_instructors}</span></td>
-                            <td>${row.total_sessions}</td>
-                            <td>${row.total_students}</td>
+                            <td class="font-weight-bold text-navy">${row.area}</td>
+                            <td><small class="text-muted"><i class="fas fa-globe mr-1"></i> ${row.region}</small></td>
+                            <td class="text-center"><span class="badge badge-info px-2 py-1">${row.total_instructors}</span></td>
+                            <td class="text-center font-weight-bold">${row.total_sessions.toLocaleString()}</td>
+                            <td class="text-center text-success font-weight-bold">${row.total_students.toLocaleString()}</td>
                         </tr>
                     `);
                 });
                 pagination.updateInfo('areaTable', data.total_count);
-            });
+            })
+            .catch(err => console.error("Error fetching data:", err));
     }
 
     $('#seeReport').click(function () {

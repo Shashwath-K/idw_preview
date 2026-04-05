@@ -10,8 +10,14 @@
             </div>
             <div class="card-body">
                 <div class="form-group">
+                    <label>Region</label>
+                    <select id="regionFilter" class="form-control select2">
+                        <option value="">Select Region</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Program Type</label>
-                    <select id="programTypeFilter" class="form-control select2">
+                    <select id="programTypeFilter" class="form-control select2" disabled>
                         <option value="">Select Program</option>
                     </select>
                 </div>
@@ -40,21 +46,32 @@
 
     <!-- Right Column: Dashboard Content -->
     <div class="col-md-10">
-        <!-- Dynamic KPI Cards -->
+        <!-- Dynamic KPI Cards (4 Cards) -->
         <div class="row mb-4">
-            <div class="col-lg-4 col-6">
+            <div class="col-lg-3 col-6">
                 <div class="small-box bg-info">
                     <div class="inner">
-                        <h3 id="kpiSchoolVisits">0</h3>
-                        <p>Total School visits</p>
+                        <h3 id="kpiTotalSessions">0</h3>
+                        <p>Total Sessions</p>
                     </div>
                     <div class="icon">
-                        <i class="fas fa-school"></i>
+                        <i class="fas fa-clock"></i>
                     </div>
                 </div>
             </div>
-            <div class="col-lg-4 col-6">
+            <div class="col-lg-3 col-6">
                 <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3 id="kpiSchoolsExposure">0</h3>
+                        <p>Total Schools Exposure</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-navy-blue">
                     <div class="inner">
                         <h3 id="kpiScienceFairs">0</h3>
                         <p>Total Science Fair (SF)</p>
@@ -64,7 +81,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-4 col-6">
+            <div class="col-lg-3 col-6">
                 <div class="small-box bg-danger">
                     <div class="inner">
                         <h3 id="kpiTeacherTraining">0</h3>
@@ -115,21 +132,48 @@
             $('.select2').select2({ theme: 'bootstrap4' });
         }
 
-        // Load initial filter options
-        fetch('/region-summary/filters')
-            .then(response => response.json())
-            .then(data => {
-                const pt = $('#programTypeFilter');
-                const y = $('#yearFilter');
-                const m = $('#monthFilter');
+        // Load initial filter options (Regions, Years, Months)
+        function loadFilters(regionName = null) {
+            const url = regionName ? `/region-summary/filters?region=${encodeURIComponent(regionName)}` : '/region-summary/filters';
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (!regionName) {
+                        // Initial load of static filters
+                        const r = $('#regionFilter');
+                        data.regions.forEach(reg => r.append(new Option(reg, reg)));
+                        
+                        const y = $('#yearFilter');
+                        data.years.forEach(yr => y.append(new Option(yr, yr)));
+                        
+                        const m = $('#monthFilter');
+                        data.months.forEach(mo => m.append(new Option(mo.name, mo.id)));
+                    }
 
-                data.programs.forEach(p => pt.append(new Option(p, p)));
-                data.years.forEach(yr => y.append(new Option(yr, yr)));
-                data.months.forEach(mo => m.append(new Option(mo.name, mo.id)));
-            });
+                    // Update Program Type dropdown dependent on Region
+                    const pt = $('#programTypeFilter');
+                    pt.empty().append(new Option('Select Program', ''));
+                    
+                    if (data.programs && data.programs.length > 0) {
+                        data.programs.forEach(p => pt.append(new Option(p, p)));
+                        pt.prop('disabled', false);
+                    } else {
+                        pt.prop('disabled', true);
+                    }
+                });
+        }
+
+        loadFilters();
+
+        // Dependent filter logic: Region -> Program
+        $('#regionFilter').on('change', function() {
+            const region = $(this).val();
+            loadFilters(region);
+        });
 
         function loadData() {
             const filters = {
+                region: $('#regionFilter').val(),
                 program_type: $('#programTypeFilter').val(),
                 year: $('#yearFilter').val(),
                 month: $('#monthFilter').val(),
@@ -144,11 +188,12 @@
                     const tbody = $('#summaryTableBody');
                     tbody.empty();
 
-                    // Update KPIs (Now 3 instead of 4)
+                    // Update KPIs (4 cards)
                     if (data.kpis) {
-                        $('#kpiSchoolVisits').text(data.kpis[0].value.toLocaleString());
-                        $('#kpiScienceFairs').text(data.kpis[1].value.toLocaleString());
-                        $('#kpiTeacherTraining').text(data.kpis[2].value.toLocaleString());
+                        $('#kpiTotalSessions').text(data.kpis[0].value.toLocaleString());
+                        $('#kpiSchoolsExposure').text(data.kpis[1].value.toLocaleString());
+                        $('#kpiScienceFairs').text(data.kpis[2].value.toLocaleString());
+                        $('#kpiTeacherTraining').text(data.kpis[3].value.toLocaleString());
                     }
 
                     if (!data.table || data.table.length === 0) {

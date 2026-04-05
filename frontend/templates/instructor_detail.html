@@ -40,8 +40,53 @@
 
     <!-- Right Column: Dashboard Content -->
     <div class="col-md-10">
-        <!-- KPI Cards -->
-        {% include "partials/kpi_cards.html" %}
+        <!-- Dynamic KPI Cards (4 Cards) -->
+        <div id="kpiContainer" class="row mb-4">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3 id="kpiSessions">0</h3>
+                        <p>Total Sessions</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3 id="kpiStudents">0</h3>
+                        <p>Total Students Reach</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-navy-blue">
+                    <div class="inner">
+                        <h3 id="kpiSchools">0</h3>
+                        <p>Schools Covered</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-school"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                    <div class="inner">
+                        <h3 id="kpiTeachers">0</h3>
+                        <p>Teachers Trained</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Table -->
         <div class="card mt-2">
@@ -50,12 +95,15 @@
                     <table id="detailTable" class="table table-striped table-hover mb-0 high-contrast-table">
                         <thead>
                             <tr>
+                                <th>Program Name</th>
                                 <th>Date</th>
-                                <th>School Name</th>
                                 <th>Activity</th>
-                                <th>Duration (Hrs)</th>
-                                <th>Students</th>
-                                <th>Status</th>
+                                <th>School Name</th>
+                                <th>Class</th>
+                                <th>Topic</th>
+                                <th class="text-center">Boys</th>
+                                <th class="text-center">Girls</th>
+                                <th class="text-center">Teachers</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -106,21 +154,33 @@ $(function () {
             .then(data => {
                 const tbody = $('#detailTable tbody');
                 tbody.empty();
+
+                // Update KPIs
+                if (data.kpis && data.kpis.length >= 4) {
+                    // Match backend labels to UI IDs
+                    $('#kpiSessions').text((data.kpis[0].value || 0).toLocaleString());
+                    $('#kpiStudents').text((data.kpis[1].value || 0).toLocaleString());
+                    $('#kpiSchools').text((data.kpis[2].value || 0).toLocaleString());
+                    $('#kpiTeachers').text((data.kpis[3].value || 0).toLocaleString());
+                }
+
                 if (data.table.length === 0) {
-                    tbody.append('<tr><td colspan="6" class="text-center">No data found</td></tr>');
+                    tbody.append('<tr><td colspan="9" class="text-center">No data found</td></tr>');
                     pagination.updateInfo('detailTable', 0);
                     return;
                 }
                 data.table.forEach(row => {
-                    const statusClass = row.status === 'Overdue' ? 'badge badge-danger' : 'badge badge-success';
                     tbody.append(`
                         <tr>
-                            <td>${row.date}</td>
-                            <td>${row.school_name}</td>
-                            <td>${row.activity_name}</td>
-                            <td>${row.session_duration}</td>
-                            <td>${row.students}</td>
-                            <td><span class="${statusClass}">${row.status}</span></td>
+                            <td><span class="badge badge-info">${row.program_name || 'N/A'}</span></td>
+                            <td>${row.date || 'N/A'}</td>
+                            <td>${row.activity_name || 'N/A'}</td>
+                            <td><strong>${row.school_name || 'N/A'}</strong></td>
+                            <td class="text-center">${row.class_name || 'N/A'}</td>
+                            <td>${row.topic_name || 'N/A'}</td>
+                            <td class="text-center">${row.boys || 0}</td>
+                            <td class="text-center">${row.girls || 0}</td>
+                            <td class="text-center text-primary font-weight-bold">${row.teachers || 0}</td>
                         </tr>
                     `);
                 });

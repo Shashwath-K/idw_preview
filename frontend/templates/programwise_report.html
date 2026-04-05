@@ -10,9 +10,9 @@
             </div>
             <div class="card-body">
                 <div class="form-group">
-                    <label>Program Category</label>
+                    <label>Donor Name</label>
                     <select id="categoryFilter" class="form-control select2">
-                        <option value="">All Categories</option>
+                        <option value="">All Donors</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -41,20 +41,92 @@
     <!-- Right Column: Dashboard Content -->
     <div class="col-md-10">
         <!-- KPI Cards -->
-        {% include "partials/kpi_cards.html" %}
+        <div id="kpiContainer" class="row mb-4">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3 id="kpiTotalPrograms">0</h3>
+                        <p>Total Programs</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3 id="kpiTotalSchools">0</h3>
+                        <p>Total Schools</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-school"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-navy-blue">
+                    <div class="inner">
+                        <h3 id="kpiTotalSessions">0</h3>
+                        <p>Total Sessions</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                    <div class="inner">
+                        <h3 id="kpiTotalStudents">0</h3>
+                        <p>Total Students Impacted</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Table -->
+        <style>
+            .program-table-container {
+                overflow-x: auto;
+                position: relative;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+            }
+            /* Custom Scrollbar for the table */
+            .program-table-container::-webkit-scrollbar {
+                height: 10px;
+            }
+            .program-table-container::-webkit-scrollbar-track {
+                background: #f1f1f1;
+            }
+            .program-table-container::-webkit-scrollbar-thumb {
+                background: #001f3f;
+                border-radius: 5px;
+            }
+            .program-table-container::-webkit-scrollbar-thumb:hover {
+                background: #003366;
+            }
+            #programTable {
+                font-size: 0.85rem;
+                white-space: nowrap;
+            }
+            #programTable th {
+                background: #f8f9fa;
+                position: sticky;
+                top: 0;
+            }
+        </style>
         <div class="card mt-2">
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table id="programTable" class="table table-striped table-hover mb-0 high-contrast-table">
+                <div class="program-table-container">
+                    <table id="programTable" class="table table-striped table-hover mb-0 high-contrast-table table-bordered">
                         <thead>
-                            <tr>
-                                <th>Program Name</th>
-                                <th>Category</th>
-                                <th>Sessions</th>
-                                <th>Students</th>
-                                <th>Schools Covered</th>
+                            <tr id="tableHeaderRow">
+                                <!-- Dynamic Headers -->
                             </tr>
                         </thead>
                         <tbody>
@@ -103,26 +175,54 @@ $(function () {
         fetch(`/programwise-report/data?${query}`)
             .then(res => res.json())
             .then(data => {
+                const thead = $('#tableHeaderRow');
                 const tbody = $('#programTable tbody');
+                thead.empty();
                 tbody.empty();
-                if (data.table.length === 0) {
-                    tbody.append('<tr><td colspan="5" class="text-center">No data found</td></tr>');
+
+                // Update KPIs
+                if (data.kpis && data.kpis.length >= 4) {
+                    $('#kpiTotalPrograms').text(data.kpis[0].value.toLocaleString());
+                    $('#kpiTotalSchools').text(data.kpis[1].value.toLocaleString());
+                    $('#kpiTotalSessions').text(data.kpis[2].value.toLocaleString());
+                    $('#kpiTotalStudents').text(data.kpis[3].value.toLocaleString());
+                }
+
+                if (!data.table || data.table.length === 0) {
+                    thead.append('<th>Info</th>');
+                    tbody.append('<tr><td class="text-center py-4 text-muted">No records found</td></tr>');
                     pagination.updateInfo('programTable', 0);
                     return;
                 }
-                data.table.forEach(row => {
-                    tbody.append(`
-                        <tr>
-                            <td>${row.program_name}</td>
-                            <td>${row.program_category}</td>
-                            <td><span class="badge badge-info">${row.sessions}</span></td>
-                            <td>${row.students}</td>
-                            <td>${row.schools_covered}</td>
-                        </tr>
-                    `);
+
+                // Render Dynamic Headers from Keys of first row
+                const columns = Object.keys(data.table[0]);
+                columns.forEach(col => {
+                    thead.append(`<th class="bg-navy-blue text-white">${col}</th>`);
                 });
+
+                data.table.forEach(row => {
+                    let rowHtml = '<tr>';
+                    columns.forEach(col => {
+                        let val = row[col];
+                        let cellClass = "";
+                        
+                        // Formatting logic
+                        if (typeof val === 'number') {
+                            val = val.toLocaleString();
+                            cellClass = "text-center font-weight-bold";
+                        }
+                        if (col === 'Program Name') cellClass = "font-weight-bold text-navy";
+                        
+                        rowHtml += `<td class="${cellClass}">${val !== null ? val : '-'}</td>`;
+                    });
+                    rowHtml += '</tr>';
+                    tbody.append(rowHtml);
+                });
+                
                 pagination.updateInfo('programTable', data.total_count);
-            });
+            })
+            .catch(err => console.error("Error fetching program data:", err));
     }
 
     $('#seeReport').click(function () {
