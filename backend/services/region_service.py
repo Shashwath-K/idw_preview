@@ -12,26 +12,36 @@ def get_region_kpis(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
+        year_expression="d.year_actual",
+        location_expression="g.region_name",
         program_expression="p.program_name",
     )
+
     row = fetch_one(
         f"""
         SELECT
-            COALESCE(SUM(COALESCE(e.students_total, 0)), 0) AS total_students_reached,
-            COUNT(DISTINCT l.state) AS total_states,
-            COALESCE(SUM(f.session_count), 0) AS total_sessions,
-            COALESCE(AVG(COALESCE(e.students_total, 0)), 0) AS avg_students_per_state_period
-        FROM fact_session_event f
-        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+            (SELECT COALESCE(SUM(total_exposure_count), 0) FROM dw.fact_attendance_exposure fae
+             LEFT JOIN dw.dim_date d ON d.date_id = fae.date_id
+             LEFT JOIN dw.dim_geography g ON g.sk_geography_id = fae.sk_geography_id
+             LEFT JOIN dw.dim_program p ON p.sk_program_id = fae.sk_program_id
+             {where_clause}) AS total_students_reached,
+            COUNT(DISTINCT g.nk_region_id) AS total_states,
+            COUNT(f.sk_fact_session_id) AS total_sessions,
+            COALESCE(
+                (SELECT SUM(total_exposure_count) FROM dw.fact_attendance_exposure fae {where_clause.replace('g.', 'ge.') if where_clause else ''}) / NULLIF(COUNT(DISTINCT g.nk_region_id), 0),
+                0
+            ) AS avg_students_per_state_period
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
         {where_clause}
         """,
         params,
     )
+    # Note: The avg students per region logic in the original was complex, 
+    # simplified here to average across matched regions.
+
     return {
         "total_students_reached": int(row.get("total_students_reached", 0) or 0),
         "total_states": int(row.get("total_states", 0) or 0),
@@ -51,28 +61,29 @@ def get_region_impact(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
+        year_expression="d.year_actual",
+        location_expression="g.region_name",
         program_expression="p.program_name",
     )
+
     rows = fetch_all(
         f"""
         SELECT
-            COALESCE(l.state, 'Unknown') AS label,
-            COALESCE(SUM(COALESCE(e.students_total, 0)), 0) AS value
-        FROM fact_session_event f
-        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+            COALESCE(g.region_name, 'Unknown') AS label,
+            COALESCE(SUM(fae.total_exposure_count), 0) AS value
+        FROM dw.fact_attendance_exposure fae
+        LEFT JOIN dw.dim_date d ON d.date_id = fae.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = fae.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = fae.sk_program_id
         {where_clause}
-        GROUP BY COALESCE(l.state, 'Unknown')
+        GROUP BY g.region_name
         ORDER BY value DESC, label
         LIMIT 20
         """,
         params,
     )
     return [{"label": row["label"], "value": float(row["value"])} for row in rows]
+
 
 
 def get_monthly_region_impact(
@@ -86,39 +97,40 @@ def get_monthly_region_impact(
         end=end,
         region=region,
         program=program,
-        year_expression="d.year",
-        location_expression="l.state",
+        year_expression="d.year_actual",
+        location_expression="g.region_name",
         program_expression="p.program_name",
     )
+
     rows = fetch_all(
         f"""
         SELECT
-            TO_CHAR(DATE_TRUNC('month', d.date), 'YYYY-MM') AS label,
-            COALESCE(SUM(COALESCE(e.students_total, 0)), 0) AS value,
-            DATE_TRUNC('month', d.date) AS sort_key
-        FROM fact_session_event f
-        LEFT JOIN fact_exposure e ON e.session_key = f.session_key
-        LEFT JOIN dim_date d ON d.date_key = f.date_key
-        LEFT JOIN dim_location l ON l.location_key = COALESCE(f.location_key, e.location_key)
-        LEFT JOIN dim_program p ON p.program_key = f.program_key
+            TO_CHAR(DATE_TRUNC('month', d.full_date), 'YYYY-MM') AS label,
+            COALESCE(SUM(fae.total_exposure_count), 0) AS value,
+            DATE_TRUNC('month', d.full_date) AS sort_key
+        FROM dw.fact_attendance_exposure fae
+        LEFT JOIN dw.dim_date d ON d.date_id = fae.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = fae.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = fae.sk_program_id
         {where_clause}
-        GROUP BY DATE_TRUNC('month', d.date)
-        ORDER BY DATE_TRUNC('month', d.date)
+        GROUP BY DATE_TRUNC('month', d.full_date)
+        ORDER BY sort_key
         """,
         params,
     )
     return [{"label": row["label"], "value": float(row["value"])} for row in rows]
 
 
+
 def get_region_options() -> list[str]:
     # Strictly return states (Andhra, Karnataka, etc.) as requested
     rows = fetch_all(
         """
-        SELECT DISTINCT state
-        FROM dim_location
-        WHERE state IS NOT NULL 
-          AND state NOT IN ('Central', 'East', 'North', 'NORTH', 'South', 'SOUTH', 'West', 'WEST', 'west')
-        ORDER BY state
+        SELECT DISTINCT region_name as state
+        FROM dw.dim_geography
+        WHERE region_name IS NOT NULL 
+        ORDER BY region_name
         """
     )
+
     return [str(row["state"]) for row in rows if row.get("state")]
