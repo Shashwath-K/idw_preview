@@ -80,16 +80,31 @@ app.include_router(upload.router)
 @app.get("/debug-db")
 def debug_db():
     from backend.db import get_datamart_conn
+    from backend.config import DATAMART_SCHEMA_NAME
     try:
         conn = get_datamart_conn()
         with conn.cursor() as cur:
-            cur.execute("SELECT 1")
-            res = cur.fetchone()
+            cur.execute("SHOW search_path")
+            search_path = cur.fetchone()
+            
+            cur.execute(f"SELECT COUNT(*) FROM {DATAMART_SCHEMA_NAME}.dim_program")
+            prog_count = cur.fetchone()["count"]
+            
+            cur.execute(f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{DATAMART_SCHEMA_NAME}' LIMIT 5")
+            tables = [r["table_name"] for r in cur.fetchall()]
+            
         conn.close()
-        return {"status": "success", "message": "Connection successful", "data": res}
+        return {
+            "status": "success", 
+            "search_path": search_path,
+            "schema_used": DATAMART_SCHEMA_NAME,
+            "dim_program_count": prog_count,
+            "sample_tables": tables
+        }
     except Exception as e:
         import traceback
         return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+
 
 
 def render_page(request, template_name, title, page_id):
