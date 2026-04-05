@@ -1,13 +1,14 @@
 from backend.services.query_utils import fetch_all, fetch_one
+from backend.config import DATAMART_SCHEMA_NAME
 
 
 def get_instructor_summary_filters():
     # Fetch from new dim_geography and dim_date
-    locations = fetch_all("SELECT DISTINCT region_name, district AS area FROM dw.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name, district")
+    locations = fetch_all(f"SELECT DISTINCT region_name, area_name AS area FROM {DATAMART_SCHEMA_NAME}.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name, area_name")
     
-    years = [row["year_actual"] for row in fetch_all("SELECT DISTINCT year_actual FROM dw.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
+    years = [row["year_actual"] for row in fetch_all(f"SELECT DISTINCT year_actual FROM {DATAMART_SCHEMA_NAME}.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
     
-    months = [{"id": row["month_actual"], "name": row["month_name"].strip()} for row in fetch_all("SELECT DISTINCT month_actual, TO_CHAR(TO_DATE(month_actual::text, 'MM'), 'Month') as month_name FROM dw.dim_date ORDER BY month_actual")]
+    months = [{"id": row["month_actual"], "name": row["month_name"].strip()} for row in fetch_all(f"SELECT DISTINCT month_actual, TO_CHAR(TO_DATE(month_actual::text, 'MM'), 'Month') as month_name FROM {DATAMART_SCHEMA_NAME}.dim_date ORDER BY month_actual")]
     
     return {
         "regions": sorted(list(set(row["region_name"] for row in locations))),
@@ -25,7 +26,7 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None, l
         where_clauses.append("g.region_name = %s")
         params.append(region)
     if area:
-        where_clauses.append("g.district = %s")
+        where_clauses.append("g.area_name = %s")
         params.append(area)
     if year:
         where_clauses.append("d.year_actual = %s")
@@ -40,15 +41,15 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None, l
     kpi_sql = f"""
         SELECT 
             COUNT(DISTINCT d.full_date) as days_worked,
-            SUM(COALESCE(f.session_count, 0)) as total_sessions,
-            SUM(COALESCE(e.total_students, 0)) as total_exposures,
-            SUM(CASE WHEN a.activity_name ILIKE ANY (ARRAY['%%YIL%%', '%%SF%%', '%%CV%%']) THEN COALESCE(e.total_students, 0) ELSE 0 END) as combined_exposures
-        FROM dw.dim_user u
-        LEFT JOIN dw.fact_session f ON u.sk_user_id = f.sk_user_id
-        LEFT JOIN dw.fact_attendance_exposure e ON f.sk_session_id = e.sk_session_id
-        LEFT JOIN dw.dim_date d ON f.date_id = d.date_id
-        LEFT JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
-        LEFT JOIN dw.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
+            COUNT(f.sk_fact_session_id) as total_sessions,
+            SUM(COALESCE(e.total_exposure_count, 0)) as total_exposures,
+            SUM(CASE WHEN a.activity_name ILIKE ANY (ARRAY['%%YIL%%', '%%SF%%', '%%CV%%']) THEN COALESCE(e.total_exposure_count, 0) ELSE 0 END) as combined_exposures
+        FROM {DATAMART_SCHEMA_NAME}.dim_user u
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_session f ON u.sk_user_id = f.sk_user_id
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
         WHERE {where_sql}
     """
     kpi_res = fetch_one(kpi_sql, params)
@@ -67,10 +68,10 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None, l
     count_sql = f"""
         SELECT COUNT(*) FROM (
             SELECT u.sk_user_id
-            FROM dw.dim_user u
-            JOIN dw.fact_session f ON u.sk_user_id = f.sk_user_id
-            JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
-            JOIN dw.dim_date d ON f.date_id = d.date_id
+            FROM {DATAMART_SCHEMA_NAME}.dim_user u
+            JOIN {DATAMART_SCHEMA_NAME}.fact_session f ON u.sk_user_id = f.sk_user_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
             WHERE {where_sql}
             GROUP BY u.sk_user_id
         ) as sub
@@ -80,27 +81,27 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None, l
     # Main query to aggregate instructor metrics
     main_sql = f"""
         SELECT 
-            u.full_name as instructor_name,
+            u.user_name as instructor_name,
             COUNT(DISTINCT d.full_date) as days_worked,
-            COUNT(DISTINCT f.sk_session_id) as school_sessions,
-            SUM(COALESCE(f.session_count, 0)) as total_sessions,
-            SUM(COALESCE(e.total_students, 0)) as total_exposures,
-            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%Fair%%' THEN f.sk_session_id END) as fair_count,
-            SUM(CASE WHEN a.activity_name ILIKE '%%Training%%' THEN COALESCE(e.total_students, 0) ELSE 0 END) as training_exposures,
-            SUM(CASE WHEN a.activity_name ILIKE '%%SF%%' THEN COALESCE(e.total_students, 0) ELSE 0 END) as sf_exposures,
-            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN f.sk_session_id END) as yil_sessions,
-            SUM(CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN COALESCE(e.total_students, 0) ELSE 0 END) as yil_exposures,
-            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%CV%%' THEN f.sk_session_id END) as cv_visits,
-            SUM(CASE WHEN a.activity_name ILIKE '%%CV%%' THEN COALESCE(e.total_students, 0) ELSE 0 END) as cv_exposures
-        FROM dw.dim_user u
-        LEFT JOIN dw.fact_session f ON u.sk_user_id = f.sk_user_id
-        LEFT JOIN dw.fact_attendance_exposure e ON f.sk_session_id = e.sk_session_id
-        LEFT JOIN dw.dim_date d ON f.date_id = d.date_id
-        LEFT JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
-        LEFT JOIN dw.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
+            COUNT(DISTINCT f.sk_fact_session_id) as school_sessions,
+            COUNT(f.sk_fact_session_id) as total_sessions,
+            SUM(COALESCE(e.total_exposure_count, 0)) as total_exposures,
+            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%Fair%%' THEN f.sk_fact_session_id END) as fair_count,
+            SUM(CASE WHEN a.activity_name ILIKE '%%Training%%' THEN COALESCE(e.total_exposure_count, 0) ELSE 0 END) as training_exposures,
+            SUM(CASE WHEN a.activity_name ILIKE '%%SF%%' THEN COALESCE(e.total_exposure_count, 0) ELSE 0 END) as sf_exposures,
+            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN f.sk_fact_session_id END) as yil_sessions,
+            SUM(CASE WHEN a.activity_name ILIKE '%%YIL%%' THEN COALESCE(e.total_exposure_count, 0) ELSE 0 END) as yil_exposures,
+            COUNT(DISTINCT CASE WHEN a.activity_name ILIKE '%%CV%%' THEN f.sk_fact_session_id END) as cv_visits,
+            SUM(CASE WHEN a.activity_name ILIKE '%%CV%%' THEN COALESCE(e.total_exposure_count, 0) ELSE 0 END) as cv_exposures
+        FROM {DATAMART_SCHEMA_NAME}.dim_user u
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_session f ON u.sk_user_id = f.sk_user_id
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON f.date_id = d.date_id
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        LEFT JOIN {DATAMART_SCHEMA_NAME}.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
         WHERE {where_sql}
-        GROUP BY u.sk_user_id, u.full_name
-        ORDER BY u.full_name
+        GROUP BY u.sk_user_id, u.user_name
+        ORDER BY u.user_name
         LIMIT %s OFFSET %s
     """
     table_data = fetch_all(main_sql, params + [limit, offset])
@@ -110,4 +111,5 @@ def get_instructor_summary_data(region=None, area=None, year=None, month=None, l
         "total_count": total_count,
         "kpis": kpis
     }
+
 
