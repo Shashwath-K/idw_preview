@@ -188,7 +188,7 @@ def get_top_schools(
         SELECT
             COALESCE(s.school_name, 'Unknown') AS label,
             COALESCE(g.region_name, 'Unknown') AS state,
-            COALESCE(g.district, 'Unknown') AS district,
+            COALESCE(g.area_name, 'Unknown') AS area,
             COALESCE(SUM(fae.total_exposure_count), 0) AS value
         FROM dw.fact_attendance_exposure fae
         LEFT JOIN dw.dim_school s ON s.sk_school_id = fae.sk_school_id
@@ -196,16 +196,17 @@ def get_top_schools(
         LEFT JOIN dw.dim_geography g ON g.sk_geography_id = fae.sk_geography_id
         LEFT JOIN dw.dim_program p ON p.sk_program_id = fae.sk_program_id
         {where_clause}
-        GROUP BY s.school_name, g.region_name, g.district
+        GROUP BY s.school_name, g.region_name, g.area_name
         ORDER BY value DESC, label
         LIMIT %s
         """,
         [*params, limit],
     )
     return [
-        {"label": row["label"], "subtitle": f"{row['state']} - {row['district']}", "value": float(row["value"] or 0)}
+        {"label": row["label"], "subtitle": f"{row['state']} - {row['area']}", "value": float(row["value"] or 0)}
         for row in rows
     ]
+
 
 
 
