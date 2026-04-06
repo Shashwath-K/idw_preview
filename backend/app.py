@@ -23,6 +23,11 @@ from backend.routers import (
     work_day,
     dashboard,
     vehicle_report,
+    nationwide,
+    regionwise,
+    exposure_session,
+    performance_mgmt,
+    manpower_vehicle,
 )
 
 
@@ -77,6 +82,11 @@ app.include_router(school_visit.router)
 app.include_router(work_day.router)
 app.include_router(vehicle_report.router)
 app.include_router(upload.router)
+app.include_router(nationwide.router)
+app.include_router(regionwise.router)
+app.include_router(exposure_session.router)
+app.include_router(performance_mgmt.router)
+app.include_router(manpower_vehicle.router)
 
 
 @app.get("/debug-db")
@@ -233,23 +243,23 @@ def programwise_report_page(request: Request):
 
 @app.get("/nationwide-dashboard", response_class=HTMLResponse)
 def nationwide_dashboard_page(request: Request):
-    return render_page(request, "placeholder.html", "Nationwide Dashboard", "nationwide-dashboard")
+    return render_page(request, "nationwide_dashboard.html", "Nationwide Dashboard", "nationwide-dashboard")
 
 @app.get("/regionwise-dashboard", response_class=HTMLResponse)
 def regionwise_dashboard_page(request: Request):
-    return render_page(request, "placeholder.html", "Regionwise Dashboard", "regionwise-dashboard")
+    return render_page(request, "regionwise_dashboard.html", "Regionwise Dashboard", "regionwise-dashboard")
 
 @app.get("/exposure-session-dashboard", response_class=HTMLResponse)
 def exposure_session_dashboard_page(request: Request):
-    return render_page(request, "placeholder.html", "ExposureSession Dashboard", "exposure-session-dashboard")
+    return render_page(request, "exposure_session_dashboard.html", "ExposureSession Dashboard", "exposure-session-dashboard")
 
 @app.get("/performance-management-dashboard", response_class=HTMLResponse)
 def performance_management_dashboard_page(request: Request):
-    return render_page(request, "placeholder.html", "PerformanceManagement Dashboard", "performance-management-dashboard")
+    return render_page(request, "performance_mgmt_dashboard.html", "PerformanceManagement Dashboard", "performance-management-dashboard")
 
 @app.get("/manpower-vehicle-dashboard", response_class=HTMLResponse)
 def manpower_vehicle_dashboard_page(request: Request):
-    return render_page(request, "placeholder.html", "ManpowerVehicle Dashboard", "manpower-vehicle-dashboard")
+    return render_page(request, "manpower_vehicle_dashboard.html", "ManpowerVehicle Dashboard", "manpower-vehicle-dashboard")
 
 @app.get("/instructor-feedback", response_class=HTMLResponse)
 def instructor_feedback_page(request: Request):
