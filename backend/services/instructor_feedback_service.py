@@ -1,62 +1,92 @@
+import logging
 from backend.services.query_utils import fetch_all, fetch_one
+from backend.config import DATAMART_SCHEMA_NAME
+
+logger = logging.getLogger(__name__)
+DW = DATAMART_SCHEMA_NAME
 
 
 def get_instructor_feedback_filters():
-    # Fetch from new dim_user and dim_date
-    instructors = [row["full_name"] for row in fetch_all("SELECT DISTINCT full_name FROM dw.dim_user WHERE full_name IS NOT NULL ORDER BY full_name")]
-    
-    years = [row["year_actual"] for row in fetch_all("SELECT DISTINCT year_actual FROM dw.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC")]
-    
-    return {
-        "instructors": instructors,
-        "years": years
-    }
+    try:
+        instructors = [r["user_name"] for r in fetch_all(
+            f"SELECT DISTINCT user_name FROM {DW}.dim_user WHERE user_name IS NOT NULL ORDER BY user_name"
+        )]
+        years = [r["year_actual"] for r in fetch_all(
+            f"SELECT DISTINCT year_actual FROM {DW}.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC"
+        )]
+        return {"instructors": instructors, "years": years}
+    except Exception as e:
+        logger.error(f"instructor feedback filters error: {e}")
+        return {"instructors": [], "years": []}
 
 
 def get_instructor_feedback_data(instructor_name=None, year=None, limit=15, offset=0):
-    where_clauses = ["TRUE"]
-    params = []
-    
-    if instructor_name:
-        where_clauses.append("u.full_name = %s")
-        params.append(instructor_name)
-    if year:
-        where_clauses.append("d.year_actual = %s")
-        params.append(int(year))
-    
-    where_sql = " AND ".join(where_clauses)
-    
-    # Get total count
-    count_sql = f"""
-        SELECT COUNT(*)
-        FROM dw.fact_session f
-        JOIN dw.dim_user u ON f.sk_user_id = u.sk_user_id
-        JOIN dw.dim_date d ON f.date_id = d.date_id
-        WHERE {where_sql}
-    """
-    total_count = fetch_one(count_sql, params).get("count", 0)
+    try:
+        where_clauses = ["TRUE"]
+        params = []
+        if instructor_name:
+            where_clauses.append("u.user_name = %s")
+            params.append(instructor_name)
+        if year:
+            where_clauses.append("d.year_actual = %s")
+            params.append(int(year))
+        where_sql = " AND ".join(where_clauses)
 
-    # Main query (partially placeholder logic)
-    sql = f"""
-        SELECT 
-            u.full_name as instructor_name,
-            d.full_date as date,
-            a.activity_name,
-            '4.5/5' as rating, -- Placeholder
-            'Positive observation' as comments -- Placeholder
-        FROM dw.fact_session f
-        JOIN dw.dim_user u ON f.sk_user_id = u.sk_user_id
-        JOIN dw.dim_date d ON f.date_id = d.date_id
-        JOIN dw.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
-        WHERE {where_sql}
-        ORDER BY d.full_date DESC
-        LIMIT %s OFFSET %s
-    """
-    rows = fetch_all(sql, params + [limit, offset])
-    
-    return {
-        "table": [{**row, "date": row["date"].strftime("%Y-%m-%d") if row["date"] else None} for row in rows],
-        "total_count": total_count
-    }
+        # KPIs
+        kpi_row = fetch_one(f"""
+            SELECT
+                COUNT(DISTINCT f.sk_user_id)             AS total_instructors,
+                COUNT(DISTINCT f.sk_fact_session_id)     AS total_sessions,
+                SUM(COALESCE(f.demo_session_count, 0))   AS demo_sessions,
+                SUM(COALESCE(f.hands_on_session_count,0))AS hands_on_sessions
+            FROM {DW}.fact_session f
+            LEFT JOIN {DW}.dim_user u  ON f.sk_user_id = u.sk_user_id
+            LEFT JOIN {DW}.dim_date d  ON f.date_id = d.date_id
+            WHERE {where_sql}
+        """, params)
 
-            
+        kpis = [
+            {"label": "Instructors Reviewed",  "value": int(kpi_row.get("total_instructors", 0) or 0),  "icon": "fas fa-users",              "color": "bg-info"},
+            {"label": "Total Sessions",        "value": int(kpi_row.get("total_sessions", 0) or 0),     "icon": "fas fa-chalkboard-teacher", "color": "bg-success"},
+            {"label": "Demo Sessions",         "value": int(kpi_row.get("demo_sessions", 0) or 0),      "icon": "fas fa-flask",              "color": "bg-navy-blue"},
+            {"label": "Hands-on Sessions",     "value": int(kpi_row.get("hands_on_sessions", 0) or 0),  "icon": "fas fa-hands",              "color": "bg-danger"},
+        ]
+
+        total_count = fetch_one(f"""
+            SELECT COUNT(DISTINCT f.sk_fact_session_id) AS count
+            FROM {DW}.fact_session f
+            LEFT JOIN {DW}.dim_user u  ON f.sk_user_id = u.sk_user_id
+            LEFT JOIN {DW}.dim_date d  ON f.date_id = d.date_id
+            WHERE {where_sql}
+        """, params).get("count", 0)
+
+        rows = fetch_all(f"""
+            SELECT
+                COALESCE(u.user_name, 'Unknown')                    AS instructor_name,
+                d.full_date                                          AS session_date,
+                COALESCE(sc.school_name, 'Unknown')                 AS school_name,
+                COALESCE(a.activity_name, 'Unknown')                AS activity_name,
+                COALESCE(f.demo_session_count, 0)                   AS demo_sessions,
+                COALESCE(f.hands_on_session_count, 0)               AS hands_on_sessions,
+                COALESCE(f.session_duration_minutes, 0)             AS duration_minutes
+            FROM {DW}.fact_session f
+            LEFT JOIN {DW}.dim_user u          ON f.sk_user_id = u.sk_user_id
+            LEFT JOIN {DW}.dim_date d          ON f.date_id = d.date_id
+            LEFT JOIN {DW}.dim_school sc       ON f.sk_school_id = sc.sk_school_id
+            LEFT JOIN {DW}.dim_activity_type a ON f.sk_activity_type_id = a.sk_activity_type_id
+            WHERE {where_sql}
+            ORDER BY d.full_date DESC
+            LIMIT %s OFFSET %s
+        """, params + [limit, offset])
+
+        formatted = []
+        for r in rows:
+            row = dict(r)
+            if row.get("session_date"):
+                row["session_date"] = row["session_date"].strftime("%Y-%m-%d")
+            formatted.append(row)
+
+        return {"kpis": kpis, "table": formatted, "total_count": int(total_count)}
+    except Exception as e:
+        logger.error(f"instructor feedback data error: {e}", exc_info=True)
+        return {"kpis": [], "table": [], "total_count": 0}
