@@ -9,30 +9,32 @@ STATIC_DIR = FRONTEND_DIR / "static"
 SQL_DIR = BASE_DIR / "sql"
 
 
-''' # For Production
+# For Production
 DB_USER = os.getenv("PRAMANA_DB_USER", "pramana")
 DB_PASSWORD = os.getenv("PRAMANA_DB_PASSWORD", "QbqokyOFxJoI4I9n9Ti8")
 DB_HOST = os.getenv("PRAMANA_DB_HOST", "192.168.113.15")
-'''
-# For Local Instance 
+DB_PORT = os.getenv("PRAMANA_DB_PORT", "5432")
+DB_SSL_MODE = os.getenv("PRAMANA_DB_SSL_MODE", "require")
+
+''' # For Local Instance 
 DB_USER = os.getenv("PRAMANA_DB_USER", "postgres")
 DB_PASSWORD = os.getenv("PRAMANA_DB_PASSWORD", "postgres")
 DB_HOST = os.getenv("PRAMANA_DB_HOST", "localhost")
 DB_PORT = os.getenv("PRAMANA_DB_PORT", "5432")
 DB_SSL_MODE = os.getenv("PRAMANA_DB_PORT", "disable")
+'''
 
 
-''' # For Production 
+# For Production 
 ADMIN_DB_NAME = os.getenv("PRAMANA_ADMIN_DB_NAME", "pramanadb")
 SOURCE_DB_NAME = os.getenv("PRAMANA_SOURCE_DB_NAME", "pramanadb")
 DATAMART_DB_NAME = os.getenv("PRAMANA_DATAMART_DB_NAME", "pramanadb")
-'''
 
-# For Local Instance
-
+''' # For Local Instance
 ADMIN_DB_NAME = os.getenv("PRAMANA_ADMIN_DB_NAME", "pramana_v4_db")
 SOURCE_DB_NAME = os.getenv("PRAMANA_SOURCE_DB_NAME", "pramana_v4_db")
 DATAMART_DB_NAME = os.getenv("PRAMANA_DATAMART_DB_NAME", "pramana_v4_db")
+'''
 
 
 
