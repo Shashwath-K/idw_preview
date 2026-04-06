@@ -80,12 +80,14 @@ LEFT JOIN source.mst_class mc ON tfe.class_id = mc.id;
 -- 3. FACT_VEHICLE_OPERATIONS (Metrics from TXN_VEHICLE_LOG)
 --------------------------------------------------------------------------------
 INSERT INTO dw.fact_vehicle_operations (
-    date_id, sk_user_id, sk_program_id, sk_geography_id, 
+    date_id, sk_user_id, sk_instructor_id, sk_driver_id, sk_program_id, sk_geography_id, 
     vehicle_nk_id, distance_travelled, fuel_quantity, fuel_cost, was_vehicle_used
 )
 SELECT 
     d.date_id,
-    u.sk_user_id, -- Using instructor/driver user SK
+    ui.sk_user_id as sk_user_id,
+    ui.sk_user_id as sk_instructor_id,
+    ud.sk_user_id as sk_driver_id,
     p.sk_program_id,
     g.sk_geography_id,
     tvl.vehicle_id as vehicle_nk_id,
@@ -95,7 +97,8 @@ SELECT
     tvl.vehicle_used_flag = 1
 FROM source.txn_vehicle_log tvl
 LEFT JOIN dw.dim_date d ON tvl.date = d.full_date
-LEFT JOIN dw.dim_user u ON tvl.instructor_id = u.nk_user_id
+LEFT JOIN dw.dim_user ui ON tvl.instructor_id = ui.nk_user_id
+LEFT JOIN dw.dim_user ud ON tvl.driver_id = ud.nk_user_id
 LEFT JOIN dw.dim_program p ON tvl.program_id = p.nk_program_id
 LEFT JOIN source.txn_program sp ON tvl.program_id = sp.id
 LEFT JOIN dw.dim_geography g ON sp.area_id = g.nk_area_id;

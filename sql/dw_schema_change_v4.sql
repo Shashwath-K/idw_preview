@@ -156,7 +156,9 @@ CREATE TABLE IF NOT EXISTS dw.fact_attendance_exposure (
 CREATE TABLE IF NOT EXISTS dw.fact_vehicle_operations (
     sk_fact_vehicle_id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     date_id INTEGER REFERENCES dw.dim_date(date_id),
-    sk_user_id BIGINT REFERENCES dw.dim_user(sk_user_id), -- Driver or Instructor
+    sk_user_id BIGINT REFERENCES dw.dim_user(sk_user_id), -- Primary Instructor
+    sk_instructor_id BIGINT REFERENCES dw.dim_user(sk_user_id),
+    sk_driver_id BIGINT REFERENCES dw.dim_user(sk_user_id),
     sk_program_id BIGINT REFERENCES dw.dim_program(sk_program_id),
     sk_geography_id BIGINT REFERENCES dw.dim_geography(sk_geography_id),
     
