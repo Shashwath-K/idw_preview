@@ -25,6 +25,7 @@ FROM generate_series('2010-01-01'::DATE, '2030-12-31'::DATE, '1 day'::INTERVAL) 
 --------------------------------------------------------------------------------
 -- 2. DIM_GEOGRAPHY (Area + Region)
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.dim_geography CASCADE;
 INSERT INTO dw.dim_geography (nk_area_id, nk_region_id, area_name, region_name, area_code, region_code, is_deleted)
 SELECT 
     a.id as nk_area_id,
@@ -40,6 +41,7 @@ JOIN source.mst_region r ON a.region_id = r.id;
 --------------------------------------------------------------------------------
 -- 3. DIM_USER (SCD Type 1)
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.dim_user CASCADE;
 INSERT INTO dw.dim_user (nk_user_id, user_name, user_code, email, role_name, manager_name, joining_date, has_b_ed, has_d_ed, pg_degree, ug_degree, is_active)
 SELECT 
     u.id as nk_user_id,
@@ -62,6 +64,7 @@ LEFT JOIN source.mst_user m ON u.report_id = m.id;
 --------------------------------------------------------------------------------
 -- 4. DIM_SCHOOL
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.dim_school CASCADE;
 INSERT INTO dw.dim_school (nk_school_id, school_name, school_code, udise_code, address, pincode, school_type_name, school_category_id, state_management_id, is_deleted)
 SELECT 
     s.id as nk_school_id,
@@ -80,6 +83,7 @@ LEFT JOIN source.mst_school_type st ON s.school_type = st.id;
 --------------------------------------------------------------------------------
 -- 5. DIM_PROGRAM
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.dim_program CASCADE;
 INSERT INTO dw.dim_program (nk_program_id, program_name, donor_name, donor_code, start_date, end_date, instructor_capacity, periodicity, is_deleted)
 SELECT 
     p.id as nk_program_id,
@@ -98,6 +102,7 @@ LEFT JOIN source.mst_donor d ON p.donor_id = d.id;
 --------------------------------------------------------------------------------
 -- 6. DIM_ACTIVITY_TYPE
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.dim_activity_type CASCADE;
 INSERT INTO dw.dim_activity_type (nk_activity_type_id, activity_code, activity_name, is_adhoc)
 SELECT 
     id as nk_activity_type_id,
@@ -109,6 +114,7 @@ FROM source.mst_activity_type;
 --------------------------------------------------------------------------------
 -- 7. DIM_SUBJECT_TOPIC
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.dim_subject_topic CASCADE;
 INSERT INTO dw.dim_subject_topic (nk_topic_id, topic_description, subject_name, subject_code)
 SELECT 
     t.id as nk_topic_id,

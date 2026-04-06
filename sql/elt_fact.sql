@@ -7,6 +7,7 @@ SET search_path TO dw, source;
 --------------------------------------------------------------------------------
 -- 1. FACT_SESSION (Measures from TXN_SESSION + RPT_FEEDBACK)
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.fact_session CASCADE;
 INSERT INTO dw.fact_session (
     date_id, sk_user_id, sk_school_id, sk_program_id, sk_activity_type_id, 
     sk_subject_topic_id, sk_geography_id, session_nk_id, 
@@ -49,6 +50,7 @@ LEFT JOIN dw.dim_geography g ON ms.area_id = g.nk_area_id;
 --------------------------------------------------------------------------------
 -- 2. FACT_ATTENDANCE_EXPOSURE (Detailed metrics from TXN_FEEDBACK_EXPOSURE)
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.fact_attendance_exposure CASCADE;
 INSERT INTO dw.fact_attendance_exposure (
     date_id, sk_user_id, sk_school_id, sk_program_id, sk_geography_id, 
     session_nk_id, class_name, section_name, boys_count, girls_count, total_exposure_count
@@ -79,6 +81,7 @@ LEFT JOIN source.mst_class mc ON tfe.class_id = mc.id;
 --------------------------------------------------------------------------------
 -- 3. FACT_VEHICLE_OPERATIONS (Metrics from TXN_VEHICLE_LOG)
 --------------------------------------------------------------------------------
+TRUNCATE TABLE dw.fact_vehicle_operations CASCADE;
 INSERT INTO dw.fact_vehicle_operations (
     date_id, sk_user_id, sk_instructor_id, sk_driver_id, sk_program_id, sk_geography_id, 
     vehicle_nk_id, distance_travelled, fuel_quantity, fuel_cost, was_vehicle_used
