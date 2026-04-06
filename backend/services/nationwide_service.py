@@ -42,7 +42,8 @@ def get_nationwide_data(start_year=None, end_year=None, region=None, limit=15, o
                 COUNT(DISTINCT f.sk_fact_session_id)  AS total_sessions,
                 COALESCE(SUM(e.total_exposure_count), 0) AS total_students,
                 COUNT(DISTINCT p.program_name)         AS total_programs,
-                COUNT(DISTINCT f.sk_user_id)           AS total_instructors
+                COUNT(DISTINCT f.sk_user_id)           AS total_instructors,
+                COUNT(DISTINCT g.nk_region_id)         AS total_states
             FROM {DW}.fact_session f
             LEFT JOIN {DW}.dim_date d        ON f.date_id = d.date_id
             LEFT JOIN {DW}.dim_geography g   ON f.sk_geography_id = g.sk_geography_id
@@ -51,11 +52,20 @@ def get_nationwide_data(start_year=None, end_year=None, region=None, limit=15, o
             WHERE {where_sql}
         """, params)
 
+        # Separate query for drivers
+        driver_row = fetch_one(f"""
+            SELECT COUNT(DISTINCT v.sk_driver_id) AS total_drivers
+            FROM {DW}.fact_vehicle_operations v
+            LEFT JOIN {DW}.dim_date d       ON v.date_id = d.date_id
+            LEFT JOIN {DW}.dim_geography g  ON v.sk_geography_id = g.sk_geography_id
+            WHERE {where_sql}
+        """, params)
+
         kpis = [
-            {"label": "Total Sessions",       "value": int(kpi_row.get("total_sessions", 0) or 0),    "icon": "fas fa-chalkboard-teacher", "color": "bg-info"},
-            {"label": "Students Reached",      "value": int(kpi_row.get("total_students", 0) or 0),    "icon": "fas fa-user-graduate",      "color": "bg-success"},
-            {"label": "Active Programs",       "value": int(kpi_row.get("total_programs", 0) or 0),    "icon": "fas fa-project-diagram",    "color": "bg-navy-blue"},
-            {"label": "Active Instructors",    "value": int(kpi_row.get("total_instructors", 0) or 0), "icon": "fas fa-users",              "color": "bg-danger"},
+            {"label": "Total Instructors",    "value": int(kpi_row.get("total_instructors", 0) or 0), "icon": "fas fa-users",              "color": "bg-info"},
+            {"label": "Total Drivers",        "value": int(driver_row.get("total_drivers", 0) or 0),  "icon": "fas fa-truck",              "color": "bg-success"},
+            {"label": "States Reached",        "value": int(kpi_row.get("total_states", 0) or 0),      "icon": "fas fa-map-marker-alt",    "color": "bg-navy-blue"},
+            {"label": "Total Programs",       "value": int(kpi_row.get("total_programs", 0) or 0),    "icon": "fas fa-project-diagram",    "color": "bg-danger"},
         ]
 
         # Charts
@@ -89,6 +99,7 @@ def get_nationwide_data(start_year=None, end_year=None, region=None, limit=15, o
             WHERE {where_sql}
         """, params).get("count", 0)
 
+        table_params = params + params + [limit, offset]
         table = fetch_all(f"""
             SELECT
                 COALESCE(g.region_name,'Unknown')              AS region_name,
@@ -96,7 +107,15 @@ def get_nationwide_data(start_year=None, end_year=None, region=None, limit=15, o
                 COUNT(DISTINCT f.sk_school_id)                 AS schools_visited,
                 COALESCE(SUM(e.total_exposure_count), 0)       AS students_reached,
                 COUNT(DISTINCT f.sk_user_id)                   AS instructors,
-                COUNT(DISTINCT p.program_name)                 AS programs
+                COUNT(DISTINCT p.program_name)                 AS programs,
+                (
+                    SELECT COUNT(DISTINCT v.sk_driver_id)
+                    FROM {DW}.fact_vehicle_operations v
+                    LEFT JOIN {DW}.dim_geography dg ON v.sk_geography_id = dg.sk_geography_id
+                    LEFT JOIN {DW}.dim_date dd ON v.date_id = dd.date_id
+                    WHERE COALESCE(dg.region_name,'Unknown') = COALESCE(g.region_name,'Unknown')
+                    AND {where_sql.replace('d.', 'dd.').replace('g.', 'dg.')}
+                ) AS drivers
             FROM {DW}.fact_session f
             LEFT JOIN {DW}.dim_geography g   ON f.sk_geography_id = g.sk_geography_id
             LEFT JOIN {DW}.dim_date d        ON f.date_id = d.date_id
@@ -105,7 +124,7 @@ def get_nationwide_data(start_year=None, end_year=None, region=None, limit=15, o
             WHERE {where_sql}
             GROUP BY g.region_name ORDER BY sessions DESC
             LIMIT %s OFFSET %s
-        """, params + [limit, offset])
+        """, table_params)
 
         return {
             "kpis": kpis,

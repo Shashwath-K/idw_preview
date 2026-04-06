@@ -22,6 +22,7 @@ def _build_filters(start: int | None = None, end: int | None = None, region: str
 def get_overview_kpis(start: int | None = None, end: int | None = None, region: str | None = None, program: str | None = None):
     where_clause, params = _build_filters(start=start, end=end, region=region, program=program)
 
+    # 1. Main session-based KPIs
     kpis_row = fetch_one(
         f"""
         SELECT
@@ -37,10 +38,24 @@ def get_overview_kpis(start: int | None = None, end: int | None = None, region: 
         params,
     )
 
+    # 2. Driver-specific KPI from vehicle operations
+    driver_row = fetch_one(
+        f"""
+        SELECT
+            COUNT(DISTINCT f.sk_driver_id) AS total_drivers
+        FROM dw.fact_vehicle_operations f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
+        {where_clause}
+        """,
+        params,
+    )
+
 
     return {
         "total_instructors": int(kpis_row.get("total_instructors", 0) or 0),
-        "total_drivers": 0,  # Placeholder until driver schema is added
+        "total_drivers": int(driver_row.get("total_drivers", 0) or 0),
         "total_states": int(kpis_row.get("total_states", 0) or 0),
         "total_programs": int(kpis_row.get("total_programs", 0) or 0),
     }
@@ -85,10 +100,29 @@ def get_overview_charts(start: int | None = None, end: int | None = None, region
         params,
     )
 
+    # 3. Drivers per region
+    drivers_rows = fetch_all(
+        f"""
+        SELECT
+            COALESCE(g.region_name, 'Unknown') AS label,
+            COUNT(DISTINCT f.sk_user_id) AS value
+        FROM dw.fact_vehicle_operations f
+        JOIN dw.dim_user u ON f.sk_user_id = u.sk_user_id
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
+        {where_clause} AND u.role_name = 'DRIVER' AND g.region_name IS NOT NULL
+        GROUP BY g.region_name
+        ORDER BY value DESC
+        LIMIT 10
+        """,
+        params,
+    )
+
 
     return {
         "instructors_by_region": [{"label": r["label"], "value": float(r["value"])} for r in instructors_rows],
-        "drivers_by_region": [], # Placeholder
+        "drivers_by_region": [{"label": r["label"], "value": float(r["value"])} for r in drivers_rows],
         "programs_by_region": [{"label": r["label"], "value": float(r["value"])} for r in programs_rows]
     }
 

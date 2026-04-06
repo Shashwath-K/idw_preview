@@ -43,7 +43,7 @@ def get_manpower_vehicle_data(region=None, year=None, month=None, limit=15, offs
                 COALESCE(SUM(v.distance_travelled), 0)   AS total_kms,
                 COALESCE(SUM(v.fuel_cost), 0)            AS total_fuel_cost,
                 COALESCE(SUM(v.fuel_quantity), 0)        AS total_fuel_qty,
-                COUNT(DISTINCT v.sk_user_id)             AS active_instructors
+                COUNT(DISTINCT v.sk_driver_id)           AS active_drivers
             FROM {DW}.fact_vehicle_operations v
             LEFT JOIN {DW}.dim_geography g ON v.sk_geography_id = g.sk_geography_id
             LEFT JOIN {DW}.dim_date d       ON v.date_id = d.date_id
@@ -54,7 +54,7 @@ def get_manpower_vehicle_data(region=None, year=None, month=None, limit=15, offs
             {"label": "Total KMs Travelled",   "value": int(kpi_row.get("total_kms", 0) or 0),        "icon": "fas fa-road",          "color": "bg-info"},
             {"label": "Total Fuel Cost (₹)",   "value": round(float(kpi_row.get("total_fuel_cost", 0) or 0), 2), "icon": "fas fa-rupee-sign",    "color": "bg-success"},
             {"label": "Total Fuel (L)",         "value": round(float(kpi_row.get("total_fuel_qty", 0) or 0), 1), "icon": "fas fa-gas-pump",      "color": "bg-navy-blue"},
-            {"label": "Active Instructors",     "value": int(kpi_row.get("active_instructors", 0) or 0),"icon": "fas fa-users",         "color": "bg-danger"},
+            {"label": "Active Drivers",         "value": int(kpi_row.get("active_drivers", 0) or 0),    "icon": "fas fa-truck",         "color": "bg-danger"},
         ]
 
         total_count = fetch_one(f"""
@@ -73,7 +73,7 @@ def get_manpower_vehicle_data(region=None, year=None, month=None, limit=15, offs
             SELECT
                 COALESCE(g.region_name, 'Unknown')          AS region_name,
                 COALESCE(p.program_name, 'Unknown')         AS program_name,
-                COUNT(DISTINCT v.sk_user_id)                AS instructors,
+                COUNT(DISTINCT v.sk_driver_id)              AS drivers,
                 COALESCE(SUM(v.distance_travelled), 0)      AS total_kms,
                 ROUND(COALESCE(SUM(v.fuel_quantity), 0)::numeric, 1) AS total_fuel_l,
                 ROUND(COALESCE(SUM(v.fuel_cost), 0)::numeric, 2)     AS total_cost,
