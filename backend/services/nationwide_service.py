@@ -1,0 +1,121 @@
+import logging
+from backend.services.query_utils import fetch_all, fetch_one
+from backend.config import DATAMART_SCHEMA_NAME
+
+logger = logging.getLogger(__name__)
+
+DW = DATAMART_SCHEMA_NAME
+
+
+def get_nationwide_filters():
+    try:
+        regions = [r["region_name"] for r in fetch_all(
+            f"SELECT DISTINCT region_name FROM {DW}.dim_geography WHERE region_name IS NOT NULL ORDER BY region_name"
+        )]
+        years = [r["year_actual"] for r in fetch_all(
+            f"SELECT DISTINCT year_actual FROM {DW}.dim_date WHERE year_actual IS NOT NULL ORDER BY year_actual DESC"
+        )]
+        return {"regions": regions, "years": years}
+    except Exception as e:
+        logger.error(f"nationwide filters error: {e}")
+        return {"regions": [], "years": []}
+
+
+def get_nationwide_data(start_year=None, end_year=None, region=None, limit=15, offset=0):
+    try:
+        where_clauses = ["TRUE"]
+        params = []
+        if start_year:
+            where_clauses.append("d.year_actual >= %s")
+            params.append(int(start_year))
+        if end_year:
+            where_clauses.append("d.year_actual <= %s")
+            params.append(int(end_year))
+        if region:
+            where_clauses.append("g.region_name = %s")
+            params.append(region)
+        where_sql = " AND ".join(where_clauses)
+
+        # KPIs
+        kpi_row = fetch_one(f"""
+            SELECT
+                COUNT(DISTINCT f.sk_fact_session_id)  AS total_sessions,
+                COALESCE(SUM(e.total_exposure_count), 0) AS total_students,
+                COUNT(DISTINCT p.program_name)         AS total_programs,
+                COUNT(DISTINCT f.sk_user_id)           AS total_instructors
+            FROM {DW}.fact_session f
+            LEFT JOIN {DW}.dim_date d        ON f.date_id = d.date_id
+            LEFT JOIN {DW}.dim_geography g   ON f.sk_geography_id = g.sk_geography_id
+            LEFT JOIN {DW}.dim_program p     ON f.sk_program_id = p.sk_program_id
+            LEFT JOIN {DW}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+            WHERE {where_sql}
+        """, params)
+
+        kpis = [
+            {"label": "Total Sessions",       "value": int(kpi_row.get("total_sessions", 0) or 0),    "icon": "fas fa-chalkboard-teacher", "color": "bg-info"},
+            {"label": "Students Reached",      "value": int(kpi_row.get("total_students", 0) or 0),    "icon": "fas fa-user-graduate",      "color": "bg-success"},
+            {"label": "Active Programs",       "value": int(kpi_row.get("total_programs", 0) or 0),    "icon": "fas fa-project-diagram",    "color": "bg-navy-blue"},
+            {"label": "Active Instructors",    "value": int(kpi_row.get("total_instructors", 0) or 0), "icon": "fas fa-users",              "color": "bg-danger"},
+        ]
+
+        # Charts
+        sessions_by_region = fetch_all(f"""
+            SELECT COALESCE(g.region_name, 'Unknown') AS label,
+                   COUNT(DISTINCT f.sk_fact_session_id) AS value
+            FROM {DW}.fact_session f
+            LEFT JOIN {DW}.dim_date d      ON f.date_id = d.date_id
+            LEFT JOIN {DW}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            WHERE {where_sql}
+            GROUP BY g.region_name ORDER BY value DESC LIMIT 12
+        """, params)
+
+        students_by_region = fetch_all(f"""
+            SELECT COALESCE(g.region_name, 'Unknown') AS label,
+                   COALESCE(SUM(e.total_exposure_count), 0) AS value
+            FROM {DW}.fact_session f
+            LEFT JOIN {DW}.dim_date d       ON f.date_id = d.date_id
+            LEFT JOIN {DW}.dim_geography g  ON f.sk_geography_id = g.sk_geography_id
+            LEFT JOIN {DW}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+            WHERE {where_sql}
+            GROUP BY g.region_name ORDER BY value DESC LIMIT 12
+        """, params)
+
+        # Table — region rollup
+        total_count = fetch_one(f"""
+            SELECT COUNT(DISTINCT COALESCE(g.region_name,'Unknown')) AS count
+            FROM {DW}.fact_session f
+            LEFT JOIN {DW}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            LEFT JOIN {DW}.dim_date d       ON f.date_id = d.date_id
+            WHERE {where_sql}
+        """, params).get("count", 0)
+
+        table = fetch_all(f"""
+            SELECT
+                COALESCE(g.region_name,'Unknown')              AS region_name,
+                COUNT(DISTINCT f.sk_fact_session_id)           AS sessions,
+                COUNT(DISTINCT f.sk_school_id)                 AS schools_visited,
+                COALESCE(SUM(e.total_exposure_count), 0)       AS students_reached,
+                COUNT(DISTINCT f.sk_user_id)                   AS instructors,
+                COUNT(DISTINCT p.program_name)                 AS programs
+            FROM {DW}.fact_session f
+            LEFT JOIN {DW}.dim_geography g   ON f.sk_geography_id = g.sk_geography_id
+            LEFT JOIN {DW}.dim_date d        ON f.date_id = d.date_id
+            LEFT JOIN {DW}.dim_program p     ON f.sk_program_id = p.sk_program_id
+            LEFT JOIN {DW}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
+            WHERE {where_sql}
+            GROUP BY g.region_name ORDER BY sessions DESC
+            LIMIT %s OFFSET %s
+        """, params + [limit, offset])
+
+        return {
+            "kpis": kpis,
+            "charts": {
+                "sessions_by_region":  [{"label": r["label"], "value": float(r["value"])} for r in sessions_by_region],
+                "students_by_region":  [{"label": r["label"], "value": float(r["value"])} for r in students_by_region],
+            },
+            "table": table,
+            "total_count": int(total_count),
+        }
+    except Exception as e:
+        logger.error(f"nationwide data error: {e}", exc_info=True)
+        return {"kpis": [], "charts": {}, "table": [], "total_count": 0}
