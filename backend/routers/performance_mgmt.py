@@ -1,0 +1,28 @@
+from fastapi import APIRouter, Query
+from backend.services import performance_mgmt_service
+
+router = APIRouter(prefix="/performance-management-dashboard", tags=["performance-management-dashboard"])
+
+@router.get("/filters")
+def get_filters():
+    return performance_mgmt_service.get_performance_mgmt_filters()
+
+@router.get("/data")
+def get_data(
+    region: str | None = Query(None),
+    year:   str | None = Query(None),
+    month:  str | None = Query(None),
+    limit:  int        = Query(default=15),
+    offset: int        = Query(default=0),
+):
+    return performance_mgmt_service.get_performance_mgmt_data(region, year, month, limit, offset)
+
+@router.get("/export")
+def export_data(
+    region: str | None = Query(None),
+    year:   str | None = Query(None),
+    month:  str | None = Query(None),
+):
+    from backend.services.export_utils import json_to_excel_streaming_response
+    data = performance_mgmt_service.get_performance_mgmt_data(region, year, month, limit=100000, offset=0)
+    return json_to_excel_streaming_response(data["table"], "performance_mgmt_dashboard.xlsx")
