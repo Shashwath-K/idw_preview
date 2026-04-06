@@ -601,7 +601,7 @@ body[data-page="dashboard"] .overview-filter-panel,
 body[data-page="dashboard"] .overview-surface {
     background: var(--surface-white);
     color: var(--text-dark);
-    border: 10px solid var(--border-light);
+    border: 1px solid var(--border-light);
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
     overflow: hidden;
 }
@@ -611,8 +611,13 @@ body[data-page="dashboard"] .overview-filter-panel .card-body,
 body[data-page="dashboard"] .overview-filter-panel label,
 body[data-page="dashboard"] .overview-filter-panel .card-title,
 body[data-page="dashboard"] .overview-filter-panel .filter-value,
+body[data-page="dashboard"] .overview-filter-panel .card-header,
+body[data-page="dashboard"] .overview-filter-panel .card-body,
+body[data-page="dashboard"] .overview-filter-panel label,
+body[data-page="dashboard"] .overview-filter-panel .card-title,
+body[data-page="dashboard"] .overview-filter-panel .filter-value,
 body[data-page="dashboard"] .overview-filter-panel .form-control {
-    color: var(--text-dark);
+    color: var(--text-dark) !important;
 }
 
 body[data-page="dashboard"] .overview-filter-panel .card-header {
