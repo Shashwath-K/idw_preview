@@ -140,6 +140,7 @@ $(function () {
         });
 
     function loadData() {
+        window.loadReportData = loadData;
         const filters = {
             instructor_name: $('#instructorFilter').val(),
             year: $('#yearFilter').val(),

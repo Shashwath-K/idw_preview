@@ -153,6 +153,7 @@ $(function () {
         });
 
     function loadData() {
+        window.loadReportData = loadData; 
         const filters = {
             region: $('#regionFilter').val(),
             area: $('#areaFilter').val(),

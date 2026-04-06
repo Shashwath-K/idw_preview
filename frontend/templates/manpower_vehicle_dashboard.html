@@ -61,8 +61,8 @@
             </div>
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-danger">
-                    <div class="inner"><h3 id="kpiInstructors">0</h3><p>Active Instructors</p></div>
-                    <div class="icon"><i class="fas fa-users"></i></div>
+                    <div class="inner"><h3 id="kpiDrivers">0</h3><p>Active Drivers</p></div>
+                    <div class="icon"><i class="fas fa-truck"></i></div>
                 </div>
             </div>
         </div>
@@ -75,7 +75,7 @@
                             <tr>
                                 <th>Region</th>
                                 <th>Program</th>
-                                <th class="text-center">Instructors</th>
+                                <th class="text-center">Drivers</th>
                                 <th class="text-center">Total KMs</th>
                                 <th class="text-center">Total Fuel (L)</th>
                                 <th class="text-center">Total Cost (₹)</th>
@@ -107,6 +107,7 @@ $(function () {
         });
 
     function loadData() {
+        window.loadReportData = loadData;
         const q = new URLSearchParams({
             region: $('#regionFilter').val(),
             year:   $('#yearFilter').val(),
@@ -122,7 +123,7 @@ $(function () {
                     $('#kpiKms').text(data.kpis[0].value.toLocaleString());
                     $('#kpiFuelCost').text(data.kpis[1].value.toLocaleString());
                     $('#kpiFuelQty').text(data.kpis[2].value.toLocaleString());
-                    $('#kpiInstructors').text(data.kpis[3].value.toLocaleString());
+                    $('#kpiDrivers').text(data.kpis[3].value.toLocaleString());
                 }
                 const tbody = $('#vehicleTable tbody');
                 tbody.empty();
@@ -135,7 +136,7 @@ $(function () {
                     tbody.append(`<tr>
                         <td class="font-weight-bold">${row.region_name}</td>
                         <td>${row.program_name}</td>
-                        <td class="text-center">${(row.instructors||0).toLocaleString()}</td>
+                        <td class="text-center">${(row.drivers||0).toLocaleString()}</td>
                         <td class="text-center font-weight-bold">${(row.total_kms||0).toLocaleString()}</td>
                         <td class="text-center">${(row.total_fuel_l||0).toLocaleString()}</td>
                         <td class="text-center text-danger font-weight-bold">₹${parseFloat(row.total_cost||0).toLocaleString()}</td>

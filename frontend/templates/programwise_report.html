@@ -163,6 +163,7 @@ $(function () {
         });
 
     function loadData() {
+        window.loadReportData = loadData;
         const filters = {
             category: $('#categoryFilter').val(),
             year: $('#yearFilter').val(),

@@ -45,37 +45,37 @@
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-info">
                     <div class="inner">
-                        <h3 id="kpiSessions">0</h3>
-                        <p>Total Sessions</p>
+                        <h3 id="kpiInstructors">0</h3>
+                        <p>Total Instructors</p>
                     </div>
-                    <div class="icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                    <div class="icon"><i class="fas fa-users"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-success">
                     <div class="inner">
-                        <h3 id="kpiStudents">0</h3>
-                        <p>Students Reached</p>
+                        <h3 id="kpiDrivers">0</h3>
+                        <p>Total Drivers</p>
                     </div>
-                    <div class="icon"><i class="fas fa-user-graduate"></i></div>
+                    <div class="icon"><i class="fas fa-truck"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-navy-blue">
                     <div class="inner">
-                        <h3 id="kpiPrograms">0</h3>
-                        <p>Active Programs</p>
+                        <h3 id="kpiStates">0</h3>
+                        <p>States Reached</p>
                     </div>
-                    <div class="icon"><i class="fas fa-project-diagram"></i></div>
+                    <div class="icon"><i class="fas fa-map-marker-alt"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-danger">
                     <div class="inner">
-                        <h3 id="kpiInstructors">0</h3>
-                        <p>Active Instructors</p>
+                        <h3 id="kpiPrograms">0</h3>
+                        <p>Total Programs</p>
                     </div>
-                    <div class="icon"><i class="fas fa-users"></i></div>
+                    <div class="icon"><i class="fas fa-project-diagram"></i></div>
                 </div>
             </div>
         </div>
@@ -113,9 +113,10 @@
                             <tr>
                                 <th>Region</th>
                                 <th>Sessions</th>
-                                <th>Schools Visited</th>
-                                <th>Students Reached</th>
+                                <th>Schools</th>
+                                <th>Exposures</th>
                                 <th>Instructors</th>
+                                <th>Drivers</th>
                                 <th>Programs</th>
                             </tr>
                         </thead>
@@ -177,6 +178,7 @@
         }
 
         function loadData() {
+            window.loadReportData = loadData;
             const q = new URLSearchParams({
                 start_year: $('#startYear').val(),
                 end_year: $('#endYear').val(),
@@ -189,10 +191,10 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.kpis && data.kpis.length >= 4) {
-                        $('#kpiSessions').text(data.kpis[0].value.toLocaleString());
-                        $('#kpiStudents').text(data.kpis[1].value.toLocaleString());
-                        $('#kpiPrograms').text(data.kpis[2].value.toLocaleString());
-                        $('#kpiInstructors').text(data.kpis[3].value.toLocaleString());
+                        $('#kpiInstructors').text(data.kpis[0].value.toLocaleString());
+                        $('#kpiDrivers').text(data.kpis[1].value.toLocaleString());
+                        $('#kpiStates').text(data.kpis[2].value.toLocaleString());
+                        $('#kpiPrograms').text(data.kpis[3].value.toLocaleString());
                     }
                     if (data.charts) {
                         renderBarChart('sessionsRegionChart', data.charts.sessions_by_region, 'sessionsChart', '#3b82f6');
@@ -212,6 +214,7 @@
                         <td class="text-center">${(row.schools_visited || 0).toLocaleString()}</td>
                         <td class="text-center">${(row.students_reached || 0).toLocaleString()}</td>
                         <td class="text-center">${(row.instructors || 0).toLocaleString()}</td>
+                        <td class="text-center">${(row.drivers || 0).toLocaleString()}</td>
                         <td class="text-center">${(row.programs || 0).toLocaleString()}</td>
                     </tr>`);
                     });

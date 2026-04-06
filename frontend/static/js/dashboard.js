@@ -791,15 +791,24 @@
                 info.innerHTML = `Showing ${totalCount > 0 ? start : 0} to ${end} of ${totalCount} entries`;
             }
             
-            const currentSpan = context.querySelector('.current-page');
+            const currentInput = context.querySelector('.page-input');
             const totalSpan = context.querySelector('.total-pages');
-            if (currentSpan) currentSpan.textContent = currentPage;
+            if (currentInput) currentInput.value = currentPage;
             if (totalSpan) totalSpan.textContent = totalPages;
 
             const prevBtn = context.querySelector('.prev-page');
             const nextBtn = context.querySelector('.next-page');
             if (prevBtn) prevBtn.disabled = (currentPage <= 1);
             if (nextBtn) nextBtn.disabled = (currentPage >= totalPages);
+        },
+        goto: function(targetPage, callback) {
+            const totalPages = Math.ceil(this.state.total / this.state.limit) || 1;
+            let page = parseInt(targetPage);
+            if (isNaN(page) || page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+            
+            this.state.offset = (page - 1) * this.state.limit;
+            if (typeof callback === 'function') callback();
         },
         reset: function() {
             this.state.offset = 0;
@@ -834,6 +843,20 @@
             if (window.loadReportData) window.loadReportData();
             else if (typeof loadData === 'function') loadData();
         });
+    });
+
+    $(document).on('change', '.page-input', function() {
+        const val = $(this).val();
+        window.PramanaPagination.goto(val, () => {
+            if (window.loadReportData) window.loadReportData();
+            else if (typeof loadData === 'function') loadData();
+        });
+    });
+
+    $(document).on('keyup', '.page-input', function(e) {
+        if (e.key === 'Enter') {
+            $(this).blur(); // Trigger change event
+        }
     });
 
     // Reset pagination on "See Report"
