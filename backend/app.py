@@ -135,12 +135,12 @@ def render_page(request, template_name, title, page_id):
 # -----------------------------
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request):
+def landing_page(request: Request):
     return render_page(
         request,
-        "index.html",
-        "Program & Donor Tracker",
-        "dashboard",
+        "landing.html",
+        "Pramana Analytics Dashboard",
+        "landing",
     )
 
 
