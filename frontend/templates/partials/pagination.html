@@ -1,14 +1,20 @@
 <div class="pagination-container">
-    <div class="pagination-info">
+    <div class="pagination-info text-muted">
         Showing <span class="page-count-start">0</span> to <span class="page-count-end">0</span> of <span class="page-count-total">0</span> entries
     </div>
-    <div class="pagination-controls">
-        <button class="pagination-btn prev-page" disabled>
-            <i class="fas fa-chevron-left"></i> Previous
+    <div class="pagination-controls-wrapper">
+        <button class="pagination-btn prev-page" title="Previous Page" disabled>
+            <i class="fas fa-chevron-left mr-1"></i> Previous
         </button>
-        <span class="page-indicator">Page <input type="number" class="page-input" value="1" min="1"> of <span class="total-pages">1</span></span>
-        <button class="pagination-btn next-page" disabled>
-            Next <i class="fas fa-chevron-right"></i>
+        
+        <div class="pagination-page-selector">
+            <span>Page</span>
+            <input type="number" class="page-input" value="1" min="1">
+            <span>of <span class="total-pages">1</span></span>
+        </div>
+
+        <button class="pagination-btn next-page" title="Next Page" disabled>
+            Next <i class="fas fa-chevron-right ml-1"></i>
         </button>
     </div>
 </div>
