@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    :root {
+        --agastya-orange: #ff851b;
+        --agastya-black: #1a1a1a;
+        --agastya-text-muted: #555555;
+        --agastya-light-bg: #fdfdfd;
+    }
+
+    .landing-wrapper {
+        min-height: calc(100vh - 120px);
+        background: var(--agastya-light-bg);
+        color: var(--agastya-black);
+        padding: 3rem 0;
+    }
+
+    .hero-section {
+        animation: fadeInUp 0.8s ease-out;
+        text-align: center;
+        margin-bottom: 4rem;
+    }
+
+    .hero-logo {
+        max-height: 140px;
+        margin-bottom: 1.5rem;
+        object-fit: contain;
+    }
+
+    .hero-title {
+        font-weight: 800;
+        color: var(--agastya-black);
+        font-size: 2.75rem;
+        letter-spacing: -1px;
+    }
+
+    .hero-title span {
+        color: var(--agastya-orange);
+    }
+
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        padding: 0 1rem;
+        animation: fadeInUp 1s ease-out;
+    }
+
+    .feature-card {
+        background: #ffffff;
+        border: 1px solid #eeeeee;
+        border-radius: 12px;
+        padding: 2.5rem;
+        text-align: left;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        cursor: default;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        border-color: var(--agastya-orange);
+    }
+
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 133, 27, 0.1);
+        color: var(--agastya-orange);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .feature-card:hover .feature-icon {
+        background: var(--agastya-orange);
+        color: #fff;
+    }
+
+    .feature-title {
+        font-weight: 700;
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+        color: var(--agastya-black);
+    }
+
+    .feature-text {
+        color: var(--agastya-text-muted);
+        line-height: 1.6;
+        font-size: 0.95rem;
+    }
+
+    .feature-text strong {
+        color: var(--agastya-orange);
+        font-weight: 700;
+    }
+
+    .cta-section {
+        margin-top: 5rem;
+        text-align: center;
+        animation: fadeInUp 1.2s ease-out;
+    }
+
+    .btn-agastya {
+        background: var(--agastya-orange);
+        color: #fff;
+        border: none;
+        padding: 1rem 3rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 20px rgba(255, 133, 27, 0.2);
+    }
+
+    .btn-agastya:hover {
+        background: #e67700;
+        color: #fff;
+        transform: scale(1.05);
+        box-shadow: 0 15px 30px rgba(255, 133, 27, 0.3);
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .description-highlight {
+        border-left: 4px solid var(--agastya-orange);
+        padding-left: 1.5rem;
+        margin: 2rem auto;
+        max-width: 800px;
+        text-align: left;
+        font-size: 1.1rem;
+        color: var(--agastya-text-muted);
+    }
+</style>
+
+<div class="landing-wrapper">
+    <div class="container-fluid">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <img src="{{ url_for('static', path='images/Agastya Horizontal color-01.jpg') }}" alt="Agastya Logo"
+                class="hero-logo">
+            <h1 class="hero-title">Pramana <span>Analytics</span> Dashboard</h1>
+            <div class="description-highlight">
+                Empowering data-driven decisions through advanced <strong>Business Intelligence</strong>.
+                Track, analyze, and optimize rural education initiatives with precision and real-time oversight.
+            </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="feature-grid">
+            <!-- Instructor Performance -->
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <h3 class="feature-title">Instructor Performance</h3>
+                <p class="feature-text">
+                    Monitor <strong>attendance trends</strong>, activity distribution across regions, and individual
+                    session delivery.
+                    Identify high-performing educators and ensure consistent educational quality.
+                </p>
+            </div>
+
+            <!-- Program Reach -->
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-street-view"></i>
+                </div>
+                <h3 class="feature-title">Program Reach</h3>
+                <p class="feature-text">
+                    Analyze <strong>student exposures</strong> and school participation metrics.
+                    Visualize nationwide expansion and segment outreach and impact by regional hubs.
+                </p>
+            </div>
+
+            <!-- Operational Efficiency -->
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-shuttle-van"></i>
+                </div>
+                <h3 class="feature-title">Operational Efficiency</h3>
+                <p class="feature-text">
+                    Gain visibility into <strong>vehicle logistics</strong>, fuel utilization, and resource deployment.
+                    Streamline operations to ensure maximum impact in remote locations.
+                </p>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="cta-section">
+            <a href="/overview" class="btn btn-agastya">
+                Explore Overview Dashboard
+            </a>
+            <p class="text-muted mt-3 text-sm">
+                Access real-time KPIs and structured reporting insights.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
