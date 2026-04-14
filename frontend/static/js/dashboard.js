@@ -828,30 +828,9 @@
         }
     };
 
-    // Global Event Delegation for Pagination
-    $(document).on('click', '.prev-page', function(e) {
-        e.preventDefault();
-        window.PramanaPagination.prev(() => {
-            if (window.loadReportData) window.loadReportData();
-            else if (typeof loadData === 'function') loadData();
-        });
-    });
-
-    $(document).on('click', '.next-page', function(e) {
-        e.preventDefault();
-        window.PramanaPagination.next(() => {
-            if (window.loadReportData) window.loadReportData();
-            else if (typeof loadData === 'function') loadData();
-        });
-    });
-
-    $(document).on('change', '.page-input', function() {
-        const val = $(this).val();
-        window.PramanaPagination.goto(val, () => {
-            if (window.loadReportData) window.loadReportData();
-            else if (typeof loadData === 'function') loadData();
-        });
-    });
+    // The individual pages handle the click events on .prev-page, .next-page, and .page-input
+    // to ensure they call their own context-specific loadData() functions.
+    // This removes the global listeners that were causing double-increments/skipping.
 
     $(document).on('keyup', '.page-input', function(e) {
         if (e.key === 'Enter') {
