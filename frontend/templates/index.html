@@ -10,40 +10,16 @@
             </div>
             <div class="card-body">
                 <div class="form-group">
-                    <label>Start Year</label>
-                    <select id="startYear" class="form-control select2">
-                        <option value="2020">2020</option>
-                        <option value="2021">2021</option>
-                        <option value="2022">2022</option>
-                        <option value="2023">2023</option>
-                        <option value="2024">2024</option>
-                        <option value="2025">2025</option>
-                        <option value="2026">2026</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>End Year</label>
-                    <select id="endYear" class="form-control select2">
-                        <option value="2020">2020</option>
-                        <option value="2021">2021</option>
-                        <option value="2022">2022</option>
-                        <option value="2023">2023</option>
-                        <option value="2024">2024</option>
-                        <option value="2025">2025</option>
-                        <option value="2026" selected>2026</option>
-                    </select>
+                    <label>Year</label>
+                    <select id="yearFilter" class="form-control" multiple></select>
                 </div>
                 <div class="form-group">
                     <label>Region</label>
-                    <select id="regionFilter" class="form-control select2">
-                        <option value="">All Regions</option>
-                    </select>
+                    <select id="regionFilter" class="form-control" multiple></select>
                 </div>
                 <div class="form-group">
                     <label>Program</label>
-                    <select id="programFilter" class="form-control select2">
-                        <option value="">All Programs</option>
-                    </select>
+                    <select id="programFilter" class="form-control" multiple></select>
                 </div>
                 <hr>
                 <button id="seeReport" class="btn btn-primary btn-block">
@@ -56,32 +32,70 @@
     <!-- Right Column: Dashboard Content -->
     <div class="col-md-10">
         <!-- KPI Grid -->
-        {% include "partials/overview_kpis.html" %}
+        <div class="row mb-3">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info kpi-clickable">
+                    <div class="inner">
+                        <h3 id="kpiInstructors">0 <small id="kpiTrendInst" class="kpi-trend"></small></h3>
+                        <p>Total Instructors</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success kpi-clickable">
+                    <div class="inner">
+                        <h3 id="kpiDrivers">0 <small id="kpiTrendDrv" class="kpi-trend"></small></h3>
+                        <p>Total Drivers</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-truck"></i></div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-navy-blue kpi-clickable">
+                    <div class="inner">
+                        <h3 id="kpiStates">0 <small id="kpiTrendStates" class="kpi-trend"></small></h3>
+                        <p>States Reached</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-map-marked-alt"></i></div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger kpi-clickable">
+                    <div class="inner">
+                        <h3 id="kpiPrograms">0 <small id="kpiTrendProg" class="kpi-trend"></small></h3>
+                        <p>Total Programs</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-project-diagram"></i></div>
+                </div>
+            </div>
+        </div>
 
         <section class="overview-content-stack mt-2">
             <div class="row">
-                <div class="col-md-6 mb-2">
-                    <div class="card h-100 white-chart-card">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 white-chart-card chart-card-equal">
                         <div class="card-header border-0 pb-0">
-                            <h3 class="card-title  text-sm uppercase">Number of Instructors per Region</h3>
+                            <h3 class="card-title text-sm uppercase">Instructors per Region</h3>
                         </div>
                         <div class="card-body">
-                            <div style="height:280px;">
+                            <div class="chart-area" style="height:260px;">
                                 <canvas id="instructorRegionChart"></canvas>
                             </div>
+                            <div id="instLegend" class="chart-legend-external"></div>
                         </div>
                     </div>
                 </div>
-
-                <div class="col-md-6 mb-2">
-                    <div class="card h-100 white-chart-card">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 white-chart-card chart-card-equal">
                         <div class="card-header border-0 pb-0">
-                            <h3 class="card-title text-sm uppercase">Number of Programs by Region</h3>
+                            <h3 class="card-title text-sm uppercase">Programs by Region</h3>
                         </div>
                         <div class="card-body">
-                            <div style="height:280px;">
+                            <div class="chart-area" style="height:260px;">
                                 <canvas id="programChart"></canvas>
                             </div>
+                            <div id="progLegend" class="chart-legend-external"></div>
                         </div>
                     </div>
                 </div>
@@ -93,114 +107,101 @@
 
 {% block scripts %}
 <script>
-    $(function () {
-        const pagination = window.PramanaPagination;
+$(function () {
+    const msYear = new PramanaMultiSelect('#yearFilter', { placeholder: 'All Years' });
+    const msRegion = new PramanaMultiSelect('#regionFilter', { placeholder: 'All Regions' });
+    const msProgram = new PramanaMultiSelect('#programFilter', { placeholder: 'All Programs' });
 
-        if ($.fn.select2) {
-            $('.select2').select2({ theme: 'bootstrap4' });
+    // Load dynamic filter options (year slicer limited to available data)
+    fetch('/dashboard/filters')
+        .then(res => res.json())
+        .then(data => {
+            msRegion.setOptions(data.regions || []);
+        });
+
+    // Cascading programs when region selected
+    document.querySelector('#regionFilter').addEventListener('change', function() {
+        const firstRegion = msRegion.getValues()[0] || '';
+        if (firstRegion) {
+            fetch(`/dashboard/filters?region_name=${encodeURIComponent(firstRegion)}`)
+                .then(res => res.json())
+                .then(data => { msProgram.setOptions(data.programs || []); });
+        } else {
+            msProgram.setOptions([]);
         }
+    });
 
-        const rf = $('#regionFilter');
-        const pf = $('#programFilter');
+    // Load years dynamically from data
+    fetch('/session/filter-options')
+        .then(res => res.json())
+        .then(data => {
+            const years = data.years || [];
+            msYear.setOptions(years.map(y => ({ value: String(y), label: String(y) })));
+        })
+        .catch(() => {});
 
-        // Initially disable programs
-        pf.prop('disabled', true);
+    let previousKpis = null;
 
-        fetch('/dashboard/filters')
+    function renderTrend(id, cur, prev) {
+        const el = document.getElementById(id);
+        if (!el || prev === null || prev === undefined) { if (el) el.innerHTML = ''; return; }
+        if (prev === 0 && cur === 0) { el.innerHTML = ''; return; }
+        const pct = prev === 0 ? 100 : ((cur - prev) / prev * 100);
+        const r = Math.abs(pct).toFixed(1);
+        if (pct > 0) { el.className = 'kpi-trend kpi-trend-up'; el.innerHTML = `<i class="fas fa-arrow-up"></i> +${r}%`; }
+        else if (pct < 0) { el.className = 'kpi-trend kpi-trend-down'; el.innerHTML = `<i class="fas fa-arrow-down"></i> -${r}%`; }
+        else { el.className = 'kpi-trend kpi-trend-neutral'; el.innerHTML = `<i class="fas fa-minus"></i> 0%`; }
+    }
+
+    function loadData() {
+        const yearVals = msYear.getValues();
+        const filters = {
+            start_year: yearVals.length ? yearVals[0] : '',
+            end_year: yearVals.length ? yearVals[yearVals.length - 1] : '',
+            region: msRegion.getCSV(),
+            program: msProgram.getCSV()
+        };
+
+        const query = new URLSearchParams(filters).toString();
+        fetch(`/dashboard/data?${query}`)
             .then(res => res.json())
             .then(data => {
-                data.regions.forEach(r => rf.append(new Option(r, r)));
+                // KPIs
+                const k = data.kpis;
+                $('#kpiInstructors').contents().first()[0].textContent = (k.total_instructors || 0).toLocaleString() + ' ';
+                $('#kpiDrivers').contents().first()[0].textContent = (k.total_drivers || 0).toLocaleString() + ' ';
+                $('#kpiStates').contents().first()[0].textContent = (k.total_states || 0).toLocaleString() + ' ';
+                $('#kpiPrograms').contents().first()[0].textContent = (k.total_programs || 0).toLocaleString() + ' ';
+
+                if (previousKpis) {
+                    renderTrend('kpiTrendInst', k.total_instructors, previousKpis.total_instructors);
+                    renderTrend('kpiTrendDrv', k.total_drivers, previousKpis.total_drivers);
+                    renderTrend('kpiTrendStates', k.total_states, previousKpis.total_states);
+                    renderTrend('kpiTrendProg', k.total_programs, previousKpis.total_programs);
+                }
+                previousKpis = { ...k };
+
+                // Charts using PramanaCharts helpers
+                const instData = data.charts.instructors_by_region;
+                if (instData && instData.labels) {
+                    PramanaCharts.createBarChart('instructorRegionChart',
+                        instData.labels.map((l, i) => ({ label: l, value: instData.datasets[0].data[i] })),
+                        { datasetLabel: 'Instructors', externalLegendId: 'instLegend', colors: '#3b82f6' }
+                    );
+                }
+
+                const progData = data.charts.programs_by_region;
+                if (progData && progData.labels) {
+                    PramanaCharts.createBarChart('programChart',
+                        progData.labels.map((l, i) => ({ label: l, value: progData.datasets[0].data[i] })),
+                        { datasetLabel: 'Programs', externalLegendId: 'progLegend', colors: '#f59e0b' }
+                    );
+                }
             });
+    }
 
-        rf.on('change', function () {
-            const selectedRegion = $(this).val();
-            pf.empty().append(new Option('All Programs', ''));
-            
-            if (selectedRegion) {
-                // Fetch programs for this regional specifically
-                fetch(`/dashboard/filters?region_name=${encodeURIComponent(selectedRegion)}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        data.programs.forEach(p => pf.append(new Option(p, p)));
-                        pf.prop('disabled', false);
-                    });
-            } else {
-                pf.prop('disabled', true);
-            }
-        });
-
-
-        function loadData() {
-            const filters = {
-                start_year: $('#startYear').val(),
-                end_year: $('#endYear').val(),
-                region: $('#regionFilter').val(),
-                program: $('#programFilter').val(),
-                limit: pagination.state.limit,
-                offset: pagination.state.offset
-            };
-
-            const query = new URLSearchParams(filters).toString();
-            fetch(`/dashboard/data?${query}`)
-                .then(res => res.json())
-                .then(data => {
-                    // KPIs
-                    $('#kpiInstructors').text(data.kpis.total_instructors.toLocaleString());
-                    $('#kpiDrivers').text(data.kpis.total_drivers.toLocaleString());
-                    $('#kpiStates').text(data.kpis.total_states.toLocaleString());
-                    $('#kpiPrograms').text(data.kpis.total_programs.toLocaleString());
-
-                    // Charts
-                    function renderBarChart(canvasId, chartData, chartRef) {
-                        const el = document.getElementById(canvasId);
-                        if (!el) return;
-                        const ctx = el.getContext('2d');
-                        if (window[chartRef]) window[chartRef].destroy();
-                        window[chartRef] = new Chart(ctx, {
-                            type: 'bar',
-                            data: chartData,
-                            options: {
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: {
-                                        display: true,
-                                        position: 'bottom',
-                                        align: 'start',
-                                        labels: { color: '#000000' }
-                                    }
-
-
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true,
-                                        grid: { display: false },
-                                        ticks: {
-                                            color: '#000000',
-                                            precision: 0
-                                        }
-                                    },
-                                    x: {
-                                        grid: { display: false },
-                                        ticks: { color: '#000000' }
-                                    }
-                                }
-                            }
-                        });
-                    }
-
-                    renderBarChart('instructorRegionChart', data.charts.instructors_by_region, 'instructorChartInst');
-                    renderBarChart('driverRegionChart', data.charts.drivers_by_region, 'driverChartInst');
-                    renderBarChart('programChart', data.charts.programs_by_region, 'programChartInst');
-                });
-        }
-
-        $('#seeReport').click(function () {
-            loadData();
-        });
-
-        // Auto-load
-        setTimeout(loadData, 300);
-    });
+    $('#seeReport').click(function () { loadData(); });
+    setTimeout(loadData, 300);
+});
 </script>
 {% endblock %}

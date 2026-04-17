@@ -10,22 +10,16 @@
             </div>
             <div class="card-body">
                 <div class="form-group">
-                    <label>Start Year</label>
-                    <select id="startYear" class="form-control select2">
-                        <option value="">All Years</option>
-                    </select>
+                    <label>Year</label>
+                    <select id="yearFilter" class="form-control" multiple></select>
                 </div>
                 <div class="form-group">
-                    <label>End Year</label>
-                    <select id="endYear" class="form-control select2">
-                        <option value="">All Years</option>
-                    </select>
+                    <label>Quarter</label>
+                    <select id="quarterFilter" class="form-control" multiple></select>
                 </div>
                 <div class="form-group">
                     <label>Region</label>
-                    <select id="regionFilter" class="form-control select2">
-                        <option value="">All Regions</option>
-                    </select>
+                    <select id="regionFilter" class="form-control" multiple></select>
                 </div>
                 <hr>
                 <button id="seeReport" class="btn btn-primary btn-block mb-2">
@@ -41,38 +35,38 @@
     <!-- Content -->
     <div class="col-md-10">
         <!-- KPI Cards -->
-        <div class="row mb-4">
+        <div class="row mb-3">
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-info">
+                <div class="small-box bg-info kpi-clickable">
                     <div class="inner">
-                        <h3 id="kpiInstructors">0</h3>
+                        <h3 id="kpiInstructors">0 <small id="kpiTrend0" class="kpi-trend"></small></h3>
                         <p>Total Instructors</p>
                     </div>
                     <div class="icon"><i class="fas fa-users"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-success">
+                <div class="small-box bg-success kpi-clickable">
                     <div class="inner">
-                        <h3 id="kpiDrivers">0</h3>
+                        <h3 id="kpiDrivers">0 <small id="kpiTrend1" class="kpi-trend"></small></h3>
                         <p>Total Drivers</p>
                     </div>
                     <div class="icon"><i class="fas fa-truck"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-navy-blue">
+                <div class="small-box bg-navy-blue kpi-clickable">
                     <div class="inner">
-                        <h3 id="kpiStates">0</h3>
+                        <h3 id="kpiStates">0 <small id="kpiTrend2" class="kpi-trend"></small></h3>
                         <p>States Reached</p>
                     </div>
                     <div class="icon"><i class="fas fa-map-marker-alt"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-danger">
+                <div class="small-box bg-danger kpi-clickable">
                     <div class="inner">
-                        <h3 id="kpiPrograms">0</h3>
+                        <h3 id="kpiPrograms">0 <small id="kpiTrend3" class="kpi-trend"></small></h3>
                         <p>Total Programs</p>
                     </div>
                     <div class="icon"><i class="fas fa-project-diagram"></i></div>
@@ -82,23 +76,36 @@
 
         <!-- Charts Row -->
         <div class="row mb-3">
-            <div class="col-md-6">
-                <div class="card h-100 white-chart-card">
+            <div class="col-md-4">
+                <div class="card h-100 white-chart-card chart-card-equal">
                     <div class="card-header border-0 pb-0">
                         <h3 class="card-title text-sm uppercase">Sessions by Region</h3>
                     </div>
                     <div class="card-body">
-                        <div style="height:260px"><canvas id="sessionsRegionChart"></canvas></div>
+                        <div class="chart-area" style="height:240px;"><canvas id="sessionsRegionChart"></canvas></div>
+                        <div id="sessionsLegend" class="chart-legend-external"></div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card h-100 white-chart-card">
+            <div class="col-md-4">
+                <div class="card h-100 white-chart-card chart-card-equal">
                     <div class="card-header border-0 pb-0">
-                        <h3 class="card-title text-sm uppercase">Students Reached by Region</h3>
+                        <h3 class="card-title text-sm uppercase">Students by Region</h3>
                     </div>
                     <div class="card-body">
-                        <div style="height:260px"><canvas id="studentsRegionChart"></canvas></div>
+                        <div class="chart-area" style="height:240px;"><canvas id="studentsRegionChart"></canvas></div>
+                        <div id="studentsLegend" class="chart-legend-external"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 white-chart-card chart-card-equal">
+                    <div class="card-header border-0 pb-0">
+                        <h3 class="card-title text-sm uppercase">Program Distribution</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-area" style="height:240px;"><canvas id="programPieChart"></canvas></div>
+                        <div id="programPieLegend" class="chart-legend-external"></div>
                     </div>
                 </div>
             </div>
@@ -111,13 +118,13 @@
                     <table id="nationwideTable" class="table table-striped table-hover mb-0 high-contrast-table">
                         <thead>
                             <tr>
-                                <th>Region</th>
-                                <th>Sessions</th>
-                                <th>Schools</th>
-                                <th>Exposures</th>
-                                <th>Instructors</th>
-                                <th>Drivers</th>
-                                <th>Programs</th>
+                                <th data-sortable="true" data-sort-type="string">Region</th>
+                                <th data-sortable="true" data-sort-type="number">Sessions</th>
+                                <th data-sortable="true" data-sort-type="number">Schools</th>
+                                <th data-sortable="true" data-sort-type="number">Exposures</th>
+                                <th data-sortable="true" data-sort-type="number">Instructors</th>
+                                <th data-sortable="true" data-sort-type="number">Drivers</th>
+                                <th data-sortable="true" data-sort-type="number">Programs</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -132,83 +139,94 @@
 
 {% block scripts %}
 <script>
-    $(function () {
-        const pagination = window.PramanaPagination;
-        if ($.fn.select2) $('.select2').select2({ theme: 'bootstrap4' });
+$(function () {
+    const pagination = window.PramanaPagination;
 
-        fetch('/nationwide-dashboard/filters')
+    const msYear = new PramanaMultiSelect('#yearFilter', { placeholder: 'All Years' });
+    const msQuarter = new PramanaMultiSelect('#quarterFilter', { placeholder: 'All Quarters' });
+    const msRegion = new PramanaMultiSelect('#regionFilter', { placeholder: 'All Regions' });
+
+    msQuarter.setOptions([
+        { value: '1', label: 'Q1 (Apr-Jun)' }, { value: '2', label: 'Q2 (Jul-Sep)' },
+        { value: '3', label: 'Q3 (Oct-Dec)' }, { value: '4', label: 'Q4 (Jan-Mar)' }
+    ]);
+
+    fetch('/nationwide-dashboard/filters')
+        .then(r => r.json())
+        .then(data => {
+            msYear.setOptions((data.years || []).map(y => ({ value: String(y), label: String(y) })));
+            msRegion.setOptions(data.regions || []);
+        });
+
+    const tableSorter = new PramanaTableSort('nationwideTable');
+    let previousKpis = null;
+
+    function renderTrend(id, cur, prev) {
+        const el = document.getElementById(id);
+        if (!el || prev === null || prev === undefined) { if (el) el.innerHTML = ''; return; }
+        if (prev === 0 && cur === 0) { el.innerHTML = ''; return; }
+        const pct = prev === 0 ? 100 : ((cur - prev) / prev * 100);
+        const r = Math.abs(pct).toFixed(1);
+        if (pct > 0) { el.className = 'kpi-trend kpi-trend-up'; el.innerHTML = `<i class="fas fa-arrow-up"></i> +${r}%`; }
+        else if (pct < 0) { el.className = 'kpi-trend kpi-trend-down'; el.innerHTML = `<i class="fas fa-arrow-down"></i> -${r}%`; }
+        else { el.className = 'kpi-trend kpi-trend-neutral'; el.innerHTML = `<i class="fas fa-minus"></i> 0%`; }
+    }
+
+    function loadData() {
+        const q = new URLSearchParams({
+            start_year: msYear.getValues()[0] || '',
+            end_year: msYear.getValues().slice(-1)[0] || '',
+            region: msRegion.getCSV(),
+            limit: pagination.state.limit,
+            offset: pagination.state.offset
+        }).toString();
+
+        fetch(`/nationwide-dashboard/data?${q}`)
             .then(r => r.json())
             .then(data => {
-                data.years.forEach(y => {
-                    $('#startYear').append(new Option(y, y));
-                    $('#endYear').append(new Option(y, y));
-                });
-                data.regions.forEach(r => $('#regionFilter').append(new Option(r, r)));
-            });
+                // KPIs
+                if (data.kpis && data.kpis.length >= 4) {
+                    const vals = data.kpis.map(k => k.value);
+                    $('#kpiInstructors').contents().first()[0].textContent = vals[0].toLocaleString() + ' ';
+                    $('#kpiDrivers').contents().first()[0].textContent = vals[1].toLocaleString() + ' ';
+                    $('#kpiStates').contents().first()[0].textContent = vals[2].toLocaleString() + ' ';
+                    $('#kpiPrograms').contents().first()[0].textContent = vals[3].toLocaleString() + ' ';
+                    if (previousKpis) {
+                        for (let i = 0; i < 4; i++) renderTrend('kpiTrend' + i, vals[i], previousKpis[i]);
+                    }
+                    previousKpis = vals;
+                }
 
-        function renderBarChart(canvasId, chartData, chartRef, color) {
-            const el = document.getElementById(canvasId);
-            if (!el) return;
-            const ctx = el.getContext('2d');
-            if (window[chartRef]) window[chartRef].destroy();
-            window[chartRef] = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: chartData.map(d => d.label),
-                    datasets: [{ data: chartData.map(d => d.value), backgroundColor: color, borderRadius: 4 }]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { display: false },
-                            ticks: { color: '#000000', precision: 0 }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#000000' }
-                        }
+                // Charts
+                if (data.charts) {
+                    if (data.charts.sessions_by_region) {
+                        PramanaCharts.createBarChart('sessionsRegionChart', data.charts.sessions_by_region,
+                            { datasetLabel: 'Sessions', externalLegendId: 'sessionsLegend', colors: '#3b82f6' });
+                    }
+                    if (data.charts.students_by_region) {
+                        PramanaCharts.createBarChart('studentsRegionChart', data.charts.students_by_region,
+                            { datasetLabel: 'Students', externalLegendId: 'studentsLegend', colors: '#10b981' });
                     }
                 }
-            });
-        }
 
-        function loadData() {
-            window.loadReportData = loadData;
-            const q = new URLSearchParams({
-                start_year: $('#startYear').val(),
-                end_year: $('#endYear').val(),
-                region: $('#regionFilter').val(),
-                limit: pagination.state.limit,
-                offset: pagination.state.offset
-            }).toString();
+                // Pie chart from table
+                if (data.table && data.table.length > 0) {
+                    PramanaCharts.createPieChart('programPieChart',
+                        data.table.slice(0, 8).map(r => ({ label: r.region_name, value: r.sessions || 0 })),
+                        { externalLegendId: 'programPieLegend', doughnut: true }
+                    );
+                }
 
-            fetch(`/nationwide-dashboard/data?${q}`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.kpis && data.kpis.length >= 4) {
-                        $('#kpiInstructors').text(data.kpis[0].value.toLocaleString());
-                        $('#kpiDrivers').text(data.kpis[1].value.toLocaleString());
-                        $('#kpiStates').text(data.kpis[2].value.toLocaleString());
-                        $('#kpiPrograms').text(data.kpis[3].value.toLocaleString());
-                    }
-                    if (data.charts) {
-                        renderBarChart('sessionsRegionChart', data.charts.sessions_by_region, 'sessionsChart', '#3b82f6');
-                        renderBarChart('studentsRegionChart', data.charts.students_by_region, 'studentsChart', '#10b981');
-                    }
-                    const tbody = $('#nationwideTable tbody');
-                    tbody.empty();
-                    if (!data.table || data.table.length === 0) {
-                        tbody.append('<tr><td colspan="6" class="text-center py-4">No data found</td></tr>');
-                        pagination.updateInfo('nationwideTable', 0);
-                        return;
-                    }
-                    data.table.forEach(row => {
-                        tbody.append(`<tr>
+                // Table
+                const tbody = $('#nationwideTable tbody');
+                tbody.empty();
+                if (!data.table || data.table.length === 0) {
+                    tbody.append('<tr><td colspan="7" class="text-center py-4">No data found</td></tr>');
+                    pagination.updateInfo('nationwideTable', 0);
+                    return;
+                }
+                data.table.forEach(row => {
+                    tbody.append(`<tr>
                         <td class="font-weight-bold">${row.region_name}</td>
                         <td class="text-center">${(row.sessions || 0).toLocaleString()}</td>
                         <td class="text-center">${(row.schools_visited || 0).toLocaleString()}</td>
@@ -217,21 +235,21 @@
                         <td class="text-center">${(row.drivers || 0).toLocaleString()}</td>
                         <td class="text-center">${(row.programs || 0).toLocaleString()}</td>
                     </tr>`);
-                    });
-                    pagination.updateInfo('nationwideTable', data.total_count);
-                })
-                .catch(e => console.error('Error:', e));
-        }
+                });
+                pagination.updateInfo('nationwideTable', data.total_count);
+            })
+            .catch(e => console.error('Error:', e));
+    }
 
-        $('#seeReport').click(() => { pagination.reset(); loadData(); });
-        $('.prev-page').click(() => pagination.prev(loadData));
-        $('.next-page').click(() => pagination.next(loadData));
-        $('#exportXlsx').click(() => {
-            const q = new URLSearchParams({ start_year: $('#startYear').val(), end_year: $('#endYear').val(), region: $('#regionFilter').val() }).toString();
-            window.exportToXLSX(`/nationwide-dashboard/export?${q}`, 'nationwide_dashboard.xlsx');
-        });
-
-        setTimeout(loadData, 300);
+    $('#seeReport').click(() => { pagination.reset(); loadData(); });
+    $('.prev-page').click(() => pagination.prev(loadData));
+    $('.next-page').click(() => pagination.next(loadData));
+    $('#exportXlsx').click(() => {
+        const q = new URLSearchParams({ start_year: msYear.getValues()[0] || '', end_year: msYear.getValues().slice(-1)[0] || '', region: msRegion.getCSV() }).toString();
+        window.exportToXLSX(`/nationwide-dashboard/export?${q}`, 'nationwide_dashboard.xlsx');
     });
+
+    setTimeout(loadData, 300);
+});
 </script>
 {% endblock %}

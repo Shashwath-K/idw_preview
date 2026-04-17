@@ -11,32 +11,32 @@
             <div class="card-body">
                 <div class="form-group">
                     <label>Region</label>
-                    <select id="regionFilter" class="form-control select2">
-                        <option value="">All Regions</option>
+                    <select id="regionFilter" class="form-control" multiple>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Area</label>
-                    <select id="areaFilter" class="form-control select2">
-                        <option value="">All Areas</option>
+                    <select id="areaFilter" class="form-control" multiple>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Program</label>
-                    <select id="programFilter" class="form-control select2">
-                        <option value="">All Programs</option>
+                    <select id="programFilter" class="form-control" multiple>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Select Year</label>
-                    <select id="yearFilter" class="form-control select2">
-                        <option value="">All Years</option>
+                    <label>Year</label>
+                    <select id="yearFilter" class="form-control" multiple>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quarter</label>
+                    <select id="quarterFilter" class="form-control" multiple>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Month</label>
-                    <select id="monthFilter" class="form-control select2">
-                        <option value="">All Months</option>
+                    <select id="monthFilter" class="form-control" multiple>
                     </select>
                 </div>
                 <hr>
@@ -52,67 +52,107 @@
 
     <!-- Right Column: Dashboard Content -->
     <div class="col-md-10">
-        <!-- Dynamic KPI Cards -->
-        <div class="row mb-4">
+        <!-- KPI Cards -->
+        <div class="row mb-3">
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-info">
+                <div class="small-box bg-info kpi-clickable" data-kpi="schools">
                     <div class="inner">
-                        <h3 id="kpiTotalSchools">0</h3>
+                        <h3 id="kpiTotalSchools">0 <small id="kpiTrendSchools" class="kpi-trend"></small></h3>
                         <p>Total Schools</p>
                     </div>
-                    <div class="icon">
-                        <i class="fas fa-school"></i>
-                    </div>
+                    <div class="icon"><i class="fas fa-school"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-success">
+                <div class="small-box bg-success kpi-clickable" data-kpi="students">
                     <div class="inner">
-                        <h3 id="kpiTotalStudents">0</h3>
+                        <h3 id="kpiTotalStudents">0 <small id="kpiTrendStudents" class="kpi-trend"></small></h3>
                         <p>Total Students</p>
                     </div>
-                    <div class="icon">
-                        <i class="fas fa-user-graduate"></i>
-                    </div>
+                    <div class="icon"><i class="fas fa-user-graduate"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-navy-blue">
+                <div class="small-box bg-warning kpi-clickable" data-kpi="sessions">
                     <div class="inner">
-                        <h3 id="kpiTotalSessions">0</h3>
-                        <p>No of sessions</p>
+                        <h3 id="kpiTotalSessions">0 <small id="kpiTrendSessions" class="kpi-trend"></small></h3>
+                        <p>No of Sessions</p>
                     </div>
-                    <div class="icon">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
+                    <div class="icon"><i class="fas fa-calendar-check"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-danger">
+                <div class="small-box bg-danger kpi-clickable" data-kpi="monthly">
                     <div class="inner">
-                        <h3 id="kpiMonthlySessions">0</h3>
-                        <p>Monthly sessions</p>
+                        <h3 id="kpiMonthlySessions">0 <small id="kpiTrendMonthly" class="kpi-trend"></small></h3>
+                        <p>Monthly Sessions</p>
                     </div>
-                    <div class="icon">
-                        <i class="fas fa-calendar-alt"></i>
+                    <div class="icon"><i class="fas fa-calendar-alt"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-3" id="chartsRow">
+            <div class="col-md-7">
+                <div class="card h-100 white-chart-card chart-card-equal">
+                    <div class="card-header border-0 pb-0">
+                        <h3 class="card-title text-sm uppercase">Monthly Sessions Trend</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-area" style="height:240px;">
+                            <canvas id="trendLineChart"></canvas>
+                        </div>
+                        <div id="trendLineLegend" class="chart-legend-external"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="card h-100 white-chart-card chart-card-equal">
+                    <div class="card-header border-0 pb-0">
+                        <h3 class="card-title text-sm uppercase">Sessions by Program</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-area" style="height:240px;">
+                            <canvas id="programPieChart"></canvas>
+                        </div>
+                        <div id="programPieLegend" class="chart-legend-external"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drilldown Chart (hidden by default) -->
+        <div class="row mb-3 d-none" id="drilldownRow">
+            <div class="col-12">
+                <div class="card white-chart-card drilldown-overlay">
+                    <button class="btn btn-sm btn-outline-secondary drilldown-back-btn" id="drilldownBack">
+                        <i class="fas fa-arrow-left mr-1"></i> Back
+                    </button>
+                    <div class="card-header border-0 pb-0">
+                        <h3 class="card-title text-sm uppercase" id="drilldownTitle">Drilldown</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="height:280px;"><canvas id="drilldownChart"></canvas></div>
+                        <div id="drilldownLegend" class="chart-legend-external"></div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Table -->
-        <div class="card mt-2">
+        <div class="card">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table id="visitTable" class="table table-striped table-hover mb-0 high-contrast-table">
                         <thead>
                             <tr>
-                                <th>School Name</th>
-                                <th>Program Name</th>
-                                <th>Class</th>
-                                <th>SECTION</th>
-                                <th class="text-center">No. of Sessions</th>
-                                <th class="text-center">Exposures</th>
+                                <th data-sortable="true" data-sort-type="string">School Name</th>
+                                <th data-sortable="true" data-sort-type="string">Program</th>
+                                <th data-sortable="true" data-sort-type="string">Region</th>
+                                <th data-sortable="true" data-sort-type="string">Area</th>
+                                <th data-sortable="true" data-sort-type="number">Sessions</th>
+                                <th data-sortable="true" data-sort-type="number">Students Reached</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -132,68 +172,64 @@
 $(function () {
     const pagination = window.PramanaPagination;
 
-    if ($.fn.select2) {
-        $('.select2').select2({ theme: 'bootstrap4' });
-    }
+    // ---- Multi-Select Filters ----
+    const msRegion = new PramanaMultiSelect('#regionFilter', { placeholder: 'All Regions' });
+    const msArea = new PramanaMultiSelect('#areaFilter', { placeholder: 'All Areas' });
+    const msProgram = new PramanaMultiSelect('#programFilter', { placeholder: 'All Programs' });
+    const msYear = new PramanaMultiSelect('#yearFilter', { placeholder: 'All Years' });
+    const msQuarter = new PramanaMultiSelect('#quarterFilter', { placeholder: 'All Quarters' });
+    const msMonth = new PramanaMultiSelect('#monthFilter', { placeholder: 'All Months' });
 
-    // Initial load: Only fetch regions
-    function initFilters() {
-        const regionSelect = $('#regionFilter');
-        const areaSelect = $('#areaFilter');
-        const programSelect = $('#programFilter');
-        const yearSelect = $('#yearFilter');
-        const monthSelect = $('#monthFilter');
+    // Load filter options
+    fetch('/school-visit/filters')
+        .then(res => res.json())
+        .then(data => {
+            msRegion.setOptions(data.regions);
+            msArea.setOptions(data.areas);
+            msProgram.setOptions(data.programs);
+            msYear.setOptions(data.years);
+            msQuarter.setOptions(data.quarters.map(q => ({ value: String(q.id), label: q.name })));
+            msMonth.setOptions(data.months.map(m => ({ value: String(m.id), label: m.name })));
+        });
 
-        // Initially disable dependent filters
-        areaSelect.prop('disabled', true);
-        programSelect.prop('disabled', true);
+    // ---- Table Sort ----
+    const tableSorter = new PramanaTableSort('visitTable');
 
-        fetch('/school-visit/filters')
-            .then(res => res.json())
-            .then(data => {
-                regionSelect.empty().append('<option value="">All Regions</option>');
-                data.regions.forEach(r => regionSelect.append(new Option(r, r)));
-                
-                yearSelect.empty().append('<option value="">All Years</option>');
-                data.years.forEach(y => yearSelect.append(new Option(y, y)));
-                
-                monthSelect.empty().append('<option value="">All Months</option>');
-                data.months.forEach(m => monthSelect.append(new Option(m.name, m.id)));
-            });
-    }
+    // ---- Previous data for trend arrows ----
+    let previousKpis = null;
 
-    function refreshDependentFilters(regionName) {
-        const areaSelect = $('#areaFilter');
-        const programSelect = $('#programFilter');
-
-        if (!regionName) {
-            areaSelect.empty().append('<option value="">All Areas</option>').prop('disabled', true);
-            programSelect.empty().append('<option value="">All Programs</option>').prop('disabled', true);
+    function renderTrendArrow(elementId, currentVal, previousVal) {
+        const el = document.getElementById(elementId);
+        if (!el || previousVal === null || previousVal === undefined) {
+            if (el) el.innerHTML = '';
             return;
         }
-
-        fetch(`/school-visit/filters?region_name=${encodeURIComponent(regionName)}`)
-            .then(res => res.json())
-            .then(data => {
-                areaSelect.empty().append('<option value="">All Areas</option>').prop('disabled', false);
-                data.areas.forEach(a => areaSelect.append(new Option(a, a)));
-
-                programSelect.empty().append('<option value="">All Programs</option>').prop('disabled', false);
-                data.programs.forEach(p => programSelect.append(new Option(p, p)));
-            });
+        if (previousVal === 0 && currentVal === 0) {
+            el.innerHTML = '';
+            return;
+        }
+        const pctChange = previousVal === 0 ? 100 : ((currentVal - previousVal) / previousVal * 100);
+        const rounded = Math.abs(pctChange).toFixed(1);
+        if (pctChange > 0) {
+            el.className = 'kpi-trend kpi-trend-up';
+            el.innerHTML = `<i class="fas fa-arrow-up"></i> +${rounded}%`;
+        } else if (pctChange < 0) {
+            el.className = 'kpi-trend kpi-trend-down';
+            el.innerHTML = `<i class="fas fa-arrow-down"></i> -${rounded}%`;
+        } else {
+            el.className = 'kpi-trend kpi-trend-neutral';
+            el.innerHTML = `<i class="fas fa-minus"></i> 0%`;
+        }
     }
-
-    $('#regionFilter').on('change', function() {
-        refreshDependentFilters($(this).val());
-    });
 
     function loadData() {
         const filters = {
-            region: $('#regionFilter').val(),
-            area: $('#areaFilter').val(),
-            program: $('#programFilter').val(),
-            year: $('#yearFilter').val(),
-            month: $('#monthFilter').val(),
+            region: msRegion.getCSV(),
+            area: msArea.getCSV(),
+            program: msProgram.getCSV(),
+            year: msYear.getCSV(),
+            quarter: msQuarter.getCSV(),
+            month: msMonth.getCSV(),
             limit: pagination.state.limit,
             offset: pagination.state.offset
         };
@@ -207,31 +243,106 @@ $(function () {
 
                 // Update KPIs
                 if (data.kpis) {
-                    $('#kpiTotalSchools').text(data.kpis.total_schools.toLocaleString());
-                    $('#kpiTotalStudents').text(data.kpis.total_students.toLocaleString());
-                    $('#kpiTotalSessions').text(data.kpis.total_sessions.toLocaleString());
-                    $('#kpiMonthlySessions').text(data.kpis.monthly_sessions.toLocaleString());
+                    $('#kpiTotalSchools').contents().first()[0].textContent = data.kpis.total_schools.toLocaleString() + ' ';
+                    $('#kpiTotalStudents').contents().first()[0].textContent = data.kpis.total_students.toLocaleString() + ' ';
+                    $('#kpiTotalSessions').contents().first()[0].textContent = data.kpis.total_sessions.toLocaleString() + ' ';
+                    $('#kpiMonthlySessions').contents().first()[0].textContent = data.kpis.monthly_sessions.toLocaleString() + ' ';
+
+                    // Trend arrows (compare with previous load)
+                    if (previousKpis) {
+                        renderTrendArrow('kpiTrendSchools', data.kpis.total_schools, previousKpis.total_schools);
+                        renderTrendArrow('kpiTrendStudents', data.kpis.total_students, previousKpis.total_students);
+                        renderTrendArrow('kpiTrendSessions', data.kpis.total_sessions, previousKpis.total_sessions);
+                        renderTrendArrow('kpiTrendMonthly', data.kpis.monthly_sessions, previousKpis.monthly_sessions);
+                    }
+                    previousKpis = { ...data.kpis };
                 }
 
+                // Render trend line chart
+                if (data.trends && data.trends.length > 0) {
+                    PramanaCharts.createLineChart('trendLineChart', 
+                        data.trends.map(t => ({ label: t.label, value: t.sessions })),
+                        { datasetLabel: 'Sessions', showTrendline: true, externalLegendId: 'trendLineLegend' }
+                    );
+                }
+
+                // Render pie chart
+                if (data.pie && data.pie.length > 0) {
+                    PramanaCharts.createPieChart('programPieChart', data.pie,
+                        { externalLegendId: 'programPieLegend', doughnut: true }
+                    );
+                }
+
+                // Table
                 if (data.table.length === 0) {
-                    tbody.append('<tr><td colspan="6" class="text-center">No visits found matching these filters</td></tr>');
+                    tbody.append('<tr><td colspan="6" class="text-center">No data found</td></tr>');
                     pagination.updateInfo('visitTable', 0);
                     return;
                 }
-                
                 data.table.forEach(row => {
                     tbody.append(`
                         <tr>
-                            <td><strong>${row.school_name}</strong></td>
-                            <td><span class="badge badge-info">${row.program_name}</span></td>
-                            <td>${row.class_name}</td>
-                            <td>${row.section_name}</td>
-                            <td class="text-center font-weight-bold">${row.sessions}</td>
-                            <td class="text-center font-weight-bold text-primary">${row.exposures.toLocaleString()}</td>
+                            <td>${row.school_name}</td>
+                            <td>${row.program_name}</td>
+                            <td>${row.region}</td>
+                            <td>${row.area}</td>
+                            <td>${row.sessions}</td>
+                            <td>${row.students}</td>
                         </tr>
                     `);
                 });
                 pagination.updateInfo('visitTable', data.total_count);
+            });
+    }
+
+    // ---- KPI Click → Drilldown ----
+    $('.kpi-clickable').on('click', function () {
+        const kpiType = $(this).data('kpi');
+        const trends = window._lastTrends || [];
+        if (!trends.length) return;
+
+        let drillData, title;
+        if (kpiType === 'schools') {
+            drillData = trends.map(t => ({ label: t.label, value: t.schools }));
+            title = 'Schools Over Time';
+        } else {
+            drillData = trends.map(t => ({ label: t.label, value: t.sessions }));
+            title = 'Sessions Over Time';
+        }
+
+        $('#chartsRow').addClass('d-none');
+        $('#drilldownRow').removeClass('d-none');
+        $('#drilldownTitle').text(title);
+        PramanaCharts.createLineChart('drilldownChart', drillData, {
+            datasetLabel: title, showTrendline: true, externalLegendId: 'drilldownLegend',
+            lineColor: kpiType === 'schools' ? '#3b82f6' : '#f59e0b'
+        });
+    });
+
+    $('#drilldownBack').on('click', function () {
+        $('#drilldownRow').addClass('d-none');
+        $('#chartsRow').removeClass('d-none');
+        PramanaCharts.destroy('drilldownChart');
+    });
+
+    // Store trends for drilldown
+    const _origLoadData = loadData;
+    function loadDataWithTrends() {
+        const filters = {
+            region: msRegion.getCSV(),
+            area: msArea.getCSV(),
+            program: msProgram.getCSV(),
+            year: msYear.getCSV(),
+            quarter: msQuarter.getCSV(),
+            month: msMonth.getCSV(),
+            limit: pagination.state.limit,
+            offset: pagination.state.offset
+        };
+        const query = new URLSearchParams(filters).toString();
+        fetch(`/school-visit/data?${query}`)
+            .then(res => res.json())
+            .then(data => {
+                window._lastTrends = data.trends || [];
             });
     }
 
@@ -250,20 +361,19 @@ $(function () {
 
     $('#exportXlsx').click(function() {
         const filters = {
-            region: $('#regionFilter').val(),
-            area: $('#areaFilter').val(),
-            program: $('#programFilter').val(),
-            year: $('#yearFilter').val(),
-            month: $('#monthFilter').val()
+            region: msRegion.getCSV(),
+            area: msArea.getCSV(),
+            program: msProgram.getCSV(),
+            year: msYear.getCSV(),
+            quarter: msQuarter.getCSV(),
+            month: msMonth.getCSV()
         };
         const query = new URLSearchParams(filters).toString();
         window.exportToXLSX(`/school-visit/export?${query}`, 'school_visits.xlsx');
     });
 
-    // Initialize
-    initFilters();
-    setTimeout(loadData, 400);
+    // Auto-load
+    setTimeout(loadData, 300);
 });
 </script>
-
 {% endblock %}

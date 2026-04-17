@@ -11,115 +11,120 @@
             <div class="card-body">
                 <div class="form-group">
                     <label>Region</label>
-                    <select id="regionFilter" class="form-control select2">
-                        <option value="">All Regions</option>
-                    </select>
+                    <select id="regionFilter" class="form-control" multiple></select>
                 </div>
                 <div class="form-group">
                     <label>Area</label>
-                    <select id="areaFilter" class="form-control select2">
-                        <option value="">All Areas</option>
-                    </select>
+                    <select id="areaFilter" class="form-control" multiple></select>
                 </div>
                 <div class="form-group">
-                    <label>Select Year</label>
-                    <select id="yearFilter" class="form-control select2">
-                        <option value="">All Years</option>
-                    </select>
+                    <label>Year</label>
+                    <select id="yearFilter" class="form-control" multiple></select>
+                </div>
+                <div class="form-group">
+                    <label>Quarter</label>
+                    <select id="quarterFilter" class="form-control" multiple></select>
                 </div>
                 <div class="form-group">
                     <label>Month</label>
-                    <select id="monthFilter" class="form-control select2">
-                        <option value="">All Months</option>
-                    </select>
+                    <select id="monthFilter" class="form-control" multiple></select>
                 </div>
                 <hr>
                 <button id="seeReport" class="btn btn-primary btn-block mb-2">
                     <i class="fas fa-sync-alt mr-1"></i> See Report
                 </button>
-                <button id="exportXlsx" class="btn btn-export btn-block mb-2">
+                <button id="exportXlsx" class="btn btn-export btn-block">
                     <i class="fas fa-file-excel mr-1"></i> Export to XLSX
-                </button>
-                <button id="inactiveUserReport" class="btn btn-outline-dark btn-block">
-                    <i class="fas fa-user-slash mr-1"></i> Inactive Users
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Right Column: Dashboard Content -->
+    <!-- Right Column -->
     <div class="col-md-10">
-        <!-- Dynamic KPI Cards -->
-        <div class="row mb-4">
+        <!-- KPI Cards -->
+        <div class="row mb-3">
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-info">
+                <div class="small-box bg-info kpi-clickable">
                     <div class="inner">
-                        <h3 id="kpiDaysWorked">0</h3>
-                        <p>Days worked</p>
+                        <h3 id="kpiDaysWorked">0 <small id="kpiTrendDays" class="kpi-trend"></small></h3>
+                        <p>Days Worked</p>
                     </div>
-                    <div class="icon">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
+                    <div class="icon"><i class="fas fa-calendar-check"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-success">
+                <div class="small-box bg-success kpi-clickable">
                     <div class="inner">
-                        <h3 id="kpiNoOfSessions">0</h3>
-                        <p>No of sessions</p>
+                        <h3 id="kpiTotalSessions">0 <small id="kpiTrendSessions" class="kpi-trend"></small></h3>
+                        <p>No of Sessions</p>
                     </div>
-                    <div class="icon">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
+                    <div class="icon"><i class="fas fa-clipboard-list"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-navy-blue">
+                <div class="small-box bg-warning kpi-clickable">
                     <div class="inner">
-                        <h3 id="kpiSchoolExposures">0</h3>
+                        <h3 id="kpiSchoolExposures">0 <small id="kpiTrendSchool" class="kpi-trend"></small></h3>
                         <p>School Exposures</p>
                     </div>
-                    <div class="icon">
-                        <i class="fas fa-school"></i>
-                    </div>
+                    <div class="icon"><i class="fas fa-school"></i></div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-danger">
+                <div class="small-box bg-danger kpi-clickable">
                     <div class="inner">
-                        <h3 id="kpiCombinedExposures">0</h3>
+                        <h3 id="kpiCombinedExposures">0 <small id="kpiTrendCombined" class="kpi-trend"></small></h3>
                         <p>Total Exposures (YIL, SF, CV)</p>
                     </div>
-                    <div class="icon">
-                        <i class="fas fa-users"></i>
+                    <div class="icon"><i class="fas fa-users"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-3">
+            <div class="col-md-7">
+                <div class="card h-100 white-chart-card chart-card-equal">
+                    <div class="card-header border-0 pb-0">
+                        <h3 class="card-title text-sm uppercase">Sessions by Instructor (Top 10)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-area" style="height:240px;"><canvas id="instructorBarChart"></canvas></div>
+                        <div id="instructorBarLegend" class="chart-legend-external"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="card h-100 white-chart-card chart-card-equal">
+                    <div class="card-header border-0 pb-0">
+                        <h3 class="card-title text-sm uppercase">Activity Breakdown</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-area" style="height:240px;"><canvas id="activityPieChart"></canvas></div>
+                        <div id="activityPieLegend" class="chart-legend-external"></div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Table -->
-        <div class="card mt-2">
+        <div class="card">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table id="instructorTable" class="table table-striped table-hover mb-0 high-contrast-table">
+                    <table id="summaryTable" class="table table-striped table-hover mb-0 high-contrast-table">
                         <thead>
                             <tr>
-                                <th>Instructor</th>
-                                <th>Days worked</th>
-                                <th>School Session</th>
-                                <th>School Exposures</th>
-                                <th>No.of Fair</th>
-                                <th>YIExp Training</th>
-                                <th>SF Expo</th>
-                                <th>YIL Session</th>
-                                <th>YIL Expo</th>
-                                <th>CV visit</th>
-                                <th>CV Exps</th>
+                                <th data-sortable="true" data-sort-type="string">Instructor</th>
+                                <th data-sortable="true" data-sort-type="number">Days</th>
+                                <th data-sortable="true" data-sort-type="number">Sessions</th>
+                                <th data-sortable="true" data-sort-type="number">Exposures</th>
+                                <th data-sortable="true" data-sort-type="number">YIL</th>
+                                <th data-sortable="true" data-sort-type="number">SF</th>
+                                <th data-sortable="true" data-sort-type="number">CV</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <!-- Data populated by JS -->
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
                 {% include "partials/pagination.html" %}
@@ -134,101 +139,116 @@
 $(function () {
     const pagination = window.PramanaPagination;
 
-    if ($.fn.select2) {
-        $('.select2').select2({ theme: 'bootstrap4' });
-    }
+    const msRegion = new PramanaMultiSelect('#regionFilter', { placeholder: 'All Regions' });
+    const msArea = new PramanaMultiSelect('#areaFilter', { placeholder: 'All Areas' });
+    const msYear = new PramanaMultiSelect('#yearFilter', { placeholder: 'All Years' });
+    const msQuarter = new PramanaMultiSelect('#quarterFilter', { placeholder: 'All Quarters' });
+    const msMonth = new PramanaMultiSelect('#monthFilter', { placeholder: 'All Months' });
+
+    msQuarter.setOptions([
+        { value: '1', label: 'Q1 (Apr-Jun)' }, { value: '2', label: 'Q2 (Jul-Sep)' },
+        { value: '3', label: 'Q3 (Oct-Dec)' }, { value: '4', label: 'Q4 (Jan-Mar)' }
+    ]);
 
     fetch('/instructor-summary/filters')
-        .then(res => res.json())
+        .then(r => r.json())
         .then(data => {
-            const regionSelect = $('#regionFilter');
-            const areaSelect = $('#areaFilter');
-            const yearSelect = $('#yearFilter');
-            const monthSelect = $('#monthFilter');
-
-            data.regions.forEach(r => regionSelect.append(new Option(r, r)));
-            data.areas.forEach(a => areaSelect.append(new Option(a, a)));
-            data.years.forEach(y => yearSelect.append(new Option(y, y)));
-            data.months.forEach(m => monthSelect.append(new Option(m.name, m.id)));
+            msRegion.setOptions(data.regions || []);
+            msArea.setOptions(data.areas || []);
+            msYear.setOptions((data.years || []).map(y => ({ value: String(y), label: String(y) })));
+            msMonth.setOptions((data.months || []).map(m => ({ value: String(m.id), label: m.name })));
         });
 
+    const tableSorter = new PramanaTableSort('summaryTable');
+    let previousKpis = null;
+
+    function renderTrend(id, cur, prev) {
+        const el = document.getElementById(id);
+        if (!el || prev === null || prev === undefined) { if (el) el.innerHTML = ''; return; }
+        if (prev === 0 && cur === 0) { el.innerHTML = ''; return; }
+        const pct = prev === 0 ? 100 : ((cur - prev) / prev * 100);
+        const r = Math.abs(pct).toFixed(1);
+        if (pct > 0) { el.className = 'kpi-trend kpi-trend-up'; el.innerHTML = `<i class="fas fa-arrow-up"></i> +${r}%`; }
+        else if (pct < 0) { el.className = 'kpi-trend kpi-trend-down'; el.innerHTML = `<i class="fas fa-arrow-down"></i> -${r}%`; }
+        else { el.className = 'kpi-trend kpi-trend-neutral'; el.innerHTML = `<i class="fas fa-minus"></i> 0%`; }
+    }
+
     function loadData() {
-        window.loadReportData = loadData; 
         const filters = {
-            region: $('#regionFilter').val(),
-            area: $('#areaFilter').val(),
-            year: $('#yearFilter').val(),
-            month: $('#monthFilter').val(),
+            region: msRegion.getCSV(),
+            area: msArea.getCSV(),
+            year: msYear.getCSV(),
+            month: msMonth.getCSV(),
             limit: pagination.state.limit,
             offset: pagination.state.offset
         };
-
-        const queryParams = new URLSearchParams(filters).toString();
-        fetch(`/instructor-summary/data?${queryParams}`)
-            .then(res => res.json())
+        const query = new URLSearchParams(filters).toString();
+        fetch(`/instructor-summary/data?${query}`)
+            .then(r => r.json())
             .then(data => {
-                const tbody = $('#instructorTable tbody');
+                const tbody = $('#summaryTable tbody');
                 tbody.empty();
 
-                // Update KPIs
                 if (data.kpis) {
-                    $('#kpiDaysWorked').text(data.kpis.days_worked.toLocaleString());
-                    $('#kpiNoOfSessions').text(data.kpis.total_sessions.toLocaleString());
-                    $('#kpiSchoolExposures').text(data.kpis.school_exposures.toLocaleString());
-                    $('#kpiCombinedExposures').text(data.kpis.combined_exposures.toLocaleString());
+                    const k = data.kpis;
+                    $('#kpiDaysWorked').contents().first()[0].textContent = (k.days_worked || 0).toLocaleString() + ' ';
+                    $('#kpiTotalSessions').contents().first()[0].textContent = (k.total_sessions || 0).toLocaleString() + ' ';
+                    $('#kpiSchoolExposures').contents().first()[0].textContent = (k.school_exposures || 0).toLocaleString() + ' ';
+                    $('#kpiCombinedExposures').contents().first()[0].textContent = (k.combined_exposures || 0).toLocaleString() + ' ';
+
+                    if (previousKpis) {
+                        renderTrend('kpiTrendDays', k.days_worked, previousKpis.days_worked);
+                        renderTrend('kpiTrendSessions', k.total_sessions, previousKpis.total_sessions);
+                        renderTrend('kpiTrendSchool', k.school_exposures, previousKpis.school_exposures);
+                        renderTrend('kpiTrendCombined', k.combined_exposures, previousKpis.combined_exposures);
+                    }
+                    previousKpis = { ...k };
+
+                    // Pie chart for activity breakdown
+                    PramanaCharts.createPieChart('activityPieChart', [
+                        { label: 'School', value: k.school_exposures || 0 },
+                        { label: 'YIL+SF+CV', value: k.combined_exposures || 0 }
+                    ], { externalLegendId: 'activityPieLegend', doughnut: true });
                 }
 
-                if (data.table.length === 0) {
-                    tbody.append('<tr><td colspan="11" class="text-center">No data found</td></tr>');
-                    pagination.updateInfo('instructorTable', 0);
+                // Bar chart top 10 instructors
+                if (data.table && data.table.length > 0) {
+                    const top10 = data.table.slice(0, 10);
+                    PramanaCharts.createBarChart('instructorBarChart',
+                        top10.map(r => ({ label: r.instructor_name, value: r.total_sessions || 0 })),
+                        { datasetLabel: 'Sessions', externalLegendId: 'instructorBarLegend', colors: '#10b981' }
+                    );
+                }
+
+                if (!data.table || data.table.length === 0) {
+                    tbody.append('<tr><td colspan="7" class="text-center">No data found</td></tr>');
+                    pagination.updateInfo('summaryTable', 0);
                     return;
                 }
                 data.table.forEach(row => {
-                    tbody.append(`
-                        <tr>
-                            <td>${row.instructor_name}</td>
-                            <td>${row.days_worked}</td>
-                            <td>${row.school_sessions}</td>
-                            <td>${row.total_exposures}</td>
-                            <td>${row.fair_count}</td>
-                            <td>${row.training_exposures}</td>
-                            <td>${row.sf_exposures}</td>
-                            <td>${row.yil_sessions}</td>
-                            <td>${row.yil_exposures}</td>
-                            <td>${row.cv_visits}</td>
-                            <td>${row.cv_exposures}</td>
-                        </tr>
-                    `);
+                    tbody.append(`<tr>
+                        <td>${row.instructor_name}</td>
+                        <td>${(row.days_worked || 0).toLocaleString()}</td>
+                        <td>${(row.total_sessions || 0).toLocaleString()}</td>
+                        <td>${(row.total_exposures || 0).toLocaleString()}</td>
+                        <td>${(row.yil_exposures || 0).toLocaleString()}</td>
+                        <td>${(row.sf_exposures || 0).toLocaleString()}</td>
+                        <td>${(row.cv_exposures || 0).toLocaleString()}</td>
+                    </tr>`);
                 });
-                pagination.updateInfo('instructorTable', data.total_count);
+                pagination.updateInfo('summaryTable', data.total_count);
             });
     }
 
-    $('#seeReport').click(function () {
-        pagination.reset();
-        loadData();
-    });
-
-    $('.prev-page').click(function() {
-        pagination.prev(loadData);
-    });
-
-    $('.next-page').click(function() {
-        pagination.next(loadData);
-    });
-
+    $('#seeReport').click(function () { pagination.reset(); loadData(); });
+    $('.prev-page').click(function() { pagination.prev(loadData); });
+    $('.next-page').click(function() { pagination.next(loadData); });
     $('#exportXlsx').click(function() {
-        const filters = {
-            region: $('#regionFilter').val(),
-            area: $('#areaFilter').val(),
-            year: $('#yearFilter').val(),
-            month: $('#monthFilter').val()
-        };
+        const filters = { region: msRegion.getCSV(), area: msArea.getCSV(), year: msYear.getCSV(), month: msMonth.getCSV() };
         const query = new URLSearchParams(filters).toString();
         window.exportToXLSX(`/instructor-summary/export?${query}`, 'instructor_summary.xlsx');
     });
 
-    // Auto-load
     setTimeout(loadData, 300);
 });
 </script>
