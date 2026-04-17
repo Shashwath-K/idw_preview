@@ -66,3 +66,47 @@ def fetch_all(query: str, params: Sequence[object] | None = None) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(query, params or [])
             return [dict(row) for row in cur.fetchall()]
+
+
+# -------------------------------------------
+# V2: Multi-select & enhanced filter helpers
+# -------------------------------------------
+
+def parse_multi_param(param: str | None) -> list[str]:
+    """Split a comma-separated filter string into a list of non-empty values."""
+    if not param:
+        return []
+    return [v.strip() for v in param.split(',') if v.strip()]
+
+
+def build_multi_value_clause(column: str, values: list[str], params: list) -> str | None:
+    """
+    Generate a SQL 'column IN (%s, %s, ...)' clause and append values to params.
+    Returns the clause string, or None if values is empty.
+    """
+    if not values:
+        return None
+    placeholders = ', '.join(['%s'] * len(values))
+    params.extend(values)
+    return f"{column} IN ({placeholders})"
+
+
+def build_quarter_clause(quarter_csv: str | None, date_col: str, params: list) -> str | None:
+    """
+    Generate a quarter filter clause.  quarter_csv is like "1,2" for Q1 and Q2.
+    Uses the quarter column from dim_date: d.quarter IN (%s, %s).
+    """
+    quarters = parse_multi_param(quarter_csv)
+    if not quarters:
+        return None
+    int_quarters = []
+    for q in quarters:
+        try:
+            int_quarters.append(int(q))
+        except ValueError:
+            continue
+    if not int_quarters:
+        return None
+    placeholders = ', '.join(['%s'] * len(int_quarters))
+    params.extend(int_quarters)
+    return f"{date_col} IN ({placeholders})"
