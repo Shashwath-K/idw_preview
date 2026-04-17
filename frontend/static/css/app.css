@@ -1965,3 +1965,134 @@ body[data-page="programs"] .exposure-empty {
         text-align: center !important;
     }
 }
+
+/* ======================================================
+   V2 Enhancements
+   ====================================================== */
+
+/* KPI Trend Arrows */
+.kpi-trend {
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+.kpi-trend-up {
+    color: #10b981;
+}
+
+.kpi-trend-down {
+    color: #ef4444;
+}
+
+.kpi-trend-neutral {
+    color: #6b7280;
+}
+
+.kpi-trend i {
+    font-size: 0.65rem;
+    margin-right: 2px;
+}
+
+/* KPI clickable */
+.small-box.kpi-clickable {
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.small-box.kpi-clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+/* Data Drop Highlight */
+.data-drop-row {
+    background: rgba(239, 68, 68, 0.08) !important;
+}
+
+.data-drop-row td:first-child::before {
+    content: '⚠';
+    margin-right: 4px;
+    color: #ef4444;
+}
+
+/* External Chart Legend */
+.chart-legend-external {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 6px 4px;
+    font-size: 0.75rem;
+    border-top: 1px solid #eee;
+    margin-top: 4px;
+}
+
+.chart-legend-external span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+/* Sortable Table Headers */
+th[data-sortable="true"] {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+th[data-sortable="true"]:hover {
+    background: rgba(0,123,255,0.04);
+}
+
+.sort-indicator {
+    font-size: 0.7rem;
+    margin-left: 3px;
+    color: #999;
+}
+
+/* Chart Container Symmetry */
+.chart-card-equal {
+    min-height: 340px;
+}
+
+.chart-card-equal .card-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card-equal .chart-area {
+    flex: 1 1 auto;
+    min-height: 240px;
+    position: relative;
+    width: 100%;
+}
+
+.chart-area {
+    position: relative;
+    width: 100%;
+}
+
+/* Drilldown overlay */
+.drilldown-overlay {
+    position: relative;
+}
+
+.drilldown-back-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    font-size: 0.75rem;
+}
+
+/* Quarter filter badge */
+.quarter-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #e9ecef;
+    font-size: 0.75rem;
+    font-weight: 600;
+}

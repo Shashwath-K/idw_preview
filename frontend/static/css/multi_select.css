@@ -1,0 +1,179 @@
+/* ======================================================
+   PramanaMultiSelect — Checkbox-based dropdown
+   ====================================================== */
+
+.pms-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.pms-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 34px;
+    padding: 4px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: border-color 0.15s ease;
+}
+
+.pms-trigger:hover,
+.pms-trigger.open {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.15rem rgba(0,123,255,.15);
+}
+
+.pms-trigger .pms-placeholder {
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pms-trigger .pms-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    flex: 1;
+    overflow: hidden;
+    max-height: 52px;
+}
+
+.pms-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #e9ecef;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    line-height: 1.5;
+}
+
+.pms-pill-remove {
+    cursor: pointer;
+    font-weight: 700;
+    color: #888;
+    font-size: 0.8rem;
+}
+
+.pms-pill-remove:hover {
+    color: #c00;
+}
+
+.pms-pill-overflow {
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #007bff;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.pms-caret {
+    margin-left: 4px;
+    font-size: 0.6rem;
+    color: #666;
+    flex-shrink: 0;
+}
+
+/* Dropdown panel */
+.pms-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    max-height: 260px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.pms-dropdown.open {
+    display: flex;
+}
+
+.pms-search-box {
+    padding: 6px 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.pms-search-box input {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    outline: none;
+}
+
+.pms-search-box input:focus {
+    border-color: #80bdff;
+}
+
+.pms-select-all {
+    padding: 5px 10px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+}
+
+.pms-select-all:hover {
+    background: #f5f5f5;
+}
+
+.pms-options {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.pms-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #333;
+    transition: background 0.1s;
+}
+
+.pms-option:hover {
+    background: #f0f4ff;
+}
+
+.pms-option input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    accent-color: #007bff;
+}
+
+.pms-option.hidden {
+    display: none;
+}
+
+.pms-no-results {
+    padding: 10px;
+    text-align: center;
+    color: #999;
+    font-size: 0.8rem;
+    display: none;
+}
