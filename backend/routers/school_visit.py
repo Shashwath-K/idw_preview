@@ -4,9 +4,8 @@ from backend.services import school_visit_service
 router = APIRouter(prefix="/school-visit", tags=["school-visit"])
 
 @router.get("/filters")
-def get_filters(region_name: str | None = Query(None)):
-    return school_visit_service.get_school_visit_filters(region_name)
-
+def get_filters():
+    return school_visit_service.get_school_visit_filters()
 
 @router.get("/data")
 def get_data(
@@ -15,10 +14,11 @@ def get_data(
     program: str | None = Query(None),
     year: str | None = Query(None),
     month: str | None = Query(None),
+    quarter: str | None = Query(None),
     limit: int = Query(15),
     offset: int = Query(0)
 ):
-    return school_visit_service.get_school_visit_data(region, area, program, year, month, limit, offset)
+    return school_visit_service.get_school_visit_data(region, area, program, year, month, quarter, limit, offset)
 
 @router.get("/export")
 def export_data(
@@ -26,9 +26,9 @@ def export_data(
     area: str | None = Query(None),
     program: str | None = Query(None),
     year: str | None = Query(None),
-    month: str | None = Query(None)
+    month: str | None = Query(None),
+    quarter: str | None = Query(None)
 ):
     from backend.services.export_utils import json_to_excel_streaming_response
-    # Fetch all data without limit
-    data = school_visit_service.get_school_visit_data(region, area, program, year, month, limit=100000, offset=0)
+    data = school_visit_service.get_school_visit_data(region, area, program, year, month, quarter, limit=100000, offset=0)
     return json_to_excel_streaming_response(data["table"], "school_visits.xlsx")
