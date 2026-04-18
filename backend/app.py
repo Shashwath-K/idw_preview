@@ -28,7 +28,6 @@ from backend.routers import (
     exposure_session,
     performance_mgmt,
     manpower_vehicle,
-    data_quality,
 )
 
 
@@ -88,7 +87,6 @@ app.include_router(regionwise.router)
 app.include_router(exposure_session.router)
 app.include_router(performance_mgmt.router)
 app.include_router(manpower_vehicle.router)
-app.include_router(data_quality.router)
 
 
 @app.get("/debug-db")
@@ -266,7 +264,3 @@ def manpower_vehicle_dashboard_page(request: Request):
 @app.get("/instructor-feedback", response_class=HTMLResponse)
 def instructor_feedback_page(request: Request):
     return render_page(request, "instructor_feedback.html", "Instructor Feedback", "instructor-feedback")
-
-@app.get("/data-quality", response_class=HTMLResponse)
-def data_quality_page(request: Request):
-    return render_page(request, "data_quality.html", "Data Quality Report", "data-quality")
