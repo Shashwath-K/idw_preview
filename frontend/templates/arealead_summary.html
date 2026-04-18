@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="row">
+    <!-- Left Column: Filter Slicers -->
     <div class="col-md-2 mb-3">
         <div class="card card-outline card-primary h-100">
             <div class="card-header">
@@ -10,23 +11,27 @@
             <div class="card-body">
                 <div class="form-group">
                     <label>Region</label>
-                    <select id="regionFilter" class="form-control" multiple></select>
+                    <select id="regionFilter" class="form-control select2">
+                        <option value="">All Regions</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Area</label>
-                    <select id="areaFilter" class="form-control" multiple></select>
+                    <select id="areaFilter" class="form-control select2">
+                        <option value="">All Areas</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>Year</label>
-                    <select id="yearFilter" class="form-control" multiple></select>
-                </div>
-                <div class="form-group">
-                    <label>Quarter</label>
-                    <select id="quarterFilter" class="form-control" multiple></select>
+                    <label>Select Year</label>
+                    <select id="yearFilter" class="form-control select2">
+                        <option value="">All Years</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Month</label>
-                    <select id="monthFilter" class="form-control" multiple></select>
+                    <select id="monthFilter" class="form-control select2">
+                        <option value="">All Months</option>
+                    </select>
                 </div>
                 <hr>
                 <button id="seeReport" class="btn btn-primary btn-block mb-2">
@@ -39,75 +44,73 @@
         </div>
     </div>
 
+    <!-- Right Column: Dashboard Content -->
     <div class="col-md-10">
-        <div class="row mb-3">
+        <!-- KPI Cards -->
+        <div id="kpiContainer" class="row mb-4">
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-info kpi-clickable">
+                <div class="small-box bg-info">
                     <div class="inner">
-                        <h3 id="kpiSessions">0 <small id="kpiTrend0" class="kpi-trend"></small></h3>
+                        <h3 id="kpiTotalLeads">0</h3>
+                        <p>Total Area Leads</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3 id="kpiTotalInstructors">0</h3>
+                        <p>Total Instructors</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-navy-blue">
+                    <div class="inner">
+                        <h3 id="kpiTotalSessions">0</h3>
                         <p>Total Sessions</p>
                     </div>
-                    <div class="icon"><i class="fas fa-calendar-check"></i></div>
+                    <div class="icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
                 </div>
             </div>
             <div class="col-lg-3 col-6">
-                <div class="small-box bg-success kpi-clickable">
+                <div class="small-box bg-danger">
                     <div class="inner">
-                        <h3 id="kpiSchools">0 <small id="kpiTrend1" class="kpi-trend"></small></h3>
-                        <p>Schools Visited</p>
+                        <h3 id="kpiTotalStudents">0</h3>
+                        <p>Total Students Impacted</p>
                     </div>
-                    <div class="icon"><i class="fas fa-school"></i></div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-warning kpi-clickable">
-                    <div class="inner">
-                        <h3 id="kpiExposures">0 <small id="kpiTrend2" class="kpi-trend"></small></h3>
-                        <p>Total Exposures</p>
-                    </div>
-                    <div class="icon"><i class="fas fa-users"></i></div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-danger kpi-clickable">
-                    <div class="inner">
-                        <h3 id="kpiWorkDays">0 <small id="kpiTrend3" class="kpi-trend"></small></h3>
-                        <p>Work Days</p>
-                    </div>
-                    <div class="icon"><i class="fas fa-briefcase"></i></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col-md-12">
-                <div class="card white-chart-card chart-card-equal">
-                    <div class="card-header border-0 pb-0">
-                        <h3 class="card-title text-sm uppercase">Sessions by Area Lead</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-area" style="height:260px;"><canvas id="areaLeadChart"></canvas></div>
-                        <div id="areaLeadLegend" class="chart-legend-external"></div>
+                    <div class="icon">
+                        <i class="fas fa-user-graduate"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card">
+        <!-- Table -->
+        <div class="card mt-2">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table id="areaLeadTable" class="table table-striped table-hover mb-0 high-contrast-table">
+                    <table id="areaTable" class="table table-striped table-hover mb-0 high-contrast-table">
                         <thead>
                             <tr>
-                                <th data-sortable="true" data-sort-type="string">Area Lead</th>
-                                <th data-sortable="true" data-sort-type="string">Region</th>
-                                <th data-sortable="true" data-sort-type="number">Sessions</th>
-                                <th data-sortable="true" data-sort-type="number">Schools</th>
-                                <th data-sortable="true" data-sort-type="number">Exposures</th>
-                                <th data-sortable="true" data-sort-type="number">Work Days</th>
+                                <th>Area</th>
+                                <th>Region</th>
+                                <th class="text-center">Total Instructors</th>
+                                <th class="text-center">Total Sessions</th>
+                                <th class="text-center">Total Students</th>
                             </tr>
                         </thead>
-                        <tbody></tbody>
+                        <tbody>
+                            <!-- Populated by JS -->
+                        </tbody>
                     </table>
                 </div>
                 {% include "partials/pagination.html" %}
@@ -121,98 +124,97 @@
 <script>
 $(function () {
     const pagination = window.PramanaPagination;
-    const msRegion = new PramanaMultiSelect('#regionFilter', { placeholder: 'All Regions' });
-    const msArea = new PramanaMultiSelect('#areaFilter', { placeholder: 'All Areas' });
-    const msYear = new PramanaMultiSelect('#yearFilter', { placeholder: 'All Years' });
-    const msQuarter = new PramanaMultiSelect('#quarterFilter', { placeholder: 'All Quarters' });
-    const msMonth = new PramanaMultiSelect('#monthFilter', { placeholder: 'All Months' });
 
-    msQuarter.setOptions([
-        { value: '1', label: 'Q1 (Apr-Jun)' }, { value: '2', label: 'Q2 (Jul-Sep)' },
-        { value: '3', label: 'Q3 (Oct-Dec)' }, { value: '4', label: 'Q4 (Jan-Mar)' }
-    ]);
-
-    fetch('/arealead-summary/filters')
-        .then(r => r.json())
-        .then(data => {
-            msRegion.setOptions(data.regions || []);
-            msArea.setOptions(data.areas || []);
-            msYear.setOptions((data.years || []).map(y => ({ value: String(y), label: String(y) })));
-            msMonth.setOptions((data.months || []).map(m => ({ value: String(m.id), label: m.name })));
-        });
-
-    const tableSorter = new PramanaTableSort('areaLeadTable');
-    let previousKpis = null;
-
-    function renderTrend(id, cur, prev) {
-        const el = document.getElementById(id);
-        if (!el || prev === null || prev === undefined) { if (el) el.innerHTML = ''; return; }
-        if (prev === 0 && cur === 0) { el.innerHTML = ''; return; }
-        const pct = prev === 0 ? 100 : ((cur - prev) / prev * 100);
-        const r = Math.abs(pct).toFixed(1);
-        if (pct > 0) { el.className = 'kpi-trend kpi-trend-up'; el.innerHTML = `<i class="fas fa-arrow-up"></i> +${r}%`; }
-        else if (pct < 0) { el.className = 'kpi-trend kpi-trend-down'; el.innerHTML = `<i class="fas fa-arrow-down"></i> -${r}%`; }
-        else { el.className = 'kpi-trend kpi-trend-neutral'; el.innerHTML = `<i class="fas fa-minus"></i> 0%`; }
+    if ($.fn.select2) {
+        $('.select2').select2({ theme: 'bootstrap4' });
     }
 
+    fetch('/arealead-summary/filters')
+        .then(res => res.json())
+        .then(data => {
+            const regionSelect = $('#regionFilter');
+            const areaSelect = $('#areaFilter');
+            const yearSelect = $('#yearFilter');
+            const monthSelect = $('#monthFilter');
+
+            data.regions.forEach(r => regionSelect.append(new Option(r, r)));
+            data.areas.forEach(a => areaSelect.append(new Option(a, a)));
+            data.years.forEach(y => yearSelect.append(new Option(y, y)));
+            data.months.forEach(m => monthSelect.append(new Option(m.name, m.id)));
+        });
+
     function loadData() {
-        const filters = { region: msRegion.getCSV(), area: msArea.getCSV(), year: msYear.getCSV(), month: msMonth.getCSV(), limit: pagination.state.limit, offset: pagination.state.offset };
+        const filters = {
+            region: $('#regionFilter').val(),
+            area: $('#areaFilter').val(),
+            year: $('#yearFilter').val(),
+            month: $('#monthFilter').val(),
+            limit: pagination.state.limit,
+            offset: pagination.state.offset
+        };
+
         const query = new URLSearchParams(filters).toString();
         fetch(`/arealead-summary/data?${query}`)
-            .then(r => r.json())
+            .then(res => res.json())
             .then(data => {
-                const tbody = $('#areaLeadTable tbody');
+                const tbody = $('#areaTable tbody');
                 tbody.empty();
 
-                if (data.kpis) {
-                    const k = data.kpis;
-                    $('#kpiSessions').contents().first()[0].textContent = (k.total_sessions || 0).toLocaleString() + ' ';
-                    $('#kpiSchools').contents().first()[0].textContent = (k.total_schools || 0).toLocaleString() + ' ';
-                    $('#kpiExposures').contents().first()[0].textContent = (k.total_exposures || 0).toLocaleString() + ' ';
-                    $('#kpiWorkDays').contents().first()[0].textContent = (k.total_work_days || 0).toLocaleString() + ' ';
-                    if (previousKpis) {
-                        renderTrend('kpiTrend0', k.total_sessions, previousKpis.total_sessions);
-                        renderTrend('kpiTrend1', k.total_schools, previousKpis.total_schools);
-                        renderTrend('kpiTrend2', k.total_exposures, previousKpis.total_exposures);
-                        renderTrend('kpiTrend3', k.total_work_days, previousKpis.total_work_days);
-                    }
-                    previousKpis = { ...k };
-                }
-
-                if (data.table && data.table.length > 0) {
-                    PramanaCharts.createBarChart('areaLeadChart',
-                        data.table.slice(0, 12).map(r => ({ label: r.area_lead_name || r.area_lead || '', value: r.total_sessions || r.sessions || 0 })),
-                        { datasetLabel: 'Sessions', externalLegendId: 'areaLeadLegend', colors: '#f59e0b' }
-                    );
+                // Update KPIs
+                if (data.kpis && data.kpis.length >= 4) {
+                    $('#kpiTotalLeads').text(data.kpis[0].value.toLocaleString());
+                    $('#kpiTotalInstructors').text(data.kpis[1].value.toLocaleString());
+                    $('#kpiTotalSessions').text(data.kpis[2].value.toLocaleString());
+                    $('#kpiTotalStudents').text(data.kpis[3].value.toLocaleString());
                 }
 
                 if (!data.table || data.table.length === 0) {
-                    tbody.append('<tr><td colspan="6" class="text-center">No data found</td></tr>');
-                    pagination.updateInfo('areaLeadTable', 0);
+                    tbody.append('<tr><td colspan="5" class="text-center py-4 text-muted">No records found for selected period</td></tr>');
+                    pagination.updateInfo('areaTable', 0);
                     return;
                 }
+
                 data.table.forEach(row => {
-                    tbody.append(`<tr>
-                        <td>${row.area_lead_name || row.area_lead || ''}</td>
-                        <td>${row.region_name || row.region || ''}</td>
-                        <td>${(row.total_sessions || row.sessions || 0).toLocaleString()}</td>
-                        <td>${(row.schools_visited || row.schools || 0).toLocaleString()}</td>
-                        <td>${(row.total_exposures || row.exposures || 0).toLocaleString()}</td>
-                        <td>${(row.work_days || 0).toLocaleString()}</td>
-                    </tr>`);
+                    tbody.append(`
+                        <tr>
+                            <td class="font-weight-bold text-navy">${row.area}</td>
+                            <td><small class="text-muted"><i class="fas fa-globe mr-1"></i> ${row.region}</small></td>
+                            <td class="text-center"><span class="badge badge-info px-2 py-1">${row.total_instructors}</span></td>
+                            <td class="text-center font-weight-bold">${row.total_sessions.toLocaleString()}</td>
+                            <td class="text-center text-success font-weight-bold">${row.total_students.toLocaleString()}</td>
+                        </tr>
+                    `);
                 });
-                pagination.updateInfo('areaLeadTable', data.total_count);
-            });
+                pagination.updateInfo('areaTable', data.total_count);
+            })
+            .catch(err => console.error("Error fetching data:", err));
     }
 
-    $('#seeReport').click(() => { pagination.reset(); loadData(); });
-    $('.prev-page').click(() => pagination.prev(loadData));
-    $('.next-page').click(() => pagination.next(loadData));
-    $('#exportXlsx').click(() => {
-        const q = new URLSearchParams({ region: msRegion.getCSV(), area: msArea.getCSV(), year: msYear.getCSV(), month: msMonth.getCSV() }).toString();
-        window.exportToXLSX(`/arealead-summary/export?${q}`, 'arealead_summary.xlsx');
+    $('#seeReport').click(function () {
+        pagination.reset();
+        loadData();
     });
 
+    $('.prev-page').click(function() {
+        pagination.prev(loadData);
+    });
+
+    $('.next-page').click(function() {
+        pagination.next(loadData);
+    });
+
+    $('#exportXlsx').click(function() {
+        const filters = {
+            region: $('#regionFilter').val(),
+            area: $('#areaFilter').val(),
+            year: $('#yearFilter').val(),
+            month: $('#monthFilter').val()
+        };
+        const query = new URLSearchParams(filters).toString();
+        window.exportToXLSX(`/arealead-summary/export?${query}`, 'arealead_summary.xlsx');
+    });
+
+    // Auto-load
     setTimeout(loadData, 300);
 });
 </script>
