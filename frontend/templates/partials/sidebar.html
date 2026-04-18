@@ -6,160 +6,140 @@
     <div class="sidebar">
         <nav class="mt-3">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
-
-                <!-- Home -->
+                <!-- New Demo pages displayed in the initial stages-->
+                <!--li class="nav-item">
+                    <a href="/" class="nav-link {% if page_id == 'dashboard' %}active{% endif %}">
+                        <i class="nav-icon fas fa-hand-holding-heart"></i>
+                        <p>Overview</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/instructor-productivity" class="nav-link {% if page_id == 'instructor' %}active{% endif %}">
+                        <i class="nav-icon fas fa-chalkboard-teacher"></i>
+                        <p>Instructor Performance</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/program-metrics" class="nav-link {% if page_id == 'programs' %}active{% endif %}">
+                        <i class="nav-icon fas fa-user-graduate"></i>
+                        <p>Student Exposure</p>
+                    </a>
+                </li>
+                <li class="nav-divider"><hr></li-->
+                <!-- New Pages requested -->
                 <li class="nav-item">
                     <a href="/" class="nav-link {% if page_id == 'landing' %}active{% endif %}">
                         <i class="nav-icon fas fa-home"></i>
                         <p>Home</p>
                     </a>
                 </li>
-
-                <!-- Overview -->
                 <li class="nav-item">
                     <a href="/overview" class="nav-link {% if page_id == 'overview' %}active{% endif %}">
                         <i class="nav-icon fas fa-chart-line"></i>
                         <p>Overview</p>
                     </a>
                 </li>
-
-                <!-- Program Reach -->
-                <li class="nav-item has-treeview {% if page_id in ['program-visits', 'programwise-report', 'region-summary', 'nationwide-dashboard'] %}menu-open{% endif %}">
-                    <a href="#" class="nav-link {% if page_id in ['program-visits', 'programwise-report', 'region-summary', 'nationwide-dashboard'] %}active{% endif %}">
-                        <i class="nav-icon fas fa-street-view"></i>
-                        <p>
-                            Program Reach
-                            <i class="fas fa-angle-left right"></i>
-                        </p>
-                    </a>
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            <a href="/program-visits" class="nav-link {% if page_id == 'program-visits' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>School Visits</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/programwise-report" class="nav-link {% if page_id == 'programwise-report' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Programwise Report</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/region-summary" class="nav-link {% if page_id == 'region-summary' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Region Summary</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/nationwide-dashboard" class="nav-link {% if page_id == 'nationwide-dashboard' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Nationwide Dashboard</p>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                <!-- Instructor -->
-                <li class="nav-item has-treeview {% if page_id in ['instructor-summary', 'instructor-detail', 'instructor-feedback', 'attendance', 'work-days-report'] %}menu-open{% endif %}">
-                    <a href="#" class="nav-link {% if page_id in ['instructor-summary', 'instructor-detail', 'instructor-feedback', 'attendance', 'work-days-report'] %}active{% endif %}">
-                        <i class="nav-icon fas fa-chalkboard-teacher"></i>
-                        <p>
-                            Instructor
-                            <i class="fas fa-angle-left right"></i>
-                        </p>
-                    </a>
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            <a href="/instructor-summary" class="nav-link {% if page_id == 'instructor-summary' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Instructor Summary</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/instructor-detail" class="nav-link {% if page_id == 'instructor-detail' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Instructor Detail</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/instructor-feedback" class="nav-link {% if page_id == 'instructor-feedback' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Instructor Feedback</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/attendance" class="nav-link {% if page_id == 'attendance' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Attendance</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/work-days-report" class="nav-link {% if page_id == 'work-days-report' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Work Days Report</p>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                <!-- Operational Efficiency -->
-                <li class="nav-item has-treeview {% if page_id in ['vehicle-report', 'arealead-summary', 'manpower-vehicle-dashboard', 'regionwise-dashboard', 'exposure-session-dashboard', 'performance-management-dashboard'] %}menu-open{% endif %}">
-                    <a href="#" class="nav-link {% if page_id in ['vehicle-report', 'arealead-summary', 'manpower-vehicle-dashboard', 'regionwise-dashboard', 'exposure-session-dashboard', 'performance-management-dashboard'] %}active{% endif %}">
-                        <i class="nav-icon fas fa-shuttle-van"></i>
-                        <p>
-                            Operations
-                            <i class="fas fa-angle-left right"></i>
-                        </p>
-                    </a>
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            <a href="/vehicle-report" class="nav-link {% if page_id == 'vehicle-report' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Vehicle Report</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/arealead-summary" class="nav-link {% if page_id == 'arealead-summary' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>AreaLead Summary</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/regionwise-dashboard" class="nav-link {% if page_id == 'regionwise-dashboard' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Regionwise</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/exposure-session-dashboard" class="nav-link {% if page_id == 'exposure-session-dashboard' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Exposure & Sessions</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/performance-management-dashboard" class="nav-link {% if page_id == 'performance-management-dashboard' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Performance Mgmt</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="/manpower-vehicle-dashboard" class="nav-link {% if page_id == 'manpower-vehicle-dashboard' %}active{% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Manpower & Vehicle</p>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                <!-- Data Quality -->
                 <li class="nav-item">
-                    <a href="/data-quality" class="nav-link {% if page_id == 'data-quality' %}active{% endif %}">
-                        <i class="nav-icon fas fa-clipboard-check"></i>
-                        <p>Data Quality</p>
+                    <a href="/program-visits" class="nav-link {% if page_id == 'program-visits' %}active{% endif %}">
+                        <i class="nav-icon fas fa-school"></i>
+                        <p>Program wise School Visits</p>
                     </a>
                 </li>
-
+                <li class="nav-item">
+                    <a href="/instructor-summary"
+                        class="nav-link {% if page_id == 'instructor-summary' %}active{% endif %}">
+                        <i class="nav-icon fas fa-user-tie"></i>
+                        <p>Instructor Summary</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/region-summary" class="nav-link {% if page_id == 'region-summary' %}active{% endif %}">
+                        <i class="nav-icon fas fa-map-marked-alt"></i>
+                        <p>Region Summary</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/instructor-detail"
+                        class="nav-link {% if page_id == 'instructor-detail' %}active{% endif %}">
+                        <i class="nav-icon fas fa-user-tag"></i>
+                        <p>Instructor Detail</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/vehicle-report" class="nav-link {% if page_id == 'vehicle-report' %}active{% endif %}">
+                        <i class="nav-icon fas fa-car"></i>
+                        <p>Vehicle Report</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/work-days-report"
+                        class="nav-link {% if page_id == 'work-days-report' %}active{% endif %}">
+                        <i class="nav-icon fas fa-calendar-alt"></i>
+                        <p>Work Days Report</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/attendance" class="nav-link {% if page_id == 'attendance' %}active{% endif %}">
+                        <i class="nav-icon fas fa-user-check"></i>
+                        <p>Attendance</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/arealead-summary"
+                        class="nav-link {% if page_id == 'arealead-summary' %}active{% endif %}">
+                        <i class="nav-icon fas fa-users-cog"></i>
+                        <p>AreaLead Summary</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/programwise-report"
+                        class="nav-link {% if page_id == 'programwise-report' %}active{% endif %}">
+                        <i class="nav-icon fas fa-file-invoice"></i>
+                        <p>Programwise Report</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/nationwide-dashboard"
+                        class="nav-link {% if page_id == 'nationwide-dashboard' %}active{% endif %}">
+                        <i class="nav-icon fas fa-flag"></i>
+                        <p>Nationwide Dashboard</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/regionwise-dashboard"
+                        class="nav-link {% if page_id == 'regionwise-dashboard' %}active{% endif %}">
+                        <i class="nav-icon fas fa-map"></i>
+                        <p>Regionwise Dashboard</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/exposure-session-dashboard"
+                        class="nav-link {% if page_id == 'exposure-session-dashboard' %}active{% endif %}">
+                        <i class="nav-icon fas fa-tachometer-alt"></i>
+                        <p>ExposureSession Dashboard</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/performance-management-dashboard"
+                        class="nav-link {% if page_id == 'performance-management-dashboard' %}active{% endif %}">
+                        <i class="nav-icon fas fa-chart-line"></i>
+                        <p>PerformanceManagement Dashboard</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/manpower-vehicle-dashboard"
+                        class="nav-link {% if page_id == 'manpower-vehicle-dashboard' %}active{% endif %}">
+                        <i class="nav-icon fas fa-truck-monster"></i>
+                        <p>ManpowerVehicle Dashboard</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/instructor-feedback"
+                        class="nav-link {% if page_id == 'instructor-feedback' %}active{% endif %}">
+                        <i class="nav-icon fas fa-comment-dots"></i>
+                        <p>Instructor Feedback</p>
+                    </a>
+                </li>
             </ul>
         </nav>
     </div>
