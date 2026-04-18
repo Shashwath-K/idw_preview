@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="row">
+    <!-- Filter Pane -->
     <div class="col-md-2 mb-3">
         <div class="card card-outline card-primary h-100">
             <div class="card-header">
@@ -9,20 +10,16 @@
             </div>
             <div class="card-body">
                 <div class="form-group">
-                    <label>Region</label>
-                    <select id="regionFilter" class="form-control" multiple></select>
+                    <label>Instructor</label>
+                    <select id="instructorFilter" class="form-control select2">
+                        <option value="">All Instructors</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Year</label>
-                    <select id="yearFilter" class="form-control" multiple></select>
-                </div>
-                <div class="form-group">
-                    <label>Quarter</label>
-                    <select id="quarterFilter" class="form-control" multiple></select>
-                </div>
-                <div class="form-group">
-                    <label>Month</label>
-                    <select id="monthFilter" class="form-control" multiple></select>
+                    <select id="yearFilter" class="form-control select2">
+                        <option value="">All Years</option>
+                    </select>
                 </div>
                 <hr>
                 <button id="seeReport" class="btn btn-primary btn-block mb-2">
@@ -35,58 +32,31 @@
         </div>
     </div>
 
+    <!-- Content -->
     <div class="col-md-10">
-        <div class="row mb-3">
-            <div class="col-lg-4 col-6">
-                <div class="small-box bg-info kpi-clickable">
-                    <div class="inner">
-                        <h3 id="kpiResponses">0 <small id="kpiTrend0" class="kpi-trend"></small></h3>
-                        <p>Total Responses</p>
-                    </div>
-                    <div class="icon"><i class="fas fa-comment-dots"></i></div>
-                </div>
-            </div>
-            <div class="col-lg-4 col-6">
-                <div class="small-box bg-success kpi-clickable">
-                    <div class="inner">
-                        <h3 id="kpiAvgRating">0 <small id="kpiTrend1" class="kpi-trend"></small></h3>
-                        <p>Avg Rating</p>
-                    </div>
-                    <div class="icon"><i class="fas fa-star"></i></div>
-                </div>
-            </div>
-            <div class="col-lg-4 col-6">
-                <div class="small-box bg-warning kpi-clickable">
-                    <div class="inner">
-                        <h3 id="kpiInstructors">0 <small id="kpiTrend2" class="kpi-trend"></small></h3>
-                        <p>Instructors Rated</p>
-                    </div>
+        <div class="row mb-4">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner"><h3 id="kpiInstructors">0</h3><p>Instructors Reviewed</p></div>
                     <div class="icon"><i class="fas fa-users"></i></div>
                 </div>
             </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col-md-7">
-                <div class="card h-100 white-chart-card chart-card-equal">
-                    <div class="card-header border-0 pb-0">
-                        <h3 class="card-title text-sm uppercase">Rating Distribution</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-area" style="height:240px;"><canvas id="ratingBarChart"></canvas></div>
-                        <div id="ratingBarLegend" class="chart-legend-external"></div>
-                    </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner"><h3 id="kpiSessions">0</h3><p>Total Sessions</p></div>
+                    <div class="icon"><i class="fas fa-chalkboard-teacher"></i></div>
                 </div>
             </div>
-            <div class="col-md-5">
-                <div class="card h-100 white-chart-card chart-card-equal">
-                    <div class="card-header border-0 pb-0">
-                        <h3 class="card-title text-sm uppercase">Feedback Categories</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-area" style="height:240px;"><canvas id="feedbackPieChart"></canvas></div>
-                        <div id="feedbackPieLegend" class="chart-legend-external"></div>
-                    </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-navy-blue">
+                    <div class="inner"><h3 id="kpiDemo">0</h3><p>Demo Sessions</p></div>
+                    <div class="icon"><i class="fas fa-flask"></i></div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                    <div class="inner"><h3 id="kpiHandsOn">0</h3><p>Hands-on Sessions</p></div>
+                    <div class="icon"><i class="fas fa-hands"></i></div>
                 </div>
             </div>
         </div>
@@ -97,11 +67,13 @@
                     <table id="feedbackTable" class="table table-striped table-hover mb-0 high-contrast-table">
                         <thead>
                             <tr>
-                                <th data-sortable="true" data-sort-type="string">Instructor</th>
-                                <th data-sortable="true" data-sort-type="string">School</th>
-                                <th data-sortable="true" data-sort-type="string">Question</th>
-                                <th data-sortable="true" data-sort-type="string">Answer</th>
-                                <th data-sortable="true" data-sort-type="string">Date</th>
+                                <th>Instructor</th>
+                                <th>Date</th>
+                                <th>School</th>
+                                <th>Activity</th>
+                                <th class="text-center">Demo Sessions</th>
+                                <th class="text-center">Hands-on</th>
+                                <th class="text-center">Duration (min)</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -118,93 +90,60 @@
 <script>
 $(function () {
     const pagination = window.PramanaPagination;
-    const msRegion = new PramanaMultiSelect('#regionFilter', { placeholder: 'All Regions' });
-    const msYear = new PramanaMultiSelect('#yearFilter', { placeholder: 'All Years' });
-    const msQuarter = new PramanaMultiSelect('#quarterFilter', { placeholder: 'All Quarters' });
-    const msMonth = new PramanaMultiSelect('#monthFilter', { placeholder: 'All Months' });
-
-    msQuarter.setOptions([
-        { value: '1', label: 'Q1 (Apr-Jun)' }, { value: '2', label: 'Q2 (Jul-Sep)' },
-        { value: '3', label: 'Q3 (Oct-Dec)' }, { value: '4', label: 'Q4 (Jan-Mar)' }
-    ]);
+    if ($.fn.select2) $('.select2').select2({ theme: 'bootstrap4' });
 
     fetch('/instructor-feedback/filters')
         .then(r => r.json())
         .then(data => {
-            msRegion.setOptions(data.regions || []);
-            msYear.setOptions((data.years || []).map(y => ({ value: String(y), label: String(y) })));
-            msMonth.setOptions((data.months || []).map(m => ({ value: String(m.id), label: m.name })));
+            data.instructors.forEach(i => $('#instructorFilter').append(new Option(i, i)));
+            data.years.forEach(y => $('#yearFilter').append(new Option(y, y)));
         });
 
-    const tableSorter = new PramanaTableSort('feedbackTable');
-    let previousKpis = null;
-
-    function renderTrend(id, cur, prev) {
-        const el = document.getElementById(id);
-        if (!el || prev === null || prev === undefined) { if (el) el.innerHTML = ''; return; }
-        if (prev === 0 && cur === 0) { el.innerHTML = ''; return; }
-        const pct = prev === 0 ? 100 : ((cur - prev) / prev * 100);
-        const r = Math.abs(pct).toFixed(1);
-        if (pct > 0) { el.className = 'kpi-trend kpi-trend-up'; el.innerHTML = `<i class="fas fa-arrow-up"></i> +${r}%`; }
-        else if (pct < 0) { el.className = 'kpi-trend kpi-trend-down'; el.innerHTML = `<i class="fas fa-arrow-down"></i> -${r}%`; }
-        else { el.className = 'kpi-trend kpi-trend-neutral'; el.innerHTML = `<i class="fas fa-minus"></i> 0%`; }
-    }
-
     function loadData() {
-        const filters = { region: msRegion.getCSV(), year: msYear.getCSV(), month: msMonth.getCSV(), limit: pagination.state.limit, offset: pagination.state.offset };
-        const query = new URLSearchParams(filters).toString();
-        fetch(`/instructor-feedback/data?${query}`)
+        const q = new URLSearchParams({
+            instructor_name: $('#instructorFilter').val(),
+            year:            $('#yearFilter').val(),
+            limit:           pagination.state.limit,
+            offset:          pagination.state.offset
+        }).toString();
+
+        fetch(`/instructor-feedback/data?${q}`)
             .then(r => r.json())
             .then(data => {
+                if (data.kpis && data.kpis.length >= 4) {
+                    $('#kpiInstructors').text(data.kpis[0].value.toLocaleString());
+                    $('#kpiSessions').text(data.kpis[1].value.toLocaleString());
+                    $('#kpiDemo').text(data.kpis[2].value.toLocaleString());
+                    $('#kpiHandsOn').text(data.kpis[3].value.toLocaleString());
+                }
                 const tbody = $('#feedbackTable tbody');
                 tbody.empty();
-
-                if (data.kpis) {
-                    const k = data.kpis;
-                    $('#kpiResponses').contents().first()[0].textContent = (k.total_responses || 0).toLocaleString() + ' ';
-                    $('#kpiAvgRating').contents().first()[0].textContent = (k.avg_rating || 0).toFixed(1) + ' ';
-                    $('#kpiInstructors').contents().first()[0].textContent = (k.instructors_rated || 0).toLocaleString() + ' ';
-                    if (previousKpis) {
-                        renderTrend('kpiTrend0', k.total_responses, previousKpis.total_responses);
-                        renderTrend('kpiTrend1', k.avg_rating, previousKpis.avg_rating);
-                        renderTrend('kpiTrend2', k.instructors_rated, previousKpis.instructors_rated);
-                    }
-                    previousKpis = { ...k };
-                }
-
-                // Charts from distribution data if available
-                if (data.rating_distribution && data.rating_distribution.length > 0) {
-                    PramanaCharts.createBarChart('ratingBarChart', data.rating_distribution,
-                        { datasetLabel: 'Responses', externalLegendId: 'ratingBarLegend', colors: '#3b82f6' });
-                }
-                if (data.category_distribution && data.category_distribution.length > 0) {
-                    PramanaCharts.createPieChart('feedbackPieChart', data.category_distribution,
-                        { externalLegendId: 'feedbackPieLegend', doughnut: true });
-                }
-
                 if (!data.table || data.table.length === 0) {
-                    tbody.append('<tr><td colspan="5" class="text-center">No data found</td></tr>');
+                    tbody.append('<tr><td colspan="7" class="text-center py-4">No data found</td></tr>');
                     pagination.updateInfo('feedbackTable', 0);
                     return;
                 }
                 data.table.forEach(row => {
                     tbody.append(`<tr>
-                        <td>${row.instructor_name || ''}</td>
-                        <td>${row.school_name || ''}</td>
-                        <td>${row.question || ''}</td>
-                        <td>${row.answer || ''}</td>
-                        <td>${row.session_date || ''}</td>
+                        <td class="font-weight-bold">${row.instructor_name}</td>
+                        <td>${row.session_date}</td>
+                        <td>${row.school_name}</td>
+                        <td><span class="badge badge-info">${row.activity_name}</span></td>
+                        <td class="text-center">${row.demo_sessions}</td>
+                        <td class="text-center">${row.hands_on_sessions}</td>
+                        <td class="text-center">${row.duration_minutes}</td>
                     </tr>`);
                 });
                 pagination.updateInfo('feedbackTable', data.total_count);
-            });
+            })
+            .catch(e => console.error('Error:', e));
     }
 
     $('#seeReport').click(() => { pagination.reset(); loadData(); });
     $('.prev-page').click(() => pagination.prev(loadData));
     $('.next-page').click(() => pagination.next(loadData));
     $('#exportXlsx').click(() => {
-        const q = new URLSearchParams({ region: msRegion.getCSV(), year: msYear.getCSV(), month: msMonth.getCSV() }).toString();
+        const q = new URLSearchParams({ instructor_name: $('#instructorFilter').val(), year: $('#yearFilter').val() }).toString();
         window.exportToXLSX(`/instructor-feedback/export?${q}`, 'instructor_feedback.xlsx');
     });
 
