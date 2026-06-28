@@ -251,7 +251,8 @@ def get_instructor_overview(region=None, years=None, program=None, limit=15, off
         SQL_KPI = f"""
             SELECT COUNT(DISTINCT f.sk_user_id) AS total_instructors,
                    COUNT(DISTINCT f.sk_fact_session_id) AS total_sessions,
-                   COALESCE(SUM(e.total_exposure_count), 0) AS total_students
+                   COALESCE(SUM(e.total_exposure_count), 0) AS total_students,
+                   COUNT(DISTINCT CONCAT(f.sk_user_id, '_', f.date_id)) AS total_working_days
             FROM {DW}.fact_session f
             LEFT JOIN {DW}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
             LEFT JOIN {DW}.dim_date d      ON f.date_id = d.date_id
@@ -262,7 +263,8 @@ def get_instructor_overview(region=None, years=None, program=None, limit=15, off
         SQL_PREV_KPI = f"""
             SELECT COUNT(DISTINCT f.sk_user_id) AS total_instructors,
                    COUNT(DISTINCT f.sk_fact_session_id) AS total_sessions,
-                   COALESCE(SUM(e.total_exposure_count), 0) AS total_students
+                   COALESCE(SUM(e.total_exposure_count), 0) AS total_students,
+                   COUNT(DISTINCT CONCAT(f.sk_user_id, '_', f.date_id)) AS total_working_days
             FROM {DW}.fact_session f
             LEFT JOIN {DW}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
             LEFT JOIN {DW}.dim_date d      ON f.date_id = d.date_id
@@ -338,6 +340,35 @@ def get_instructor_overview(region=None, years=None, program=None, limit=15, off
             LEFT JOIN {DW}.fact_attendance_exposure e ON f.session_nk_id = e.session_nk_id
             WHERE {where_sql} GROUP BY d.year_actual, d.month_actual ORDER BY sort_key LIMIT 24"""
 
+        SQL_HISTOGRAM = f"""
+            SELECT 
+                CASE 
+                    WHEN days_worked BETWEEN 1 AND 5 THEN '1-5 Days'
+                    WHEN days_worked BETWEEN 6 AND 10 THEN '6-10 Days'
+                    WHEN days_worked BETWEEN 11 AND 15 THEN '11-15 Days'
+                    WHEN days_worked BETWEEN 16 AND 20 THEN '16-20 Days'
+                    ELSE '21+ Days'
+                END AS label,
+                COUNT(*) AS value,
+                CASE 
+                    WHEN days_worked BETWEEN 1 AND 5 THEN 1
+                    WHEN days_worked BETWEEN 6 AND 10 THEN 2
+                    WHEN days_worked BETWEEN 11 AND 15 THEN 3
+                    WHEN days_worked BETWEEN 16 AND 20 THEN 4
+                    ELSE 5
+                END AS sort_order
+            FROM (
+                SELECT f.sk_user_id, COUNT(DISTINCT f.date_id) AS days_worked
+                FROM {DW}.fact_session f
+                LEFT JOIN {DW}.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+                LEFT JOIN {DW}.dim_date d ON f.date_id = d.date_id
+                LEFT JOIN {DW}.dim_program p ON f.sk_program_id = p.sk_program_id
+                WHERE {where_sql}
+                GROUP BY f.sk_user_id
+            ) sub
+            GROUP BY label, sort_order
+            ORDER BY sort_order"""
+
         futures_map = {}
         with ThreadPoolExecutor(max_workers=8) as ex:
             futures_map["kpi"]      = ex.submit(fetch_one,  SQL_KPI,      params)
@@ -347,6 +378,7 @@ def get_instructor_overview(region=None, years=None, program=None, limit=15, off
             futures_map["count"]    = ex.submit(fetch_one,  SQL_COUNT,    params + search_params)
             futures_map["table"]    = ex.submit(fetch_all,  SQL_TABLE,    params + search_params + [limit, offset])
             futures_map["sparkline"]= ex.submit(fetch_all,  SQL_SPARKLINE,params)
+            futures_map["histogram"]= ex.submit(fetch_all,  SQL_HISTOGRAM,params)
             if prev_year is not None:
                 futures_map["prev_kpi"] = ex.submit(fetch_one, SQL_PREV_KPI, prev_params)
 
@@ -357,11 +389,15 @@ def get_instructor_overview(region=None, years=None, program=None, limit=15, off
         count_row    = futures_map["count"].result()
         table        = futures_map["table"].result()
         sparkline_rows = futures_map["sparkline"].result()
+        histogram_rows = futures_map["histogram"].result()
 
         ti = int(kpi.get("total_instructors", 0) or 0)
         ts = int(kpi.get("total_sessions", 0) or 0)
         stu = int(kpi.get("total_students", 0) or 0)
+        twd = int(kpi.get("total_working_days", 0) or 0)
         avg = round(ts / ti, 1) if ti else 0
+        exp_per_session = round(stu / ts, 1) if ts else 0
+        exp_per_ignator = round(stu / ti, 1) if ti else 0
 
         trends_yo_y = None
         prev_vals = None
@@ -419,8 +455,16 @@ def get_instructor_overview(region=None, years=None, program=None, limit=15, off
         }
         insights = generate_instructor_insights(curr_vals, prev_vals, trends_yo_y, single_year, prev_year, max_month)
 
-        kpis_response = {"total_instructors": ti, "total_sessions": ts,
-                         "avg_per_instructor": avg, "total_students": stu, "insights": insights}
+        kpis_response = {
+            "total_instructors": ti, 
+            "total_sessions": ts,
+            "avg_per_instructor": avg, 
+            "total_students": stu, 
+            "total_working_days": twd,
+            "exposure_per_session": exp_per_session,
+            "exposure_per_ignator": exp_per_ignator,
+            "insights": insights
+        }
         if trends_yo_y:
             kpis_response["trends"] = trends_yo_y
 
@@ -428,6 +472,7 @@ def get_instructor_overview(region=None, years=None, program=None, limit=15, off
             "by_type":   [{"label": r["label"], "value": int(r["value"])} for r in type_rows],
             "trend":     [{"label": r["label"], "value": int(r["value"])} for r in trend_rows],
             "by_region": [{"label": r["label"], "value": int(r["value"])} for r in region_rows],
+            "working_days_histogram": [{"label": r["label"], "value": int(r["value"])} for r in histogram_rows],
         }
         count = count_row.get("count", 0) if count_row else 0
         monthly_trends = []
