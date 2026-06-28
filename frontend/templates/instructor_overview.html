@@ -119,6 +119,55 @@
         </div>
     </div>
 
+    <!-- New KPIs Row -->
+    <div class="row">
+        <!-- Card 5: Total Working Days -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="kpi-card-bitcoin" id="kpiCardWorkingDays" style="height: 100%;">
+                <div class="kpi-bitcoin-header">
+                    <div class="kpi-bitcoin-icon-wrapper" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="kpi-bitcoin-title-box">
+                        <span class="kpi-bitcoin-label">Ignator-Working Days</span>
+                        <span class="kpi-bitcoin-sublabel">Total Working Days</span>
+                    </div>
+                </div>
+                <div class="kpi-bitcoin-value" id="kpiWorkingDays">0</div>
+            </div>
+        </div>
+        <!-- Card 6: Exposure per Session -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="kpi-card-bitcoin" id="kpiCardExpSession" style="height: 100%;">
+                <div class="kpi-bitcoin-header">
+                    <div class="kpi-bitcoin-icon-wrapper" style="background: linear-gradient(135deg, #e83e8c 0%, #d82a7a 100%);">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="kpi-bitcoin-title-box">
+                        <span class="kpi-bitcoin-label">Exposure / Session</span>
+                        <span class="kpi-bitcoin-sublabel">Average Students reached</span>
+                    </div>
+                </div>
+                <div class="kpi-bitcoin-value" id="kpiExpSession">0.0</div>
+            </div>
+        </div>
+        <!-- Card 7: Exposure per Ignator -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="kpi-card-bitcoin" id="kpiCardExpInstructor" style="height: 100%;">
+                <div class="kpi-bitcoin-header">
+                    <div class="kpi-bitcoin-icon-wrapper" style="background: linear-gradient(135deg, #fd7e14 0%, #e66a0d 100%);">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div class="kpi-bitcoin-title-box">
+                        <span class="kpi-bitcoin-label">Exposure / Ignator</span>
+                        <span class="kpi-bitcoin-sublabel">Average Students per Ignator</span>
+                    </div>
+                </div>
+                <div class="kpi-bitcoin-value" id="kpiExpInstructor">0.0</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Charts Row 1 -->
     <div class="row">
         <div class="col-md-12 mb-3">
@@ -133,12 +182,32 @@
 
     <!-- Charts Row 2 -->
     <div class="row">
-        <div class="col-12 mb-3">
+        <div class="col-md-12 mb-3">
             <div class="card white-chart-card shadow-sm">
                 <div class="card-header border-0 pb-1" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0!important;">
                     <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Top Regions by Sessions</h3>
                 </div>
                 <div class="card-body"><div style="height:300px;"><canvas id="chartRegion"></canvas></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3: Ignator Types & Working Days Histogram -->
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="card white-chart-card shadow-sm">
+                <div class="card-header border-0 pb-1" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0!important;">
+                    <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Sessions by Ignator Type</h3>
+                </div>
+                <div class="card-body"><div style="height:300px;"><canvas id="chartType"></canvas></div></div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card white-chart-card shadow-sm">
+                <div class="card-header border-0 pb-1" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0!important;">
+                    <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Working Days Distribution</h3>
+                </div>
+                <div class="card-body"><div style="height:300px;"><canvas id="chartWorkingDaysHistogram"></canvas></div></div>
             </div>
         </div>
     </div>
@@ -228,33 +297,7 @@
     </div>
 </div>
 
-<!-- Filter Drawer -->
-<div id="filterDrawerOverlay" class="filter-drawer-overlay"></div>
-<div id="filterDrawer" class="filter-drawer">
-    <div class="fd-header">
-        <h3 class="fd-title"><i class="fas fa-filter mr-2" style="color:#3b82f6;"></i>Filters</h3>
-        <button id="closeDrawer" class="fd-close"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="fd-body">
-        <div class="fd-section">
-            <label class="fd-label">Fiscal Year</label>
-            <select id="yearFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Year" data-filter="years"></select>
-        </div>
-        <div class="fd-section">
-            <label class="fd-label">Regional Hubs</label>
-            <select id="regionFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Region" data-filter="region"></select>
-        </div>
-        <div class="fd-section">
-            <label class="fd-label">Activity Type</label>
-            <select id="programFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Activity" data-filter="program"></select>
-        </div>
-    </div>
-    <div class="fd-footer">
-        <button id="resetFilters" class="btn btn-outline-secondary btn-block" style="border-radius:10px;">
-            <i class="fas fa-undo mr-2"></i>Reset All Filters
-        </button>
-    </div>
-</div>
+{% include "partials/filters.html" %}
 
 <!-- KPI Insights Modal -->
 <div class="modal fade" id="kpiInsightModal" tabindex="-1" role="dialog" aria-labelledby="kpiInsightModalLabel" aria-hidden="true">
@@ -407,43 +450,70 @@ $(function(){
     if($.fn.select2){ $('.select2').select2({ theme:'bootstrap4', dropdownParent:$('#filterDrawer'), width:'100%', allowClear:true, multiple:true }); }
 
     // Filters
-    function fetchFilters(target, years, regions){
-        const q = $.param({years:years||[], regions:regions||[]}, true);
-        return fetch(`/dashboard/filters?${q}`).then(r=>r.json()).then(d=>{
+    const rf = $('#regionFilter'), pf = $('#programFilter'),
+          myf = $('#monthYearFilter'), ptf = $('#programTypeFilter'), emf = $('#engagementModeFilter');
+
+    function fetchFilters(target) {
+        const query = $.param(window.PramanaDashboard.collectFilters(), true);
+        return fetch(`/dashboard/filters?${query}`).then(r=>r.json()).then(d=>{
             if(target==='all'){
-                $('#yearFilter').empty(); 
-                d.years.forEach(y=>$('#yearFilter').append(new Option(y,y)));
-                
-                // Default to current year if available and nothing is selected
-                const currentYear = new Date().getFullYear();
-                if(!($('#yearFilter').val()||[]).length && d.years.includes(currentYear)){
-                    $('#yearFilter').val([currentYear]);
+                rf.empty(); d.regions.forEach(r=>rf.append(new Option(r,r)));
+                pf.empty(); d.programs.forEach(p=>pf.append(new Option(p,p)));
+
+                myf.empty();
+                if (d.month_years) {
+                    d.month_years.forEach(my => myf.append(new Option(my.name, my.id)));
                 }
-                
-                $('#regionFilter').empty(); d.regions.forEach(r=>$('#regionFilter').append(new Option(r,r)));
-                $('#programFilter').empty(); d.programs.forEach(p=>$('#programFilter').append(new Option(p,p)));
-                $('.select2').trigger('change.select2');
-            } else if(target==='regions'){
-                const cur=$('#regionFilter').val()||[];
-                $('#regionFilter').empty(); d.regions.forEach(r=>$('#regionFilter').append(new Option(r,r)));
-                $('#regionFilter').val(cur).trigger('change.select2',{internal:true});
-            } else if(target==='programs'){
-                const cur=$('#programFilter').val()||[];
-                $('#programFilter').empty(); d.programs.forEach(p=>$('#programFilter').append(new Option(p,p)));
-                $('#programFilter').val(cur).trigger('change.select2',{internal:true});
+
+                ptf.empty();
+                if (d.program_types) {
+                    d.program_types.forEach(pt => ptf.append(new Option(pt, pt)));
+                }
+
+                emf.empty();
+                if (d.engagement_modes) {
+                    d.engagement_modes.forEach(em => emf.append(new Option(em, em)));
+                }
+
+                // Default to current calendar month-year if available
+                const now = new Date();
+                const currentMy = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                if (d.month_years.some(my => my.id === currentMy)) {
+                    myf.val([currentMy]);
+                } else if (d.month_years.length > 0) {
+                    myf.val([d.month_years[0].id]);
+                }
+
+                rf.trigger('change.select2', { internal: true });
+                pf.trigger('change.select2', { internal: true });
+                myf.trigger('change.select2', { internal: true });
+                ptf.trigger('change.select2', { internal: true });
+                emf.trigger('change.select2', { internal: true });
             }
             updateSummary();
         });
     }
-    fetchFilters('all');
 
-    $('#yearFilter').on('change',(e,d)=>{ if(d&&d.internal) return; fetchFilters('regions',$('#yearFilter').val()).then(()=>fetchFilters('programs',$('#yearFilter').val(),$('#regionFilter').val())); loadData(); });
-    $('#regionFilter').on('change',(e,d)=>{ if(d&&d.internal) return; fetchFilters('programs',$('#yearFilter').val(),$('#regionFilter').val()); loadData(); });
-    $('#programFilter').on('change',(e,d)=>{ if(d&&d.internal) return; loadData(); });
-    $('#resetFilters').click(()=>{ $('.select2').val(null).trigger('change',{internal:true}); fetchFilters('all').then(()=>loadData()); });
+    fetchFilters('all').then(() => loadData());
+
+    rf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
+    pf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
+    myf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
+    ptf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
+    emf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
+
+    $('#resetFilters').click(()=>{
+        $('.select2').val(null).trigger('change',{internal:true});
+        fetchFilters('all').then(()=>loadData());
+    });
 
     function updateSummary(){
-        const t=($('#yearFilter').val()||[]).length+($('#regionFilter').val()||[]).length+($('#programFilter').val()||[]).length;
+        const regions = rf.val() || [];
+        const programs = pf.val() || [];
+        const month_years = myf.val() || [];
+        const program_types = ptf.val() || [];
+        const engagement_modes = emf.val() || [];
+        const t = regions.length + programs.length + month_years.length + program_types.length + engagement_modes.length;
         $('#activeFilterCount').text(t?`${t} Filters Applied`:'All Data');
     }
     $('.select2').on('change', updateSummary);
@@ -544,6 +614,7 @@ $(function(){
     function updateKpis(kpis, trends = [], sparklines = null) {
         animateNum($('#kpiInstructors'), kpis.total_instructors);
         animateNum($('#kpiSessions'),    kpis.total_sessions);
+        animateNum($('#kpiWorkingDays'), kpis.total_working_days);
         
         // Handle floating point average
         const avgEl = $('#kpiAvgSessions');
@@ -555,6 +626,28 @@ $(function(){
             step++;
             avgEl.text((startAvg + inc * step).toFixed(1));
             if (step >= steps) { avgEl.text(targetAvg.toFixed(1)); clearInterval(t); }
+        }, 25);
+
+        const expSessEl = $('#kpiExpSession');
+        const startExpSess = parseFloat(expSessEl.text()) || 0;
+        const targetExpSess = kpis.exposure_per_session || 0;
+        const steps2 = 20, inc2 = (targetExpSess - startExpSess) / steps2;
+        let step2 = 0;
+        const t2 = setInterval(() => {
+            step2++;
+            expSessEl.text((startExpSess + inc2 * step2).toFixed(1));
+            if (step2 >= steps2) { expSessEl.text(targetExpSess.toFixed(1)); clearInterval(t2); }
+        }, 25);
+
+        const expInstEl = $('#kpiExpInstructor');
+        const startExpInst = parseFloat(expInstEl.text()) || 0;
+        const targetExpInst = kpis.exposure_per_ignator || 0;
+        const steps3 = 20, inc3 = (targetExpInst - startExpInst) / steps3;
+        let step3 = 0;
+        const t3 = setInterval(() => {
+            step3++;
+            expInstEl.text((startExpInst + inc3 * step3).toFixed(1));
+            if (step3 >= steps3) { expInstEl.text(targetExpInst.toFixed(1)); clearInterval(t3); }
         }, 25);
 
         animateNum($('#kpiStudents'),    kpis.total_students);
@@ -612,9 +705,10 @@ $(function(){
 
             // Charts
             const ch=data.charts||{};
-            // renderDoughnut('chartType', ch.by_type||[]);
+            renderDoughnut('chartType', ch.by_type||[]);
             renderLine('chartTrend', ch.trend||[]);
             renderHBar('chartRegion', ch.by_region||[]);
+            renderBar('chartWorkingDaysHistogram', ch.working_days_histogram||[]);
 
             // Table
             if(dt){ dt.destroy(); dt=null; }
@@ -788,6 +882,20 @@ $(function(){
                     tooltip:{backgroundColor:'rgba(15,23,42,.9)',padding:12,cornerRadius:8}},
                 scales:{x:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#64748b'}},
                         y:{grid:{display:false},ticks:{color:'#334155',font:{weight:'600'}}}}}
+        });
+    }
+
+    function renderBar(id, points){
+        destroyChart(id);
+        const c=document.getElementById(id); if(!c) return;
+        chartInstances[id]=new Chart(c,{type:'bar',data:{
+            labels:points.map(p=>p.label), datasets:[{label:'Ignators',data:points.map(p=>p.value),
+            backgroundColor:'#10b981',borderRadius:6,barThickness:28}]},
+            options:{responsive:true,maintainAspectRatio:false,
+                plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'top',color:'#334155',font:{weight:'bold',size:11},formatter:v=>v.toLocaleString()},
+                    tooltip:{backgroundColor:'rgba(15,23,42,.9)',padding:12,cornerRadius:8}},
+                scales:{x:{grid:{display:false},ticks:{color:'#64748b'}},
+                        y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#64748b'}}}}
         });
     }
 
