@@ -1,0 +1,40 @@
+<!-- Unified Filter Drawer Component -->
+<div id="filterDrawerOverlay" class="filter-drawer-overlay"></div>
+<div id="filterDrawer" class="filter-drawer">
+    <div class="fd-header">
+        <h3 class="fd-title"><i class="fas fa-filter mr-2" style="color: #3b82f6;"></i>Filters</h3>
+        <button id="closeDrawer" class="fd-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="fd-body">
+        <div class="fd-section">
+            <label class="fd-label">Month Year</label>
+            <select id="monthYearFilter" class="form-control select2 filter-multi" multiple="multiple" data-filter="month_year"
+                data-placeholder="Select Month Year"></select>
+        </div>
+        <div class="fd-section">
+            <label class="fd-label">Regional Hubs</label>
+            <select id="regionFilter" class="form-control select2 filter-multi" multiple="multiple" data-filter="region"
+                data-placeholder="Select Region"></select>
+        </div>
+        <div class="fd-section">
+            <label class="fd-label">Program Type</label>
+            <select id="programTypeFilter" class="form-control select2 filter-multi" multiple="multiple" data-filter="program_type"
+                data-placeholder="Select Program Type"></select>
+        </div>
+        <div class="fd-section">
+            <label class="fd-label">Activity Type</label>
+            <select id="programFilter" class="form-control select2 filter-multi" multiple="multiple"
+                data-filter="program" data-placeholder="Select Activity Type"></select>
+        </div>
+        <div class="fd-section">
+            <label class="fd-label">Mode of Engagement</label>
+            <select id="engagementModeFilter" class="form-control select2 filter-multi" multiple="multiple" data-filter="engagement_mode"
+                data-placeholder="Select Mode of Engagement"></select>
+        </div>
+    </div>
+    <div class="fd-footer">
+        <button id="resetFilters" class="btn btn-outline-secondary btn-block" style="border-radius:10px;">
+            <i class="fas fa-undo mr-2"></i>Reset All Filters
+        </button>
+    </div>
+</div>
