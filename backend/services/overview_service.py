@@ -135,7 +135,8 @@ def _build_filters(
     program: list[str] | None = None, 
     is_vehicle_ops: bool = False,
     program_type: list[str] | None = None,
-    engagement_mode: list[str] | None = None
+    engagement_mode: list[str] | None = None,
+    is_attendance: bool = False
 ):
     where_clause, params = build_dimension_filters(
         year=years,
@@ -161,7 +162,7 @@ def _build_filters(
         params.append(program_type)
 
     if engagement_mode and len(engagement_mode) > 0:
-        pk_col = "sk_fact_vehicle_operations_id" if is_vehicle_ops else "sk_fact_session_id"
+        pk_col = "sk_fact_vehicle_operations_id" if is_vehicle_ops else ("sk_fact_attendance_id" if is_attendance else "sk_fact_session_id")
         em_clause = f"""(CASE 
             WHEN f.{pk_col} % 7 = 0 THEN 'Digital' 
             WHEN f.{pk_col} % 7 = 1 THEN 'Phygital' 
@@ -175,18 +176,20 @@ def _build_filters(
 
     # ── Default Ignator role filter (Looker-matching definition) ─────────────
     # For session-based queries: only count sessions by INSTRUCTOR and AREA LEAD
-    # roles that are not marked as overdue. This aligns with Looker's baseline
-    # which shows 528 Programs / 717 Ignators for FY 2026-27 April 2026.
+    # roles. Overdue check is only applicable for sessions (not attendance/operations).
     if not is_vehicle_ops:
         role_clause = (
             "f.sk_user_id IN ("
             "SELECT u.sk_user_id FROM dw.dim_user u WHERE u.role_name = ANY(%s))"
         )
         if where_clause:
-            where_clause += f" AND {role_clause} AND f.is_overdue = false"
+            where_clause += f" AND {role_clause}"
         else:
-            where_clause = f"WHERE {role_clause} AND f.is_overdue = false"
+            where_clause = f"WHERE {role_clause}"
         params.append(DEFAULT_IGNATOR_ROLES)
+        
+        if not is_attendance:
+            where_clause += " AND f.is_overdue = false"
 
     return where_clause, params
 
@@ -209,13 +212,13 @@ def generate_insights_dict(curr_vals, prev_vals, trends, single_year, prev_year,
             "color": "linear-gradient(135deg, #f39c12 0%, #e67e22 100%)",
             "name": f"Number of Ignators{region_text}"
         },
-        "total_drivers": {
+        "total_exposures": {
             "title": f"Total Exposures Insights{region_text}",
             "icon": "fas fa-user-graduate",
             "color": "linear-gradient(135deg, #3498db 0%, #2980b9 100%)",
             "name": f"Total Exposures{region_text}"
         },
-        "total_states": {
+        "total_sessions": {
             "title": f"Count of Sessions Insights{region_text}",
             "icon": "fas fa-chalkboard-teacher",
             "color": "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)",
@@ -437,9 +440,10 @@ def get_overview_kpis(
         f"""
         SELECT
             COUNT(DISTINCT f.sk_user_id) AS total_instructors,
-            COUNT(DISTINCT f.sk_fact_session_id) AS total_states,
-            COUNT(DISTINCT p.program_name) AS total_programs,
-            COALESCE(SUM(exp.exposure_sum), 0) + COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS total_drivers
+            COUNT(DISTINCT f.sk_fact_session_id) AS total_sessions,
+            COUNT(DISTINCT p.sk_program_id) AS active_programs,
+            COALESCE(SUM(exp.exposure_sum), 0) + COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS total_exposures,
+            COUNT(DISTINCT CONCAT(f.sk_user_id, '_', f.date_id)) AS total_working_days
         FROM dw.fact_session f
         LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
         LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
@@ -454,7 +458,112 @@ def get_overview_kpis(
         params,
     )
 
-    # Determine the single year for trend calculation
+    # 2. Unique Children reached
+    where_clause_att, params_att = _build_filters(
+        years=years, region=region, program=program,
+        program_type=program_type, engagement_mode=engagement_mode,
+        is_attendance=True
+    )
+    where_clause_att, params_att = _apply_ytd_filter(
+        where_clause_att, params_att, years, region, program, 
+        month=month, month_year=month_year
+    )
+
+    children_row = fetch_one(
+        f"""
+        SELECT COALESCE(SUM(max_exp), 0) AS unique_children
+        FROM (
+            SELECT f.sk_school_id, f.sk_program_id, f.class_name, f.section_name, MAX(f.total_exposure_count) AS max_exp
+            FROM dw.fact_attendance_exposure f
+            LEFT JOIN dw.dim_date d ON f.date_id = d.date_id
+            LEFT JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+            {where_clause_att}
+            GROUP BY f.sk_school_id, f.sk_program_id, f.class_name, f.section_name
+        ) sub
+        """,
+        params_att,
+    )
+
+    # 3. Active/Inactive Programs
+    active_progs = kpis_row.get("active_programs", 0) or 0
+    total_progs_row = fetch_one("SELECT COUNT(DISTINCT sk_program_id) AS total FROM dw.dim_program;")
+    total_progs = total_progs_row.get("total", 0) or 0
+    inactive_programs = max(total_progs - active_progs, 0)
+
+    # 4. Active/Inactive Instructors (Ignators)
+    active_inst = kpis_row.get("total_instructors", 0) or 0
+    inactive_inst_row = fetch_one(
+        "SELECT COUNT(DISTINCT sk_user_id) AS total FROM dw.dim_user WHERE role_name = ANY(%s) AND is_active = false;",
+        [DEFAULT_IGNATOR_ROLES]
+    )
+    inactive_instructors = inactive_inst_row.get("total", 0) or 0
+
+    # 5. Coverage (Count of unique states reached)
+    coverage_row = fetch_one(
+        f"""
+        SELECT COUNT(DISTINCT g.state_name) FILTER (WHERE g.state_name IS NOT NULL AND g.state_name != 'Other') AS total_coverage
+        FROM dw.fact_session f
+        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
+        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        {where_clause}
+        """,
+        params,
+    )
+
+    # 6. Vehicles (Bikes and Buses active/used)
+    veh_where, veh_params = _build_filters(
+        years=years, region=region, program=program, is_vehicle_ops=True,
+        program_type=program_type, engagement_mode=engagement_mode
+    )
+    veh_where, veh_params = _apply_ytd_filter(
+        veh_where, veh_params, years, region, program, 
+        month=month, month_year=month_year
+    )
+    logistics_row = fetch_one(
+        f"""
+        SELECT 
+            COUNT(DISTINCT CASE 
+                WHEN LOWER(v.vehicle_name) LIKE '%%bike%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%yamaha%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%platina%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%hero%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%tvs%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%splendor%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%scooty%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%activa%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%motor cycle%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%pleasure%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%plessure%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%shine%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%discover%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%ct100%%'
+                THEN f.vehicle_nk_id END) AS active_bikes,
+            COUNT(DISTINCT CASE 
+                WHEN LOWER(v.vehicle_name) LIKE '%%bus%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%traveller%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%travaller%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%traveler%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%tempo%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%winger%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%isuzu%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%macropolo%%' 
+                  OR LOWER(v.vehicle_name) LIKE '%%tata%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%van%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%ecco%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%omni%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%cargo%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%709%%'
+                  OR LOWER(v.vehicle_name) LIKE '%%force%%'
+                THEN f.vehicle_nk_id END) AS active_buses
+        FROM dw.fact_vehicle_operations f
+        LEFT JOIN dw.dim_date d ON f.date_id = d.date_id
+        LEFT JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
+        LEFT JOIN source.mst_vehicle v ON f.vehicle_nk_id::TEXT = v.mst_vehicle_id::TEXT
+        {veh_where}
+        """,
+        veh_params,
+    )
+
     single_year = None
     if years and len(years) == 1:
         try:
@@ -497,9 +606,9 @@ def get_overview_kpis(
                 f"""
                 SELECT
                     COUNT(DISTINCT f.sk_user_id) AS total_instructors,
-                    COUNT(DISTINCT f.sk_fact_session_id) AS total_states,
-                    COUNT(DISTINCT p.program_name) AS total_programs,
-                    COALESCE(SUM(exp.exposure_sum), 0) + COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS total_drivers
+                    COUNT(DISTINCT f.sk_fact_session_id) AS total_sessions,
+                    COUNT(DISTINCT p.sk_program_id) AS active_programs,
+                    COALESCE(SUM(exp.exposure_sum), 0) + COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS total_exposures
                 FROM dw.fact_session f
                 LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
                 LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
@@ -517,14 +626,14 @@ def get_overview_kpis(
             curr_inst = int(kpis_row.get("total_instructors", 0) or 0)
             prev_inst = int(prev_kpis_row.get("total_instructors", 0) or 0)
             
-            curr_driver = int(kpis_row.get("total_drivers", 0) or 0)
-            prev_driver = int(prev_kpis_row.get("total_drivers", 0) or 0)
+            curr_driver = int(kpis_row.get("total_exposures", 0) or 0)
+            prev_driver = int(prev_kpis_row.get("total_exposures", 0) or 0)
             
-            curr_state = int(kpis_row.get("total_states", 0) or 0)
-            prev_state = int(prev_kpis_row.get("total_states", 0) or 0)
+            curr_state = int(kpis_row.get("total_sessions", 0) or 0)
+            prev_state = int(prev_kpis_row.get("total_sessions", 0) or 0)
             
-            curr_prog = int(kpis_row.get("total_programs", 0) or 0)
-            prev_prog = int(prev_kpis_row.get("total_programs", 0) or 0)
+            curr_prog = int(kpis_row.get("active_programs", 0) or 0)
+            prev_prog = int(prev_kpis_row.get("active_programs", 0) or 0)
 
             # For YTD totals comparison, averages are set directly to YTD totals
             curr_inst_avg = curr_inst
@@ -539,10 +648,10 @@ def get_overview_kpis(
             prev_vals = {
                 "total_instructors": prev_inst,
                 "total_instructors_avg": prev_inst_avg,
-                "total_drivers": prev_driver,
-                "total_drivers_avg": prev_driver_avg,
-                "total_states": prev_state,
-                "total_states_avg": prev_state_avg,
+                "total_exposures": prev_driver,
+                "total_exposures_avg": prev_driver_avg,
+                "total_sessions": prev_state,
+                "total_sessions_avg": prev_state_avg,
                 "total_programs": prev_prog,
                 "total_programs_avg": prev_prog_avg,
             }
@@ -557,8 +666,8 @@ def get_overview_kpis(
                 
             trends = {
                 "total_instructors": calc_trend(curr_inst, prev_inst),
-                "total_drivers": calc_trend(curr_driver, prev_driver),
-                "total_states": calc_trend(curr_state, prev_state),
+                "total_exposures": calc_trend(curr_driver, prev_driver),
+                "total_sessions": calc_trend(curr_state, prev_state),
                 "total_programs": calc_trend(curr_prog, prev_prog)
             }
         except Exception:
@@ -566,9 +675,17 @@ def get_overview_kpis(
 
     response_data = {
         "total_instructors": int(kpis_row.get("total_instructors", 0) or 0),
-        "total_drivers": int(kpis_row.get("total_drivers", 0) or 0),
-        "total_states": int(kpis_row.get("total_states", 0) or 0),
-        "total_programs": int(kpis_row.get("total_programs", 0) or 0),
+        "total_exposures": int(kpis_row.get("total_exposures", 0) or 0),
+        "total_sessions": int(kpis_row.get("total_sessions", 0) or 0),
+        "total_programs": int(kpis_row.get("active_programs", 0) or 0),
+        "inactive_programs": int(inactive_programs),
+        "active_instructors": int(active_inst),
+        "inactive_instructors": int(inactive_instructors),
+        "total_coverage": int(coverage_row.get("total_coverage", 0) or 0),
+        "total_unique_children": int(children_row.get("unique_children", 0) or 0),
+        "total_working_days": int(kpis_row.get("total_working_days", 0) or 0),
+        "active_bikes": int(logistics_row.get("active_bikes", 0) or 0),
+        "active_buses": int(logistics_row.get("active_buses", 0) or 0),
     }
     if trends:
         response_data["trends"] = trends
@@ -577,10 +694,10 @@ def get_overview_kpis(
     curr_vals = {
         "total_instructors": response_data["total_instructors"],
         "total_instructors_avg": curr_inst_avg if 'curr_inst_avg' in locals() else response_data["total_instructors"],
-        "total_drivers": response_data["total_drivers"],
-        "total_drivers_avg": curr_driver_avg if 'curr_driver_avg' in locals() else response_data["total_drivers"],
-        "total_states": response_data["total_states"],
-        "total_states_avg": response_data["total_states"],
+        "total_exposures": response_data["total_exposures"],
+        "total_exposures_avg": curr_driver_avg if 'curr_driver_avg' in locals() else response_data["total_exposures"],
+        "total_sessions": response_data["total_sessions"],
+        "total_sessions_avg": response_data["total_sessions"],
         "total_programs": response_data["total_programs"],
         "total_programs_avg": response_data["total_programs"],
     }
