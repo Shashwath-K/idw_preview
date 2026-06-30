@@ -19,6 +19,17 @@ CREATE TABLE IF NOT EXISTS dw.agg_instructor_monthly_summary (
 );
 
 TRUNCATE TABLE dw.agg_instructor_monthly_summary;
+
+WITH pre_agg_exposure AS (
+    SELECT session_nk_id, SUM(COALESCE(total_exposure_count, 0)) as total_exposure_count
+    FROM dw.fact_attendance_exposure
+    GROUP BY session_nk_id
+),
+pre_agg_vehicle AS (
+    SELECT sk_user_id, date_id, SUM(COALESCE(distance_travelled, 0)) as distance_travelled
+    FROM dw.fact_vehicle_operations
+    GROUP BY sk_user_id, date_id
+)
 INSERT INTO dw.agg_instructor_monthly_summary (sk_user_id, year_actual, month_actual, total_sessions, total_exposures, total_distance_travelled)
 SELECT 
     f.sk_user_id,
@@ -29,8 +40,9 @@ SELECT
     SUM(COALESCE(fv.distance_travelled, 0)) as total_distance_travelled
 FROM dw.fact_session f
 JOIN dw.dim_date d ON f.date_id = d.date_id
-LEFT JOIN dw.fact_attendance_exposure fa ON f.session_nk_id = fa.session_nk_id
-LEFT JOIN dw.fact_vehicle_operations fv ON f.sk_user_id = fv.sk_user_id AND f.date_id = fv.date_id
+LEFT JOIN pre_agg_exposure fa ON f.session_nk_id = fa.session_nk_id
+LEFT JOIN pre_agg_vehicle fv ON f.sk_user_id = fv.sk_user_id AND f.date_id = fv.date_id
+WHERE f.sk_user_id IS NOT NULL
 GROUP BY f.sk_user_id, d.year_actual, d.month_actual;
 
 --------------------------------------------------------------------------------
@@ -47,6 +59,12 @@ CREATE TABLE IF NOT EXISTS dw.agg_geography_daily_metrics (
 );
 
 TRUNCATE TABLE dw.agg_geography_daily_metrics;
+
+WITH pre_agg_exposure AS (
+    SELECT session_nk_id, SUM(COALESCE(total_exposure_count, 0)) as total_exposure_count
+    FROM dw.fact_attendance_exposure
+    GROUP BY session_nk_id
+)
 INSERT INTO dw.agg_geography_daily_metrics (sk_geography_id, date_id, session_count, exposure_count, instructor_count, school_count)
 SELECT 
     f.sk_geography_id,
@@ -56,7 +74,8 @@ SELECT
     COUNT(DISTINCT f.sk_user_id) as instructor_count,
     COUNT(DISTINCT f.sk_school_id) as school_count
 FROM dw.fact_session f
-LEFT JOIN dw.fact_attendance_exposure fa ON f.session_nk_id = fa.session_nk_id
+LEFT JOIN pre_agg_exposure fa ON f.session_nk_id = fa.session_nk_id
+WHERE f.sk_geography_id IS NOT NULL
 GROUP BY f.sk_geography_id, f.date_id;
 
 --------------------------------------------------------------------------------
@@ -72,6 +91,12 @@ CREATE TABLE IF NOT EXISTS dw.agg_program_performance (
 );
 
 TRUNCATE TABLE dw.agg_program_performance;
+
+WITH pre_agg_exposure AS (
+    SELECT session_nk_id, SUM(COALESCE(total_exposure_count, 0)) as total_exposure_count
+    FROM dw.fact_attendance_exposure
+    GROUP BY session_nk_id
+)
 INSERT INTO dw.agg_program_performance (sk_program_id, total_sessions_completed, total_exposures_achieved, active_instructors, participating_schools)
 SELECT 
     f.sk_program_id,
@@ -80,5 +105,6 @@ SELECT
     COUNT(DISTINCT f.sk_user_id) as active_instructors,
     COUNT(DISTINCT f.sk_school_id) as participating_schools
 FROM dw.fact_session f
-LEFT JOIN dw.fact_attendance_exposure fa ON f.session_nk_id = fa.session_nk_id
+LEFT JOIN pre_agg_exposure fa ON f.session_nk_id = fa.session_nk_id
+WHERE f.sk_program_id IS NOT NULL
 GROUP BY f.sk_program_id;
