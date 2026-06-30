@@ -51,7 +51,8 @@ LEFT JOIN source.mst_school ms ON COALESCE((CASE WHEN cpsm.school_id ~ '^[0-9]+$
 LEFT JOIN dw.dim_geography gs ON (CASE WHEN ms.area_id ~ '^[0-9]+$' THEN ms.area_id::BIGINT ELSE NULL END) = gs.nk_area_id
 LEFT JOIN source.mst_user mu ON (CASE WHEN ts.instructor_id ~ '^[0-9]+$' THEN ts.instructor_id::BIGINT ELSE NULL END) = (CASE WHEN mu.mst_user_id ~ '^[0-9]+$' THEN mu.mst_user_id::BIGINT ELSE NULL END)
 LEFT JOIN dw.dim_geography gi ON (CASE WHEN mu.area_id ~ '^[0-9]+$' THEN mu.area_id::BIGINT ELSE NULL END) = gi.nk_area_id
-LEFT JOIN dw.dim_program pi ON (CASE WHEN mu.base_program_id ~ '^[0-9]+$' THEN mu.base_program_id::BIGINT ELSE NULL END) = pi.nk_program_id;
+LEFT JOIN dw.dim_program pi ON (CASE WHEN mu.base_program_id ~ '^[0-9]+$' THEN mu.base_program_id::BIGINT ELSE NULL END) = pi.nk_program_id
+WHERE u.sk_user_id IS NOT NULL;
 
 -- B. Sessions from RPT_ADHOC_FEEDBACK (Primary source for historical 4-year data)
 INSERT INTO dw.fact_session (
@@ -93,7 +94,7 @@ LEFT JOIN dw.dim_geography s_village_geo ON (CASE WHEN ms_village.area_id ~ '^[0
 LEFT JOIN source.mst_user mu ON (CASE WHEN ra.instructor_id ~ '^[0-9]+$' THEN ra.instructor_id::BIGINT ELSE NULL END) = (CASE WHEN mu.mst_user_id ~ '^[0-9]+$' THEN mu.mst_user_id::BIGINT ELSE NULL END)
 LEFT JOIN dw.dim_geography gi ON (CASE WHEN mu.area_id ~ '^[0-9]+$' THEN mu.area_id::BIGINT ELSE NULL END) = gi.nk_area_id
 LEFT JOIN dw.dim_program pi ON (CASE WHEN mu.base_program_id ~ '^[0-9]+$' THEN mu.base_program_id::BIGINT ELSE NULL END) = pi.nk_program_id
-WHERE ra.adhoc_id ~ '^[0-9]+$';
+WHERE ra.adhoc_id ~ '^[0-9]+$' AND u.sk_user_id IS NOT NULL;
 
 --------------------------------------------------------------------------------
 -- 2. FACT_ATTENDANCE_EXPOSURE
