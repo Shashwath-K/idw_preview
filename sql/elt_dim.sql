@@ -26,7 +26,7 @@ FROM generate_series('2010-01-01'::DATE, '2030-12-31'::DATE, '1 day'::INTERVAL) 
 -- 2. DIM_GEOGRAPHY (Area + Region)
 --------------------------------------------------------------------------------
 TRUNCATE TABLE dw.dim_geography CASCADE;
-INSERT INTO dw.dim_geography (nk_area_id, nk_region_id, area_name, region_name, area_code, region_code, is_deleted)
+INSERT INTO dw.dim_geography (nk_area_id, nk_region_id, area_name, region_name, area_code, region_code, state_name, state_code, is_deleted)
 SELECT 
     CASE WHEN a.mst_area_id ~ '^[0-9]+$' THEN a.mst_area_id::BIGINT ELSE NULL END as nk_area_id,
     CASE WHEN r.mst_region_id ~ '^[0-9]+$' THEN r.mst_region_id::BIGINT ELSE NULL END as nk_region_id,
@@ -34,10 +34,14 @@ SELECT
     r.name as region_name,
     a.code as area_code,
     r.code as region_code,
+    COALESCE(ref.state_name, 'Other') as state_name,
+    COALESCE(ref.state_code, 'OT') as state_code,
     COALESCE(CASE WHEN a.is_deleted ~ '^[0-9]+$' THEN a.is_deleted::INT ELSE 0 END = 1, false) OR 
     COALESCE(CASE WHEN r.is_deleted ~ '^[0-9]+$' THEN r.is_deleted::INT ELSE 0 END = 1, false)
 FROM source.mst_area a
-JOIN source.mst_region r ON (CASE WHEN a.region_id ~ '^[0-9]+$' THEN a.region_id::BIGINT ELSE NULL END) = (CASE WHEN r.mst_region_id ~ '^[0-9]+$' THEN r.mst_region_id::BIGINT ELSE NULL END);
+JOIN source.mst_region r ON (CASE WHEN a.region_id ~ '^[0-9]+$' THEN a.region_id::BIGINT ELSE NULL END) = (CASE WHEN r.mst_region_id ~ '^[0-9]+$' THEN r.mst_region_id::BIGINT ELSE NULL END)
+LEFT JOIN source.ref_region_state_mapping ref ON r.name = ref.region_name;
+
 
 --------------------------------------------------------------------------------
 -- 3. DIM_USER (SCD Type 1)
@@ -80,6 +84,7 @@ SELECT
 FROM source.mst_school s
 LEFT JOIN source.mst_school_type st ON (CASE WHEN s.school_type ~ '^[0-9]+$' THEN s.school_type::BIGINT ELSE NULL END) = (CASE WHEN st.mst_school_type_id ~ '^[0-9]+$' THEN st.mst_school_type_id::BIGINT ELSE NULL END);
 
+/*
 -- 4b. Add Pseudo Schools from adhoc villages that don't match any real school
 INSERT INTO dw.dim_school (nk_school_id, school_name, school_code, is_deleted)
 SELECT 
@@ -93,6 +98,7 @@ FROM (
     WHERE village IS NOT NULL AND village != ''
     AND LOWER(TRIM(village)) NOT IN (SELECT LOWER(TRIM(name)) FROM source.mst_school WHERE name IS NOT NULL)
 ) v;
+*/
 
 --------------------------------------------------------------------------------
 -- 5. DIM_PROGRAM
