@@ -163,3 +163,40 @@ def get_execution(execution_id: str):
     if execution is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found.")
     return execution
+
+# ═══════════════════════════════════════════════════════════════
+#  NEW PIPELINE ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+from backend.data_ops.pipeline import ELTPipeline
+from backend.data_ops.validators import ELTValidators
+from backend.data_ops.reconciliation import ELTReconciliation
+from backend.data_ops.reference_data import ReferenceDataCRUD
+
+@router.post("/pipeline/run")
+def run_pipeline():
+    try:
+        pipeline = ELTPipeline(triggered_by="api_user")
+        result = pipeline.run()
+        return result
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Execution error: {exc}",
+        )
+
+@router.get("/pipeline/validate")
+def validate_pipeline():
+    return {"validation_results": ELTValidators.run_all_validations()}
+
+@router.get("/pipeline/reconcile")
+def reconcile_pipeline():
+    return {"reconciliation_results": ELTReconciliation.run_reconciliation()}
+
+@router.get("/reference/{table_name}")
+def get_reference_data(table_name: str):
+    try:
+        data = ReferenceDataCRUD.get_reference_data(table_name)
+        return {"table": table_name, "data": data}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
