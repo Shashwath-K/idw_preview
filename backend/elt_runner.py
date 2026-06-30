@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-
 from psycopg2 import sql
 
 from backend.config import (
@@ -16,38 +15,25 @@ from backend.config import (
     SOURCE_DB_NAME,
     SOURCE_SCHEMA_NAME,
     DATAMART_SCHEMA_NAME,
-    SQL_DIR,
 )
 from backend.db import get_datamart_conn
+from backend.data_ops.pipeline import ELTPipeline
 
-
-INCLUDE_PREFIX = "-- include:"
-DEFAULT_RUN_FILE = "elt_run.sql"
 FDW_SERVER_NAME = "pramana_source_server"
 
-
-def run_elt(script_name: str = DEFAULT_RUN_FILE) -> list[str]:
-    script_path = SQL_DIR / script_name
-    if not script_path.exists():
-        raise FileNotFoundError(f"ELT script not found: {script_path}")
-
+def run_elt(script_name: str = None) -> list[str]:
     with get_datamart_conn() as conn:
         _ensure_foreign_source_access(conn)
         
-        with conn.cursor() as cur:
-            cur.execute(f"SET search_path = {DATAMART_SCHEMA_NAME}, {SOURCE_SCHEMA_NAME}, {FDW_SOURCE_SCHEMA}, public")
-
-        executed_files: list[str] = []
-        for sql_text, resolved_path in _expand_script(script_path):
-            with conn.cursor() as cur:
-                cur.execute(_render_sql(sql_text))
-            executed_files.append(resolved_path.name)
-
-        return executed_files
-
+    pipeline = ELTPipeline(triggered_by="upload_or_legacy")
+    result = pipeline.run()
+    
+    if result["status"] != "success":
+        raise Exception(f"ELT Pipeline failed. Check Data Ops dashboard for run_id: {result['run_id']}")
+        
+    return ["elt_dim.sql", "elt_fact.sql", "elt_agg.sql"]
 
 def _ensure_foreign_source_access(conn) -> None:
-    # If source and datamart are in the same database, we don't need FDW
     if SOURCE_DB_NAME == DATAMART_DB_NAME:
         return
 
@@ -76,27 +62,3 @@ def _ensure_foreign_source_access(conn) -> None:
                 sql.Identifier(FDW_SOURCE_SCHEMA),
             )
         )
-
-
-def _expand_script(script_path: Path) -> list[tuple[str, Path]]:
-    statements: list[tuple[str, Path]] = []
-
-    for raw_line in script_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or not line.startswith(INCLUDE_PREFIX):
-            continue
-
-        include_name = line.removeprefix(INCLUDE_PREFIX).strip()
-        include_path = (script_path.parent / include_name).resolve()
-        if not include_path.exists():
-            raise FileNotFoundError(f"Included ELT script not found: {include_path}")
-        statements.extend(_expand_script(include_path))
-
-    if statements:
-        return statements
-
-    return [(script_path.read_text(encoding="utf-8"), script_path)]
-
-
-def _render_sql(sql_text: str) -> str:
-    return sql_text.replace("{{SOURCE_FDW_SCHEMA}}", FDW_SOURCE_SCHEMA)
