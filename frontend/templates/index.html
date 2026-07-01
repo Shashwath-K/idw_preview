@@ -165,6 +165,77 @@
     <!-- Charts Row -->
     <section class="overview-content-stack mt-2">
         <div class="row">
+            <!-- Data Coverage Report -->
+            <div class="col-md-12 mb-3">
+                <div class="card h-100 shadow-sm border-0" style="border-radius: 12px; background: #ffffff;">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center mb-3">
+                            <div style="background: rgba(99, 102, 241, 0.1); color: #6366f1; border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-database" style="font-size: 1.1rem;"></i>
+                            </div>
+                            <span class="ml-2 font-weight-bold" style="color: #334155; font-size: 0.95rem;">Data Coverage</span>
+                        </div>
+                        <div class="row" id="dataCoverageStats">
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <div class="text-center">
+                                    <h5 class="font-weight-bold mb-0" id="coverageEarliest" style="color: #1e293b;">-</h5>
+                                    <span class="text-muted" style="font-size: 0.8rem;">Earliest Record</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <div class="text-center">
+                                    <h5 class="font-weight-bold mb-0" id="coverageLatest" style="color: #1e293b;">-</h5>
+                                    <span class="text-muted" style="font-size: 0.8rem;">Latest Record</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <div class="text-center">
+                                    <h5 class="font-weight-bold mb-0" id="coverageYears" style="color: #1e293b;">-</h5>
+                                    <span class="text-muted" style="font-size: 0.8rem;">Years of Data</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <div class="text-center">
+                                    <h5 class="font-weight-bold mb-0" id="coverageMonths" style="color: #1e293b;">-</h5>
+                                    <span class="text-muted" style="font-size: 0.8rem;">Months of Data</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2" id="dataCoverageSecondary">
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <div class="text-center">
+                                    <h6 class="font-weight-bold mb-0" id="coverageSessions" style="color: #6366f1;">-</h6>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Total Sessions</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <div class="text-center">
+                                    <h6 class="font-weight-bold mb-0" id="coverageAttendance" style="color: #10b981;">-</h6>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Attendance Records</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <div class="text-center">
+                                    <h6 class="font-weight-bold mb-0" id="coverageRegions" style="color: #f59e0b;">-</h6>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Regions</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-sm-6 mb-2">
+                                <div class="text-center">
+                                    <h6 class="font-weight-bold mb-0" id="coverageSchools" style="color: #ec4899;">-</h6>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Schools</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Charts Row -->
+    <section class="overview-content-stack mt-2">
+        <div class="row">
             <div class="col-md-4 mb-2">
                 <div class="card h-100 white-chart-card">
                     <div class="card-header border-0 pb-1 d-flex align-items-center"
@@ -619,7 +690,8 @@
         }
         // ── Filters ─────────────────────────────────────────────────────
         const rf = $('#regionFilter'), pf = $('#programFilter'),
-              myf = $('#monthYearFilter'), ptf = $('#programTypeFilter'), emf = $('#engagementModeFilter');
+              yf = $('#yearFilter'), mf = $('#monthFilter'),
+              ptf = $('#programTypeFilter'), emf = $('#engagementModeFilter');
 
         if ($.fn.select2) {
             $('.select2').select2({
@@ -654,10 +726,11 @@
         function updateFilterSummary() {
             const regions = rf.val() || [];
             const programs = pf.val() || [];
-            const month_years = myf.val() || [];
+            const years = yf.val() || [];
+            const months = mf.val() || [];
             const program_types = ptf.val() || [];
             const engagement_modes = emf.val() || [];
-            const total = regions.length + programs.length + month_years.length + program_types.length + engagement_modes.length;
+            const total = regions.length + programs.length + years.length + months.length + program_types.length + engagement_modes.length;
 
             if (total === 0) {
                 $('#activeFilterCount').text('All Data');
@@ -667,19 +740,25 @@
         }
 
         function updateReportPeriodText() {
-            const selectedMonthYears = myf.val() || [];
+            const selectedYears = yf.val() || [];
+            const selectedMonths = mf.val() || [];
             let appliedFilterVal = "";
-            if (selectedMonthYears.length > 0) {
-                const labels = selectedMonthYears.map(val => {
-                    const opt = myf.find(`option[value="${val}"]`);
-                    return opt.text() || val;
-                });
-                appliedFilterVal = labels.join(", ");
+
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            if (selectedYears.length > 0 || selectedMonths.length > 0) {
+                const parts = [];
+                if (selectedYears.length > 0) {
+                    parts.push(selectedYears.join(", "));
+                }
+                if (selectedMonths.length > 0) {
+                    const monthLabels = selectedMonths.map(m => monthNames[parseInt(m) - 1] || m);
+                    parts.push(monthLabels.join(", "));
+                }
+                appliedFilterVal = parts.join(" / ");
             } else {
-                // If nothing is selected, default to current calendar month-year label
                 const now = new Date();
-                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                appliedFilterVal = `${months[now.getMonth()]} ${now.getFullYear()}`;
+                appliedFilterVal = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
             }
             $('#filterStatusText').html(`The <span style="color: #64748b; font-weight: 500;">Period</span> applied is : <span style="color: #f59e0b; font-weight: 700; font-size: 1.15rem; margin-left: 4px;">${appliedFilterVal}</span>`);
         }
@@ -738,16 +817,21 @@
                 .then(r => r.json())
                 .then(data => {
                     if (target === 'all') {
+                        yf.empty();
+                        if (data.years) {
+                            data.years.forEach(y => yf.append(new Option(y, y)));
+                        }
+
+                        mf.empty();
+                        if (data.months) {
+                            data.months.forEach(m => mf.append(new Option(m.name, m.id)));
+                        }
+
                         rf.empty();
                         data.regions.forEach(r => rf.append(new Option(r, r)));
 
                         pf.empty();
                         data.programs.forEach(p => pf.append(new Option(p, p)));
-
-                        myf.empty();
-                        if (data.month_years) {
-                            data.month_years.forEach(my => myf.append(new Option(my.name, my.id)));
-                        }
 
                         ptf.empty();
                         if (data.program_types) {
@@ -759,19 +843,22 @@
                             data.engagement_modes.forEach(em => emf.append(new Option(em, em)));
                         }
 
-                        // Default to current calendar month-year if available
+                        // Default: select current FY year if available
+                        if (data.years && data.years.length > 0) {
+                            yf.val([data.years[0]]);
+                        }
+                        // Default: select current month if available
                         const now = new Date();
-                        const currentMy = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                        if (data.month_years.some(my => my.id === currentMy)) {
-                            myf.val([currentMy]);
-                        } else if (data.month_years.length > 0) {
-                            myf.val([data.month_years[0].id]);
+                        const currentMonth = String(now.getMonth() + 1);
+                        if (data.months && data.months.some(m => String(m.id) === currentMonth)) {
+                            mf.val([currentMonth]);
                         }
 
                         // Notify Select2
+                        yf.trigger('change.select2', { internal: true });
+                        mf.trigger('change.select2', { internal: true });
                         rf.trigger('change.select2', { internal: true });
                         pf.trigger('change.select2', { internal: true });
-                        myf.trigger('change.select2', { internal: true });
                         ptf.trigger('change.select2', { internal: true });
                         emf.trigger('change.select2', { internal: true });
                     }
@@ -793,7 +880,12 @@
             loadData();
         });
 
-        myf.on('change', function (e, data) {
+        yf.on('change', function (e, data) {
+            if (data && data.internal) return;
+            loadData();
+        });
+
+        mf.on('change', function (e, data) {
             if (data && data.internal) return;
             loadData();
         });
@@ -1608,10 +1700,9 @@ $('#modeEngagementSummaryTable thead').on('click', 'th.sortable', function() {
         // ── Button handlers ──────────────────────────────────────────────
         $('#resetFilters').click(() => {
             yf.val(null).trigger('change', { internal: true });
+            mf.val(null).trigger('change', { internal: true });
             rf.val(null).trigger('change', { internal: true });
             pf.val(null).trigger('change', { internal: true });
-            mf.val(null).trigger('change', { internal: true });
-            myf.val(null).trigger('change', { internal: true });
             ptf.val(null).trigger('change', { internal: true });
             emf.val(null).trigger('change', { internal: true });
             fetchFilters('all').then(() => {
@@ -1676,6 +1767,27 @@ $('#modeEngagementSummaryTable thead').on('click', 'th.sortable', function() {
 
         // Auto-load
         setTimeout(loadData, 300);
+
+        // Load data coverage report
+        fetch('/dashboard/data-coverage')
+            .then(r => r.json())
+            .then(coverage => {
+                if (coverage.date_range) {
+                    $('#coverageEarliest').text(coverage.date_range.earliest || '-');
+                    $('#coverageLatest').text(coverage.date_range.latest || '-');
+                    $('#coverageYears').text(coverage.date_range.total_years || 0);
+                    $('#coverageMonths').text(coverage.date_range.total_months || 0);
+                }
+                if (coverage.fact_counts) {
+                    $('#coverageSessions').text((coverage.fact_counts.total_sessions || 0).toLocaleString());
+                    $('#coverageAttendance').text((coverage.fact_counts.total_attendance_records || 0).toLocaleString());
+                }
+                if (coverage.dimension_counts) {
+                    $('#coverageRegions').text((coverage.dimension_counts.total_regions || 0).toLocaleString());
+                    $('#coverageSchools').text((coverage.dimension_counts.total_schools || 0).toLocaleString());
+                }
+            })
+            .catch(err => console.error('Failed to load data coverage:', err));
     });
 </script>
 {% endblock %}
