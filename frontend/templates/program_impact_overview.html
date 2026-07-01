@@ -1,11 +1,113 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+.content-header { display: none !important; }
+
+/* ── Map Popup ── */
+.nw-map-popup .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.2); border: none; }
+.nw-map-popup .leaflet-popup-content { margin: 0; min-width: 280px; font-family: 'Inter', Arial, sans-serif; }
+.nw-map-popup .leaflet-popup-tip { box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
+
+/* ── Region Tooltip ── */
+.nw-region-label {
+    background: rgba(255,255,255,0.92) !important;
+    border: none !important;
+    border-radius: 20px !important;
+    padding: 3px 10px !important;
+    font-family: 'Inter', Arial, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12) !important;
+    white-space: nowrap !important;
+}
+.nw-region-label::before { display: none !important; }
+
+/* ── Pulse Animation ── */
+@keyframes mapPulse {
+    0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+    70% { box-shadow: 0 0 0 15px rgba(59,130,246,0); }
+    100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+}
+@keyframes mapGlow {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(52,211,153,0.4)); }
+    50% { filter: drop-shadow(0 0 10px rgba(52,211,153,0.7)); }
+}
+.leaflet-interactive.nw-bubble-pulse {
+    animation: mapPulse 2s infinite;
+}
+.leaflet-interactive.nw-bubble-glow {
+    animation: mapGlow 2.5s ease-in-out infinite;
+}
+
+/* ── Stats Overlay ── */
+.nw-stats-overlay {
+    position: absolute; top: 12px; left: 12px; z-index: 1000;
+    background: linear-gradient(135deg, rgba(15,23,42,0.88), rgba(30,41,59,0.92));
+    backdrop-filter: blur(12px);
+    border-radius: 14px; padding: 16px 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    font-family: 'Inter', Arial, sans-serif;
+    color: #fff; min-width: 240px;
+}
+.nw-stats-overlay .stat-row {
+    display: flex; align-items: center; gap: 10px; padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.nw-stats-overlay .stat-row:last-child { border-bottom: none; }
+.nw-stats-overlay .stat-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+}
+.nw-stats-overlay .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.6); }
+.nw-stats-overlay .stat-value { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+
+/* ── Metric Toggle ── */
+.nw-metric-toggle {
+    position: absolute; top: 12px; right: 12px; z-index: 1000;
+    display: flex; gap: 0;
+    background: rgba(255,255,255,0.95); border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    overflow: hidden;
+}
+.nw-metric-btn {
+    border: none; background: transparent; padding: 8px 14px;
+    font-family: 'Inter', Arial, sans-serif; font-size: 11px; font-weight: 600;
+    color: #64748b; cursor: pointer; transition: all 0.2s;
+    white-space: nowrap;
+}
+.nw-metric-btn:hover { color: #1e293b; background: #f1f5f9; }
+.nw-metric-btn.active { background: #3b82f6; color: #fff; }
+
+/* ── Gradient Legend ── */
+.nw-gradient-legend {
+    position: absolute; bottom: 12px; right: 12px; z-index: 1000;
+    background: rgba(255,255,255,0.95); border-radius: 12px;
+    padding: 14px 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    font-family: 'Inter', Arial, sans-serif;
+}
+.nw-gradient-bar {
+    width: 160px; height: 12px; border-radius: 6px;
+    background: linear-gradient(90deg, #f87171, #fbbf24, #34d399);
+    margin: 6px 0;
+}
+.nw-gradient-labels {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: #64748b; font-weight: 600;
+}
+
+/* ── Map Container ── */
+.nw-map-wrapper { position: relative; }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <div class="col-md-12">
     <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
-            <h1 class="m-0 font-weight-bold" style="font-size: 1.5rem; color: #1e293b; font-family: Arial, sans-serif !important;">Program Impact</h1>
-            <p class="text-muted small mb-0">Program reach, student exposure & school coverage</p>
+            <h1 class="m-0 font-weight-bold" style="font-size:1.8rem;color:#1e293b;">Program Impact</h1>
+            <p class="text-muted small mb-0">Program reach, student exposure & nationwide distribution</p>
         </div>
         <div class="filter-launcher shadow-sm" id="filterLauncher" title="Open Filters">
             <div class="fl-content">
@@ -16,13 +118,10 @@
         </div>
     </div>
 
-    <div class="row mb-3">
-        <!-- Card 1: Total Programs -->
+    <!-- KPI Cards -->
+    <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="kpi-card-bitcoin" id="kpiCardPrograms">
-                <button type="button" class="kpi-info-btn" data-kpi="total_programs" title="View Insights">
-                    <i class="fas fa-info-circle"></i>
-                </button>
                 <div class="kpi-bitcoin-header">
                     <div class="kpi-bitcoin-icon-wrapper" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);">
                         <i class="fas fa-project-diagram"></i>
@@ -33,20 +132,11 @@
                     </div>
                 </div>
                 <div class="kpi-bitcoin-value" id="kpiPrograms">0</div>
-                <div class="d-flex align-items-center mb-2" id="trendWrapperPrograms" style="display: none !important;">
-                    <div id="trendPrograms"></div>
-                    <span class="kpi-bitcoin-footer">vs previous period</span>
-                </div>
                 <div class="kpi-mini-chart"><canvas id="miniChartPrograms"></canvas></div>
             </div>
         </div>
-        
-        <!-- Card 2: Schools Reached -->
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="kpi-card-bitcoin" id="kpiCardSchools">
-                <button type="button" class="kpi-info-btn" data-kpi="total_schools" title="View Insights">
-                    <i class="fas fa-info-circle"></i>
-                </button>
                 <div class="kpi-bitcoin-header">
                     <div class="kpi-bitcoin-icon-wrapper" style="background: linear-gradient(135deg, #28a745 0%, #218838 100%);">
                         <i class="fas fa-school"></i>
@@ -57,20 +147,11 @@
                     </div>
                 </div>
                 <div class="kpi-bitcoin-value" id="kpiSchools">0</div>
-                <div class="d-flex align-items-center mb-2" id="trendWrapperSchools" style="display: none !important;">
-                    <div id="trendSchools"></div>
-                    <span class="kpi-bitcoin-footer">vs previous period</span>
-                </div>
                 <div class="kpi-mini-chart"><canvas id="miniChartSchools"></canvas></div>
             </div>
         </div>
-
-        <!-- Card 3: Students Reached -->
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="kpi-card-bitcoin" id="kpiCardStudents">
-                <button type="button" class="kpi-info-btn" data-kpi="total_students" title="View Insights">
-                    <i class="fas fa-info-circle"></i>
-                </button>
                 <div class="kpi-bitcoin-header">
                     <div class="kpi-bitcoin-icon-wrapper" style="background: linear-gradient(135deg, #001f3f 0%, #001226 100%);">
                         <i class="fas fa-user-graduate"></i>
@@ -81,20 +162,11 @@
                     </div>
                 </div>
                 <div class="kpi-bitcoin-value" id="kpiStudents">0</div>
-                <div class="d-flex align-items-center mb-2" id="trendWrapperStudents" style="display: none !important;">
-                    <div id="trendStudents"></div>
-                    <span class="kpi-bitcoin-footer">vs previous period</span>
-                </div>
                 <div class="kpi-mini-chart"><canvas id="miniChartStudents"></canvas></div>
             </div>
         </div>
-
-        <!-- Card 4: Total Sessions -->
         <div class="col-lg-3 col-md-6 mb-4">
             <div class="kpi-card-bitcoin" id="kpiCardSessions">
-                <button type="button" class="kpi-info-btn" data-kpi="total_sessions" title="View Insights">
-                    <i class="fas fa-info-circle"></i>
-                </button>
                 <div class="kpi-bitcoin-header">
                     <div class="kpi-bitcoin-icon-wrapper" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
                         <i class="fas fa-chalkboard-teacher"></i>
@@ -105,124 +177,223 @@
                     </div>
                 </div>
                 <div class="kpi-bitcoin-value" id="kpiSessions">0</div>
-                <div class="d-flex align-items-center mb-2" id="trendWrapperSessions" style="display: none !important;">
-                    <div id="trendSessions"></div>
-                    <span class="kpi-bitcoin-footer">vs previous period</span>
-                </div>
                 <div class="kpi-mini-chart"><canvas id="miniChartSessions"></canvas></div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-5 mb-3">
-            <div class="card h-100 white-chart-card shadow-sm">
-                <div class="card-header border-0 pb-1" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0!important;">
-                    <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Sessions by Program</h3>
-                </div>
-                <div class="card-body"><div style="height:320px;"><canvas id="chartProgram"></canvas></div></div>
-            </div>
-        </div>
-        <div class="col-md-7 mb-3">
-            <div class="card h-100 white-chart-card shadow-sm">
-                <div class="card-header border-0 pb-1" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0!important;">
-                    <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Monthly Student Reach</h3>
-                </div>
-                <div class="card-body"><div style="height:320px;"><canvas id="chartTrend"></canvas></div></div>
-            </div>
-        </div>
-    </div>
+    <!-- Tabs -->
+    <ul class="nav nav-tabs-custom mb-3" id="programImpactTabs">
+        <li class="nav-item">
+            <a class="nav-link active" data-toggle="tab" href="#tabOverview" id="tabBtnOverview">
+                <i class="fas fa-chart-pie mr-1"></i> Overview
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tabNationwide" id="tabBtnNationwide">
+                <i class="fas fa-globe-americas mr-1"></i> Nationwide Data
+            </a>
+        </li>
+    </ul>
 
-    <div class="row">
-        <div class="col-12 mb-3">
-            <div class="card white-chart-card shadow-sm">
-                <div class="card-header border-0 pb-1" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0!important;">
-                    <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Top Regions by Student Reach</h3>
+    <div class="tab-content">
+        <!-- Tab 1: Overview -->
+        <div class="tab-pane fade show active" id="tabOverview">
+            <div class="row">
+                <div class="col-md-5 mb-3">
+                    <div class="card h-100 white-chart-card shadow-sm" style="border-radius:15px;overflow:hidden;">
+                        <div class="card-header border-0 pb-1" style="background:#f1f5f9;border-bottom:1px solid #e2e8f0!important;">
+                            <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Sessions by Program</h3>
+                        </div>
+                        <div class="card-body"><div style="height:320px;"><canvas id="chartProgram"></canvas></div></div>
+                    </div>
                 </div>
-                <div class="card-body"><div style="height:300px;"><canvas id="chartRegion"></canvas></div></div>
+                <div class="col-md-7 mb-3">
+                    <div class="card h-100 white-chart-card shadow-sm" style="border-radius:15px;overflow:hidden;">
+                        <div class="card-header border-0 pb-1" style="background:#f1f5f9;border-bottom:1px solid #e2e8f0!important;">
+                            <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Monthly Student Reach</h3>
+                        </div>
+                        <div class="card-body"><div style="height:320px;"><canvas id="chartTrend"></canvas></div></div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    <div id="drilldownPanel" style="display:none; margin-top: 16px;">
-        <div id="drilldownBreadcrumb" class="d-flex align-items-center mb-3 px-1" style="gap: 8px;">
-            <span class="text-muted" style="font-size:13px; cursor:pointer;" onclick="clearDrilldown()">
-                <i class="fas fa-th-large mr-1"></i>All Regions
-            </span>
-            <i class="fas fa-chevron-right text-muted" style="font-size:10px;"></i>
-            <span id="drilldownRegionLabel" style="font-size:13px; font-weight:600; color:#1e3a8a;"></span>
-            <button onclick="clearDrilldown()" class="btn btn-md ml-auto clear-drilldown-btn"
-                style="background: #991b1b; border: 1px solid #991b1b; color: #ffffff; font-weight: 600; font-size: 15px; padding: 10px 24px; border-radius: 24px; transition: all 0.2s ease-in-out; box-shadow: 0 2px 4px rgba(153, 27, 27, 0.2);">
-                <i class="fas fa-times mr-1"></i>Clear Selection
-            </button>
+
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <div class="card white-chart-card shadow-sm" style="border-radius:15px;overflow:hidden;">
+                        <div class="card-header border-0 pb-1" style="background:#f1f5f9;border-bottom:1px solid #e2e8f0!important;">
+                            <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Top Regions by Student Reach</h3>
+                        </div>
+                        <div class="card-body"><div style="height:300px;"><canvas id="chartRegion"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drilldown Panel -->
+            <div id="drilldownPanel" style="display:none;margin-top:16px;">
+                <div id="drilldownBreadcrumb" class="d-flex align-items-center mb-3 px-1" style="gap:8px;">
+                    <span class="text-muted" style="font-size:13px;cursor:pointer;" onclick="clearDrilldown()"><i class="fas fa-th-large mr-1"></i>All Regions</span>
+                    <i class="fas fa-chevron-right text-muted" style="font-size:10px;"></i>
+                    <span id="drilldownRegionLabel" style="font-size:13px;font-weight:600;color:#1e3a8a;"></span>
+                    <button onclick="clearDrilldown()" class="btn btn-md ml-auto" style="background:#991b1b;border:1px solid #991b1b;color:#fff;font-weight:600;font-size:13px;padding:8px 20px;border-radius:20px;">
+                        <i class="fas fa-times mr-1"></i>Clear Selection
+                    </button>
+                </div>
+                <div class="row mb-3" id="drilldownStats">
+                    <div class="col-md-4 mb-2">
+                        <div class="kpi-card-v2 kpi-v2-navy">
+                            <span class="kpi-v2-val" id="ddSessions">0</span>
+                            <span class="kpi-v2-lbl">Total Sessions</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="kpi-card-v2 kpi-v2-green">
+                            <span class="kpi-v2-val" id="ddStudents">0</span>
+                            <span class="kpi-v2-lbl">Students Reached</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="kpi-card-v2 kpi-v2-teal">
+                            <span class="kpi-v2-val" id="ddSchools">0</span>
+                            <span class="kpi-v2-lbl">Schools Visited</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card white-chart-card shadow-sm" style="border-radius:15px;overflow:hidden;">
+                    <div class="card-header d-flex align-items-center" style="background:#f1f5f9;border-bottom:1px solid #e2e8f0!important;">
+                        <i class="fas fa-table mr-2" style="color:#6366f1;"></i>
+                        <h3 class="card-title text-sm uppercase font-weight-bold" style="color:#334155;">Program Breakdown &mdash; <span id="ddTableRegionLabel" style="color:#6366f1;"></span></h3>
+                        <span id="ddProgramCount" class="ml-auto badge badge-pill badge-light text-muted" style="font-size:11px;">0 programs</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table id="drilldownTable" class="table table-hover mb-0" style="width:100%">
+                                <thead style="background:#f8fafc;">
+                                    <tr>
+                                        <th>Program Name</th><th>Donor</th>
+                                        <th class="text-right">Sessions</th><th class="text-right">Students</th>
+                                        <th class="text-right">Schools</th><th class="text-right">Ignators</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="drilldownTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Program Summary Table -->
+            <div class="card white-chart-card shadow-sm mt-3" style="border-radius:15px;overflow:hidden;">
+                <div class="card-header d-flex align-items-center" style="background:#f1f5f9;border-bottom:1px solid #e2e8f0!important;">
+                    <i class="fas fa-table mr-2" style="color:#8b5cf6;"></i>
+                    <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Program Summary</h3>
+                </div>
+                <div class="card-body p-0">
+                    <div id="ovPaginationBar">
+                        <div class="dt-top-bar" style="display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;justify-content:space-between !important;align-items:center !important;width:100% !important;box-sizing:border-box !important;">
+                            <div class="length-wrapper" style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                                <span>Show</span>
+                                <select id="ovPageSize" class="form-control form-control-sm" style="width:auto;display:inline-flex !important;">
+                                    <option value="10" selected>10</option>
+                                    <option value="15">15</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="-1">All</option>
+                                </select>
+                                <span>entries</span>
+                            </div>
+                            <input type="search" id="ovSearchInput" class="dt-search-input" placeholder="Filter records..." style="margin-left:auto !important;flex-shrink:0;">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="overviewTable" class="table table-hover mb-0" style="width:100%">
+                            <thead><tr>
+                                <th>Program</th><th>Donor</th>
+                                <th class="text-center">Sessions</th><th class="text-center">Schools</th>
+                                <th class="text-center">Students</th><th class="text-center">Ignators</th>
+                            </tr></thead>
+                            <tbody></tbody>
+                            <tfoot id="ovSummaryFooter"></tfoot>
+                        </table>
+                    </div>
+                    <div class="dt-bottom-bar">
+                        <div id="ovPaginationInfo" class="pagination-info">Showing 0 to 0 of 0 entries</div>
+                        <div class="pagination-controls-wrapper">
+                            <button id="ovPrevPage" class="pagination-btn" disabled><i class="fas fa-chevron-left mr-1"></i> Previous</button>
+                            <span id="ovPageInfo" class="page-indicator">Page 1 of 1</span>
+                            <button id="ovNextPage" class="pagination-btn" disabled>Next <i class="fas fa-chevron-right ml-1"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="row mb-3" id="drilldownStats">
-            <div class="col-md-4 mb-2">
-                <div class="kpi-card-v2 kpi-v2-navy">
-                    <span class="kpi-v2-val" id="ddSessions">0</span>
-                    <span class="kpi-v2-lbl">Total Sessions</span>
-                    <div class="kpi-v2-icon"><i class="fas fa-chalkboard"></i></div>
+        <!-- Tab 2: Nationwide Data -->
+        <div class="tab-pane fade" id="tabNationwide">
+            <div id="nwDrilldownPanel" style="display:none;margin-bottom:20px;">
+                <div class="d-flex align-items-center px-1" style="gap:8px;">
+                    <span class="text-muted" style="font-size:13px;cursor:pointer;" onclick="clearNwDrilldown()"><i class="fas fa-globe-americas mr-1"></i>All Regions</span>
+                    <i class="fas fa-chevron-right text-muted" style="font-size:10px;"></i>
+                    <span id="nwDrilldownTitle" style="font-size:13px;font-weight:600;color:#1e3a8a;"></span>
+                    <button onclick="clearNwDrilldown()" class="btn btn-sm ml-auto" style="background:#991b1b;border:none;color:#fff;font-size:12px;padding:5px 14px;border-radius:20px;font-weight:600;">
+                        <i class="fas fa-times mr-1"></i>Clear Drilldown
+                    </button>
                 </div>
             </div>
-            <div class="col-md-4 mb-2">
-                <div class="kpi-card-v2 kpi-v2-green">
-                    <span class="kpi-v2-val" id="ddStudents">0</span>
-                    <span class="kpi-v2-lbl">Students Reached</span>
-                    <div class="kpi-v2-icon"><i class="fas fa-user-graduate"></i></div>
-                </div>
-            </div>
-            <div class="col-md-4 mb-2">
-                <div class="kpi-card-v2 kpi-v2-teal">
-                    <span class="kpi-v2-val" id="ddSchools">0</span>
-                    <span class="kpi-v2-lbl">Schools Visited</span>
-                    <div class="kpi-v2-icon"><i class="fas fa-school"></i></div>
-                </div>
-            </div>
-        </div>
 
-        <div class="card white-chart-card shadow-sm" style="border-radius: 15px; overflow: hidden;">
-            <div class="card-header d-flex align-items-center" style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0 !important;">
-                <i class="fas fa-table mr-2" style="color: #6366f1;"></i>
-                <h3 class="card-title text-sm uppercase font-weight-bold" style="color: #334155;">
-                    Program Breakdown — <span id="ddTableRegionLabel" style="color: #6366f1;"></span>
-                </h3>
-                <span id="ddProgramCount" class="ml-auto badge badge-pill badge-light text-muted" style="font-size:11px;">0 programs</span>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table id="drilldownTable" class="table table-hover mb-0" style="width:100%">
-                        <thead style="background: #f8fafc;">
-                            <tr>
-                                <th>Program Name</th>
-                                <th>Donor</th>
-                                <th class="text-right">Sessions</th>
-                                <th class="text-right">Students</th>
-                                <th class="text-right">Schools</th>
-                                <th class="text-right">Ignators</th>
-                            </tr>
-                        </thead>
-                        <tbody id="drilldownTableBody"></tbody>
-                    </table>
+            <!-- Nationwide Interactive Map -->
+            <div class="card premium-card white-chart-card shadow-sm mb-3" style="border-radius:15px;overflow:hidden;">
+                <div class="card-header card-header-premium d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-map-marked-alt mr-2" style="color:#10b981;"></i>
+                        <h3 class="card-title text-sm uppercase font-weight-bold mb-0" style="color:#334155;">Regional Exposure Map</h3>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
+                <div class="card-body p-0" style="position:relative;">
+                    <!-- Stats Overlay -->
+                    <div class="nw-stats-overlay" id="nwStatsOverlay">
+                        <div class="stat-row">
+                            <div class="stat-icon" style="background:rgba(59,130,246,0.2);"><i class="fas fa-eye" style="color:#60a5fa;"></i></div>
+                            <div><div class="stat-label">Total Exposures</div><div class="stat-value" id="nwStatExposures">-</div></div>
+                        </div>
+                        <div class="stat-row">
+                            <div class="stat-icon" style="background:rgba(34,197,94,0.2);"><i class="fas fa-chalkboard" style="color:#4ade80;"></i></div>
+                            <div><div class="stat-label">Total Sessions</div><div class="stat-value" id="nwStatSessions">-</div></div>
+                        </div>
+                        <div class="stat-row">
+                            <div class="stat-icon" style="background:rgba(168,85,247,0.2);"><i class="fas fa-map-pin" style="color:#c084fc;"></i></div>
+                            <div><div class="stat-label">Active Regions</div><div class="stat-value" id="nwStatRegions">-</div></div>
+                        </div>
+                        <div class="stat-row">
+                            <div class="stat-icon" style="background:rgba(249,115,22,0.2);"><i class="fas fa-trophy" style="color:#fb923c;"></i></div>
+                            <div><div class="stat-label">Top Region</div><div class="stat-value" id="nwStatTop" style="font-size:13px;">-</div></div>
+                        </div>
+                    </div>
 
-    <div class="card white-chart-card shadow-sm" style="border-radius:15px; overflow:hidden;">
-        <div class="card-header d-flex align-items-center" style="background:#f1f5f9; border-bottom:1px solid #e2e8f0!important;">
-            <i class="fas fa-table mr-2" style="color:#8b5cf6;"></i>
-            <h3 class="card-title text-sm text-uppercase font-weight-bold" style="color:#334155;">Program Summary</h3>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table id="overviewTable" class="table table-hover mb-0 high-contrast-table" style="width:100%">
-                    <thead><tr>
-                        <th>Program</th><th>Donor</th>
-                        <th class="text-right">Sessions</th><th class="text-right">Schools</th>
-                        <th class="text-right">Students</th><th class="text-right">Ignators</th>
-                    </tr></thead>
-                    <tbody></tbody>
-                </table>
+                    <!-- Metric Toggle -->
+                    <div class="nw-metric-toggle" id="nwMetricToggle">
+                        <button class="nw-metric-btn active" data-metric="students_reached">Exposures</button>
+                        <button class="nw-metric-btn" data-metric="sessions">Sessions</button>
+                        <button class="nw-metric-btn" data-metric="schools_visited">Schools</button>
+                    </div>
+
+                    <div class="nw-map-wrapper">
+                        <div id="nationwideMap" style="height:520px;width:100%;"></div>
+                    </div>
+
+                    <!-- Gradient Legend -->
+                    <div class="nw-gradient-legend" id="nwGradientLegend">
+                        <div style="font-weight:700;color:#1e293b;font-size:12px;margin-bottom:4px;"><i class="fas fa-layer-group mr-1" style="color:#6366f1;"></i> Exposure Scale</div>
+                        <div class="nw-gradient-bar"></div>
+                        <div class="nw-gradient-labels">
+                            <span id="nwLegendMin">Low</span>
+                            <span id="nwLegendMax">High</span>
+                        </div>
+                        <div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">
+                            <div style="color:#64748b;font-size:10px;">Click a bubble to drilldown</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -242,516 +413,565 @@
             <select id="regionFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Region" data-filter="region"></select></div>
         <div class="fd-section"><label class="fd-label">Activity Type</label>
             <select id="programFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Activity" data-filter="program"></select></div>
+        <div class="fd-section"><label class="fd-label">Month</label>
+            <select id="monthFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Month" data-filter="month"></select></div>
+        <div class="fd-section"><label class="fd-label">Quarter</label>
+            <select id="quarterFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Quarter" data-filter="quarter">
+                <option value="1">Q1 (Apr-Jun)</option>
+                <option value="2">Q2 (Jul-Sep)</option>
+                <option value="3">Q3 (Oct-Dec)</option>
+                <option value="4">Q4 (Jan-Mar)</option>
+            </select></div>
     </div>
     <div class="fd-footer">
-        <button id="resetFilters" class="btn btn-outline-secondary btn-block" style="border-radius:10px;"><i class="fas fa-undo mr-2"></i>Reset All Filters</button>
+        <button id="resetFilters" class="btn btn-outline-secondary btn-block" style="border-radius:10px;"><i class="fas faundo mr-2"></i>Reset All Filters</button>
+        <button class="btn btn-success btn-block mt-2 shadow-sm" id="exportXlsx" style="border-radius:10px;background:#10b981;border:none;">
+            <i class="fas fa-file-excel mr-2"></i>Export XLSX
+        </button>
     </div>
 </div>
-
-<!-- KPI Insights Modal -->
-<div class="modal fade" id="kpiInsightModal" tabindex="-1" role="dialog" aria-labelledby="kpiInsightModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content shadow-lg" style="border-radius: 16px; border: none; overflow: hidden;">
-            <div class="modal-header d-flex align-items-center insight-modal-header">
-                <div class="d-flex align-items-center">
-                    <div id="modalIconWrapper" class="mr-3 shadow-sm" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #fff;">
-                        <i id="modalHeaderIcon" class="fas fa-chart-line"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title font-weight-bold text-white" id="modalTitle" style="font-size: 1.2rem; font-family: Inter, Arial, sans-serif;">Metric Insights</h5>
-                        <span class="text-white-50" style="font-size: 0.8rem;">Performance analysis and recommendations</span>
-                    </div>
-                </div>
-                <button type="button" class="close text-white ml-auto" data-dismiss="modal" aria-label="Close" style="opacity: 0.8; outline: none; background: none; border: none; padding: 0;">
-                    <span aria-hidden="true" style="font-size: 1.5rem;">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" style="padding: 2rem; background-color: #f8fafc;">
-                <!-- YoY Comparison -->
-                <div class="card insight-card">
-                    <div class="card-body d-flex align-items-start p-4">
-                        <div class="mr-3" id="modalComparisonIcon">
-                            <i class="fas fa-balance-scale text-primary" style="font-size: 2rem;"></i>
-                        </div>
-                        <div>
-                            <h6 class="font-weight-bold text-dark mb-1" style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">Year-over-Year Comparison</h6>
-                            <p class="text-muted mb-0" id="modalComparisonText" style="font-size: 0.95rem; line-height: 1.5;"></p>
-                        </div>
-                    </div>
-                </div>
-
-
-
-                <!-- Suggestions -->
-                <div class="card insight-card">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="mr-2 text-success" style="font-size: 1.15rem;">
-                                <i class="fas fa-tasks"></i>
-                            </div>
-                            <h6 class="font-weight-bold text-dark mb-0" style="font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">Strategic Suggestions to Improve</h6>
-                        </div>
-                        <ul class="list-unstyled mb-0" id="modalSuggestionsList">
-                            <!-- Dynamic items -->
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer" style="border-top: none; background-color: #f8fafc; padding: 1rem 2rem 2rem 2rem;">
-                <button type="button" class="btn btn-secondary px-4" data-dismiss="modal" style="border-radius: 8px; font-weight: 600; font-size: 0.9rem; background-color: #64748b; border: none;">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .clear-drilldown-btn:hover {
-        background: #7f1d1d !important;
-        border-color: #7f1d1d !important;
-        color: #ffffff !important;
-        transform: scale(1.03);
-        box-shadow: 0 4px 12px rgba(127, 29, 29, 0.3) !important;
-    }
-    .content-header { display: none !important; }
-    .select2-container--open { z-index: 9999 !important; }
-
-    /* Modal Style overrides */
-    .insight-modal-header {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
-        border-top-left-radius: 16px !important;
-        border-top-right-radius: 16px !important;
-        padding: 1.5rem 2rem !important;
-    }
-    .insight-card {
-        border-radius: 16px !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-        background: #ffffff !important;
-        margin-bottom: 1.5rem !important;
-        transition: transform 0.2s ease !important;
-    }
-    .insight-card:hover {
-        transform: translateY(-2px) !important;
-    }
-    .insight-list-item {
-        display: flex !important;
-        align-items: start !important;
-        margin-bottom: 1rem !important;
-        padding-bottom: 0.75rem !important;
-        border-bottom: 1px dashed #f1f5f9;
-    }
-    .insight-list-item:last-child {
-        border-bottom: none;
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-    }
-
-    /* Info button inside cards */
-    .kpi-card-bitcoin {
-        position: relative !important;
-    }
-    .kpi-info-btn {
-        position: absolute !important;
-        top: 15px !important;
-        right: 15px !important;
-        background: transparent !important;
-        border: none !important;
-        outline: none !important;
-        color: #cbd5e1 !important;
-        font-size: 1.1rem !important;
-        cursor: pointer !important;
-        z-index: 50 !important;
-        padding: 6px !important;
-        border-radius: 50% !important;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        line-height: 1 !important;
-        transition: color 0.2s ease, transform 0.2s ease, background-color 0.2s ease !important;
-        width: 28px;
-        height: 28px;
-    }
-    .kpi-info-btn:hover {
-        color: #64748b !important;
-        transform: scale(1.15) !important;
-        background-color: #f1f5f9 !important;
-    }
-    .kpi-info-btn:focus {
-        outline: none !important;
-        box-shadow: none !important;
-    }
-</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
+if (window.ChartDataLabels) { Chart.register(ChartDataLabels); }
 $(function(){
-    if(typeof Chart !== 'undefined') {
-        Chart.defaults.font.family = 'Arial, Helvetica, sans-serif';
-    }
     const PALETTE = ['#8b5cf6','#10b981','#3b82f6','#f59e0b','#ec4899','#6366f1','#14b8a6','#f97316'];
+    let activeTab = 'overview';
+    let nwDrilldownRegion = null;
 
-    $('#filterLauncher').click(()=>{ $('#filterDrawer, #filterDrawerOverlay').addClass('open'); });
-    const closeDrawer = ()=>{ $('#filterDrawer, #filterDrawerOverlay').removeClass('open'); };
-    $('#closeDrawer').click(closeDrawer); $('#filterDrawerOverlay').click(closeDrawer);
     if($.fn.select2){ $('.select2').select2({ theme:'bootstrap4', dropdownParent:$('#filterDrawer'), width:'100%', allowClear:true, multiple:true }); }
 
-    function fetchFilters(target, years, regions){
-        const q = $.param({years:years||[], regions:regions||[]}, true);
-        return fetch(`/dashboard/filters?${q}`).then(r=>r.json()).then(d=>{
-            if(target==='all'){
-                $('#yearFilter').empty(); 
-                d.years.forEach(y=>$('#yearFilter').append(new Option(y,y)));
-                
-                // Default to current year if available and nothing is selected
-                const currentYear = new Date().getFullYear();
-                if(!($('#yearFilter').val()||[]).length && d.years.includes(currentYear)){
-                    $('#yearFilter').val([currentYear]);
-                }
-                
-                $('#regionFilter').empty(); d.regions.forEach(r=>$('#regionFilter').append(new Option(r,r)));
-                $('#programFilter').empty(); d.programs.forEach(p=>$('#programFilter').append(new Option(p,p)));
-                $('.select2').trigger('change.select2');
-            } else if(target==='regions'){
-                const cur=$('#regionFilter').val()||[];
-                $('#regionFilter').empty(); d.regions.forEach(r=>$('#regionFilter').append(new Option(r,r)));
-                $('#regionFilter').val(cur).trigger('change.select2',{internal:true});
-            } else if(target==='programs'){
-                const cur=$('#programFilter').val()||[];
-                $('#programFilter').empty(); d.programs.forEach(p=>$('#programFilter').append(new Option(p,p)));
-                $('#programFilter').val(cur).trigger('change.select2',{internal:true});
-            }
-            updateSummary();
-        });
-    }
-    fetchFilters('all');
+    $('#filterLauncher').click(()=>{ $('#filterDrawerOverlay, #filterDrawer').addClass('open'); });
+    $('#closeDrawer, #filterDrawerOverlay').click(()=>{ $('#filterDrawerOverlay, #filterDrawer').removeClass('open'); });
 
-    $('#yearFilter').on('change',(e,d)=>{ if(d&&d.internal) return; fetchFilters('regions',$('#yearFilter').val()).then(()=>fetchFilters('programs',$('#yearFilter').val(),$('#regionFilter').val())); loadData(); });
-    $('#regionFilter').on('change',(e,d)=>{ if(d&&d.internal) return; fetchFilters('programs',$('#yearFilter').val(),$('#regionFilter').val()); loadData(); });
-    $('#programFilter').on('change',(e,d)=>{ if(d&&d.internal) return; loadData(); });
-    $('#resetFilters').click(()=>{ $('.select2').val(null).trigger('change',{internal:true}); fetchFilters('all').then(()=>loadData()); });
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+        activeTab = $(e.target).attr('id') === 'tabBtnOverview' ? 'overview' : 'nationwide';
+        loadCurrentTab();
+        if (activeTab === 'nationwide' && nwMapInstance) {
+            setTimeout(function() { nwMapInstance.invalidateSize(); }, 200);
+        }
+    });
 
-    function updateSummary(){
-        const t=($('#yearFilter').val()||[]).length+($('#regionFilter').val()||[]).length+($('#programFilter').val()||[]).length;
-        $('#activeFilterCount').text(t?`${t} Filters Applied`:'All Data');
-    }
-    $('.select2').on('change', updateSummary);
-
-    function animateNum(el, target){
-        const $el=$(el); const start=parseFloat(($el.text()||'0').replace(/,/g,''))||0;
-        const steps=20, inc=(target-start)/steps; let step=0;
-        const t=setInterval(()=>{ step++; $el.text(Math.round(start+inc*step).toLocaleString()); if(step>=steps){$el.text(target.toLocaleString()); clearInterval(t);} },25);
+    function collectFilters() {
+        let filters = window.PramanaDashboard.collectFilters();
+        if (nwDrilldownRegion && activeTab === 'nationwide') {
+            filters.region = [nwDrilldownRegion];
+        }
+        return filters;
     }
 
-    function getParams(){ return $.param(window.PramanaDashboard.collectFilters(), true); }
+    function updateFilterSummary() {
+        const y = $('#yearFilter').val()||[], r = $('#regionFilter').val()||[], p = $('#programFilter').val()||[];
+        const m = $('#monthFilter').val()||[], q = $('#quarterFilter').val()||[];
+        const total = y.length + r.length + p.length + m.length + q.length;
+        $('#activeFilterCount').text(total ? total + ' Filter' + (total>1?'s':'') + ' Applied' : 'All Data');
+    }
 
+    let chartInstances = {};
+    function destroyChart(id){ if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; } }
     const miniCharts = {};
     function renderMiniChart(canvasId, dataPoints, color) {
         const el = document.getElementById(canvasId);
         if (!el) return;
         const ctx = el.getContext('2d');
         if (miniCharts[canvasId]) miniCharts[canvasId].destroy();
-
         let points = dataPoints;
         let displayColor = color;
         if (dataPoints && dataPoints.length === 2) {
-            const prev = dataPoints[0];
-            const curr = dataPoints[1];
-            points = [
-                prev,
-                prev + (curr - prev) * 0.2 + ((curr - prev) * 0.15),
-                prev + (curr - prev) * 0.4 - ((curr - prev) * 0.1),
-                prev + (curr - prev) * 0.7 + ((curr - prev) * 0.1),
-                prev + (curr - prev) * 0.8 - ((curr - prev) * 0.05),
-                curr
-            ];
-            if (curr > prev) {
-                displayColor = '#10b981'; // Green
-            } else if (curr < prev) {
-                displayColor = '#ef4444'; // Red
-            } else {
-                displayColor = '#f59e0b'; // Yellow
-            }
+            const prev = dataPoints[0], curr = dataPoints[1];
+            points = [prev, prev+(curr-prev)*0.2, prev+(curr-prev)*0.4, prev+(curr-prev)*0.7, prev+(curr-prev)*0.8, curr];
+            displayColor = curr > prev ? '#10b981' : curr < prev ? '#ef4444' : '#f59e0b';
         }
-
-        miniCharts[canvasId] = new Chart(ctx, {
-            type: 'line',
-            plugins: [ChartDataLabels],
-            data: {
-                labels: points.map((_, i) => i),
-                datasets: [{
-                    data: points,
-                    borderColor: displayColor,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: true,
-                    backgroundColor: displayColor + '15',
-                    tension: 0.4
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                layout: {
-                    padding: {
-                        left: 15,
-                        right: 15,
-                        top: 10,
-                        bottom: 10
-                    }
-                },
-                plugins: { 
-                    legend: { display: false }, 
-                    tooltip: { enabled: false },
-                    datalabels: {
-                        display: function(context) {
-                            return context.dataIndex === 0 || context.dataIndex === context.dataset.data.length - 1;
-                        },
-                        align: function(context) {
-                            return context.dataIndex === 0 ? 'right' : 'left';
-                        },
-                        anchor: function(context) {
-                            return context.dataIndex === 0 ? 'start' : 'end';
-                        },
-                        offset: 4,
-                        color: displayColor,
-                        font: {
-                            size: 10,
-                            weight: 'bold'
-                        },
-                        formatter: function(value) {
-                            return value.toLocaleString();
-                        }
-                    }
-                },
-                scales: { x: { display: false }, y: { display: false } }
-            }
-        });
+        miniCharts[canvasId] = new Chart(ctx, { type:'line', plugins:[ChartDataLabels], data:{ labels:points.map((_,i)=>i), datasets:[{data:points,borderColor:displayColor,borderWidth:2,pointRadius:0,fill:true,backgroundColor:displayColor+'15',tension:0.4}] },
+            options:{ maintainAspectRatio:false, layout:{padding:{left:15,right:15,top:10,bottom:10}}, plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:function(ctx){return ctx.dataIndex===0||ctx.dataIndex===ctx.dataset.data.length-1;},align:function(ctx){return ctx.dataIndex===0?'right':'left';},anchor:function(ctx){return ctx.dataIndex===0?'start':'end';},offset:4,color:displayColor,font:{size:10,weight:'bold'},formatter:function(v){return v.toLocaleString();}}}, scales:{x:{display:false},y:{display:false}} } });
     }
 
-    function updateKpis(kpis, trends = [], sparklines = null) {
-        animateNum($('#kpiPrograms'), kpis.total_programs);
-        animateNum($('#kpiSchools'),  kpis.total_schools);
-        animateNum($('#kpiStudents'), kpis.total_students);
-        animateNum($('#kpiSessions'), kpis.total_sessions);
-
-        // Render trend pills
-        function renderTrend(wrapperId, containerId, trend) {
-            const wrapper = $(wrapperId);
-            const container = $(containerId).empty();
-            if (!trend || trend.dir === 'neutral') {
-                wrapper.attr('style', 'display: none !important;');
-                return;
-            }
-            const icon = trend.dir === 'up' ? '↗' : '↘';
-            const cls = trend.dir === 'up' ? 'kpi-bitcoin-trend-up' : 'kpi-bitcoin-trend-down';
-            container.append(`<div class="kpi-bitcoin-trend-pill ${cls}">${Math.abs(trend.pct)}% ${icon}</div>`);
-            wrapper.attr('style', 'display: flex !important;');
-        }
-
-        if (kpis.trends) {
-            renderTrend('#trendWrapperPrograms', '#trendPrograms', kpis.trends.total_programs);
-            renderTrend('#trendWrapperSchools',  '#trendSchools',  kpis.trends.total_schools);
-            renderTrend('#trendWrapperStudents', '#trendStudents', kpis.trends.total_students);
-            renderTrend('#trendWrapperSessions', '#trendSessions', kpis.trends.total_sessions);
-        } else {
-            $('#trendWrapperPrograms, #trendWrapperSchools, #trendWrapperStudents, #trendWrapperSessions').attr('style', 'display: none !important;');
-        }
-
+    function updateKpis(kpis, trends, sparklines) {
+        $('#kpiPrograms').text(Number(kpis.total_programs||0).toLocaleString());
+        $('#kpiSchools').text(Number(kpis.total_schools||0).toLocaleString());
+        $('#kpiStudents').text(Number(kpis.total_students||0).toLocaleString());
+        $('#kpiSessions').text(Number(kpis.total_sessions||0).toLocaleString());
         if (sparklines) {
             renderMiniChart('miniChartPrograms', sparklines.programs, '#17a2b8');
-            renderMiniChart('miniChartSchools',  sparklines.schools,  '#28a745');
+            renderMiniChart('miniChartSchools', sparklines.schools, '#28a745');
             renderMiniChart('miniChartStudents', sparklines.students, '#001f3f');
             renderMiniChart('miniChartSessions', sparklines.sessions, '#dc3545');
-        } else if (trends && trends.length) {
-            renderMiniChart('miniChartPrograms', trends.map(t => t.programs), '#17a2b8');
-            renderMiniChart('miniChartSchools',  trends.map(t => t.schools),  '#28a745');
-            renderMiniChart('miniChartStudents', trends.map(t => t.students), '#001f3f');
-            renderMiniChart('miniChartSessions', trends.map(t => t.sessions), '#dc3545');
         }
     }
-
-    let dt=null;
-    let fullKpis = null;
-    let drilldownKpis = null;
-    let selectedRegion = null;
-    let fullTrends = null;
-    let fullSparklines = null;
-    function loadData(){
-        const q=getParams();
-        fetch(`/category-overview/program-impact?${q}`).then(r=>r.json()).then(data=>{
-            fullKpis = data.kpis;
-            fullTrends = data.trends;
-            fullSparklines = data.sparklines;
-            
-            updateKpis(data.kpis, data.trends, data.sparklines);
-
-            const ch=data.charts||{};
-            renderDoughnut('chartProgram', ch.by_program||[]);
-            renderLine('chartTrend', ch.trend||[]);
-            renderHBar('chartRegion', ch.by_region||[]);
-
-            if(dt){ dt.destroy(); dt=null; }
-            const tb=$('#overviewTable tbody').empty();
-            (data.table||[]).forEach(r=>{
-                tb.append(`<tr>
-                    <td class="font-weight-600">${r.program}</td>
-                    <td>${r.donor}</td>
-                    <td class="text-right">${Number(r.sessions||0).toLocaleString()}</td>
-                    <td class="text-right">${Number(r.schools||0).toLocaleString()}</td>
-                    <td class="text-right">${Number(r.students||0).toLocaleString()}</td>
-                    <td class="text-right">${Number(r.instructors||0).toLocaleString()}</td>
-                </tr>`);
-            });
-            dt=PramanaDashboard.initDataTable('#overviewTable',{paging:true,searching:true,pageLength:10,order:[[2,'desc']]});
-        });
-    }
-
-    // ── Drill-down Logic ─────────────────────────────────────────────
-    window.loadDrilldown = function(regionName) {
-        console.log("Loading drilldown for:", regionName);
-        selectedRegion = regionName;
-        const q = getParams() + `&region=${encodeURIComponent(regionName)}`;
-        
-        // Update main KPIs for the region
-        fetch(`/category-overview/program-impact?${q}`).then(r=>r.json()).then(data => {
-            if (data.kpis) {
-                drilldownKpis = data.kpis;
-                updateKpis(data.kpis, data.trends, data.sparklines);
-            }
-        });
-
-        // Fetch drilldown details
-        fetch(`/dashboard/drill-down?${q}`).then(r=>r.json()).then(data => {
-            if($.fn.DataTable.isDataTable('#drilldownTable')) $('#drilldownTable').DataTable().destroy();
-            
-            $('#drilldownRegionLabel, #ddTableRegionLabel').text(regionName);
-            animateNum('#ddSessions', data.summary.total_sessions);
-            animateNum('#ddStudents', data.summary.total_students);
-            animateNum('#ddSchools',  data.summary.total_schools);
-            
-            const tbody = $('#drilldownTableBody').empty();
-            (data.programs || []).forEach(p => {
-                tbody.append(`<tr>
-                    <td class="font-weight-600">${p.program}</td>
-                    <td class="text-muted">${p.donor}</td>
-                    <td class="text-right">${p.sessions.toLocaleString()}</td>
-                    <td class="text-right">${p.students_reached.toLocaleString()}</td>
-                    <td class="text-right">${p.schools_visited.toLocaleString()}</td>
-                    <td class="text-right">${p.instructors.toLocaleString()}</td>
-                </tr>`);
-            });
-            $('#ddProgramCount').text((data.programs||[]).length + ' programs');
-            
-            PramanaDashboard.initDataTable('#drilldownTable', { paging: true, searching: true, pageLength: 10, order: [[2, 'desc']] });
-            $('#drilldownPanel').show();
-            $('html, body').animate({ scrollTop: $('#drilldownPanel').offset().top - 20 }, 400);
-        });
-    }
-
-    window.clearDrilldown = function() {
-        selectedRegion = null;
-        drilldownKpis = null;
-        $('#drilldownPanel').hide();
-        if($.fn.DataTable.isDataTable('#drilldownTable')) $('#drilldownTable').DataTable().destroy();
-        $('#drilldownTableBody').empty();
-        if(fullKpis) {
-            updateKpis(fullKpis, fullTrends, fullSparklines);
-        }
-    };
-
-    // ── KPI Tooltip Click Handler ────────────────────────────────────
-    $(document).on('click', '.kpi-info-btn', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const kpiKey = $(this).attr('data-kpi');
-        const currentKpis = selectedRegion ? drilldownKpis : fullKpis;
-        if (!currentKpis || !currentKpis.insights || !currentKpis.insights[kpiKey]) {
-            console.error("Insights not loaded or not found for: " + kpiKey);
-            return;
-        }
-        
-        const insight = currentKpis.insights[kpiKey];
-        
-        // Set Modal Header details
-        $('#modalTitle').text(insight.title);
-        $('#modalHeaderIcon').attr('class', insight.icon);
-        $('#modalIconWrapper').css('background', insight.color);
-        
-        // Set YoY Comparison
-        $('#modalComparisonText').html(insight.comparison_text);
-        
-        // Highlight YoY card icon/color based on trend direction
-        const trend = (currentKpis.trends && currentKpis.trends[kpiKey]) ? currentKpis.trends[kpiKey] : { dir: 'neutral' };
-        const compIcon = $('#modalComparisonIcon').empty();
-        if (trend.dir === 'up') {
-            compIcon.append('<i class="fas fa-arrow-alt-circle-up text-success" style="font-size: 2rem;"></i>');
-        } else if (trend.dir === 'down') {
-            compIcon.append('<i class="fas fa-arrow-alt-circle-down text-danger" style="font-size: 2rem;"></i>');
-        } else {
-            compIcon.append('<i class="fas fa-balance-scale text-primary" style="font-size: 2rem;"></i>');
-        }
-        
-
-        
-        // Set Suggestions
-        const suggestionsList = $('#modalSuggestionsList').empty();
-        if (insight.suggestions && insight.suggestions.length) {
-            insight.suggestions.forEach(s => {
-                suggestionsList.append(`
-                    <li class="insight-list-item">
-                        <span class="mr-3 text-success" style="font-size: 1.15rem; line-height: 1.2;">
-                            <i class="fas fa-check-circle"></i>
-                        </span>
-                        <span class="text-secondary" style="font-size: 0.95rem; line-height: 1.5; font-family: Inter, Arial, sans-serif;">${s}</span>
-                    </li>
-                `);
-            });
-        } else {
-            suggestionsList.append('<li class="text-muted">No suggestions available for this view.</li>');
-        }
-        
-        // Show modal
-        $('#kpiInsightModal').modal('show');
-    });
-
-    let chartInstances={};
-    function destroyChart(id){ if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; } }
 
     function renderDoughnut(id, points){
         destroyChart(id); const c=document.getElementById(id); if(!c) return;
+        const total = points.reduce((s,p)=>s+p.value,0);
         chartInstances[id]=new Chart(c,{type:'doughnut',data:{labels:points.map(p=>p.label),datasets:[{data:points.map(p=>p.value),backgroundColor:points.map((_,i)=>PALETTE[i%PALETTE.length]),borderWidth:2,borderColor:'#fff'}]},
-            options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{display:true,position:'right',labels:{boxWidth:12,padding:12,usePointStyle:true,pointStyle:'circle',color:'#475569',font:{size:11}}},datalabels:{display:true,color:'#fff',font:{weight:'bold',size:11},formatter:v=>v.toLocaleString()},tooltip:{backgroundColor:'rgba(15,23,42,.9)',padding:12,cornerRadius:8}}}});
+            options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{display:true,position:'right',labels:{boxWidth:12,padding:12,usePointStyle:true,pointStyle:'circle',color:'#475569',font:{size:11}}},datalabels:{display:function(ctx){return (ctx.dataset.data[ctx.dataIndex]/total)>=0.04;},color:'#fff',font:{weight:'bold',size:11},formatter:v=>v.toLocaleString()},tooltip:{backgroundColor:'rgba(15,23,42,.9)',padding:12,cornerRadius:8}}}});
     }
-
     function renderLine(id, points){
         destroyChart(id); const c=document.getElementById(id); if(!c) return;
         chartInstances[id]=new Chart(c,{type:'line',data:{labels:points.map(p=>p.label),datasets:[{label:'Students',data:points.map(p=>p.value),borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,.12)',pointBackgroundColor:'#8b5cf6',pointRadius:3,tension:.35,fill:true,borderWidth:2}]},
             options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:false},tooltip:{backgroundColor:'rgba(15,23,42,.9)',padding:12,cornerRadius:8}},scales:{x:{grid:{display:false},ticks:{color:'#64748b',maxRotation:45,font:{size:10}}},y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#64748b'}}}}});
     }
-
     function renderHBar(id, points){
-        destroyChart(id);
-        const c=document.getElementById(id); if(!c) return;
-        chartInstances[id]=new Chart(c,{type:'bar',data:{
-            labels:points.map(p=>p.label), datasets:[{label:'Students Reached',data:points.map(p=>p.value),
-            backgroundColor:points.map((_,i)=>PALETTE[i%PALETTE.length]),borderRadius:6,barThickness:22}]},
-            options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
-                onClick: (evt, elements) => {
-                    if (elements.length > 0) {
-                        const idx = elements[0].index;
-                        const regionName = points[idx].label;
-                        loadDrilldown(regionName);
-                    }
-                },
-                plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'end',color:'#334155',font:{weight:'bold',size:11},formatter:v=>v.toLocaleString()},
-                    tooltip:{backgroundColor:'rgba(15,23,42,.9)',padding:12,cornerRadius:8}},
-                scales:{x:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#64748b'}},
-                        y:{grid:{display:false},ticks:{color:'#334155',font:{weight:'600'}}}}}
+        destroyChart(id); const c=document.getElementById(id); if(!c) return;
+        chartInstances[id]=new Chart(c,{type:'bar',data:{labels:points.map(p=>p.label),datasets:[{label:'Students Reached',data:points.map(p=>p.value),backgroundColor:points.map((_,i)=>PALETTE[i%PALETTE.length]),borderRadius:6,barThickness:22}]},
+            options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',onClick:(evt,elements)=>{if(elements.length>0){loadOverviewDrilldown(points[elements[0].index].label);}},plugins:{legend:{display:false},datalabels:{display:true,anchor:'end',align:'end',color:'#334155',font:{weight:'bold',size:11},formatter:v=>v.toLocaleString()},tooltip:{backgroundColor:'rgba(15,23,42,.9)',padding:12,cornerRadius:8}},scales:{x:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#64748b'}},y:{grid:{display:false},ticks:{color:'#334155',font:{weight:'600'}}}}}});
+    }
+
+    // ── Overview Table (Custom Pagination) ──
+    let ovFullData = [], ovSearchText = '', ovCurrentPage = 1, ovPageSize = 10;
+    let ovSortState = { col: 'sessions', dir: 'desc' };
+
+    function renderOverviewTable(data) {
+        ovFullData = data || [];
+        ovCurrentPage = 1;
+        ovPageSize = parseInt($('#ovPageSize').val()) || 10;
+        ovSearchText = '';
+        $('#ovSearchInput').val('');
+        drawOvPage();
+    }
+
+    function drawOvPage() {
+        const tbody = $('#overviewTable tbody').empty();
+        const tfoot = $('#ovSummaryFooter').empty();
+        if (!ovFullData.length) { tbody.html('<tr><td colspan="6" class="text-center text-muted py-3">No data available</td></tr>'); return; }
+
+        let filtered = ovFullData;
+        if (ovSearchText) {
+            const q = ovSearchText.toLowerCase();
+            filtered = ovFullData.filter(row => Object.values(row).some(v => String(v).toLowerCase().includes(q)));
+        }
+
+        const sorted = filtered.slice().sort((a, b) => {
+            let va = a[ovSortState.col], vb = b[ovSortState.col];
+            if (typeof va === 'string') { va = (va||'').toLowerCase(); vb = (vb||'').toLowerCase(); return ovSortState.dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va); }
+            va = Number(va)||0; vb = Number(vb)||0;
+            return ovSortState.dir === 'asc' ? va - vb : vb - va;
+        });
+
+        const total = sorted.length;
+        const totalPages = ovPageSize === -1 ? 1 : Math.ceil(total / ovPageSize);
+        if (ovCurrentPage > totalPages) ovCurrentPage = totalPages;
+        const startIdx = ovPageSize === -1 ? 0 : (ovCurrentPage - 1) * ovPageSize;
+        const endIdx = ovPageSize === -1 ? total : Math.min(startIdx + ovPageSize, total);
+        const pageData = sorted.slice(startIdx, endIdx);
+
+        let tot = { sessions: 0, schools: 0, students: 0, instructors: 0 };
+        ovFullData.forEach(r => { tot.sessions += Number(r.sessions)||0; tot.schools += Number(r.schools)||0; tot.students += Number(r.students)||0; tot.instructors += Number(r.instructors)||0; });
+
+        pageData.forEach(r => {
+            tbody.append(`<tr>
+                <td class="font-weight-600">${r.program}</td>
+                <td>${r.donor}</td>
+                <td class="text-center">${Number(r.sessions||0).toLocaleString()}</td>
+                <td class="text-center">${Number(r.schools||0).toLocaleString()}</td>
+                <td class="text-center">${Number(r.students||0).toLocaleString()}</td>
+                <td class="text-center">${Number(r.instructors||0).toLocaleString()}</td>
+            </tr>`);
+        });
+
+        tfoot.html(`<tr style="background:#fef3c7;font-weight:700;">
+            <td colspan="2">Grand Total</td>
+            <td class="text-center">${tot.sessions.toLocaleString()}</td>
+            <td class="text-center">${tot.schools.toLocaleString()}</td>
+            <td class="text-center">${tot.students.toLocaleString()}</td>
+            <td class="text-center">${tot.instructors.toLocaleString()}</td>
+        </tr>`);
+
+        $('#ovPaginationInfo').text(`Showing ${total > 0 ? startIdx + 1 : 0} to ${endIdx} of ${total} entries`);
+        $('#ovPageInfo').text(`Page ${ovCurrentPage} of ${totalPages}`);
+        $('#ovPrevPage').prop('disabled', ovCurrentPage <= 1);
+        $('#ovNextPage').prop('disabled', ovCurrentPage >= totalPages);
+    }
+
+    $('#ovPageSize').on('change', function() { ovPageSize = parseInt($(this).val()) || 10; ovCurrentPage = 1; drawOvPage(); });
+    $('#ovPrevPage').on('click', function() { if (ovCurrentPage > 1) { ovCurrentPage--; drawOvPage(); } });
+    $('#ovNextPage').on('click', function() { const tp = ovPageSize === -1 ? 1 : Math.ceil(ovFullData.length / ovPageSize); if (ovCurrentPage < tp) { ovCurrentPage++; drawOvPage(); } });
+    $('#ovSearchInput').on('input', function() { ovSearchText = $(this).val(); ovCurrentPage = 1; drawOvPage(); });
+    $('#overviewTable thead').on('click', 'th', function() {
+        const cols = ['program','donor','sessions','schools','students','instructors'];
+        const col = cols[$(this).index()];
+        if (!col) return;
+        if (ovSortState.col === col) { ovSortState.dir = ovSortState.dir === 'asc' ? 'desc' : 'asc'; }
+        else { ovSortState.col = col; ovSortState.dir = typeof ovFullData[0]?.[col] === 'string' ? 'asc' : 'desc'; }
+        drawOvPage();
+    });
+
+    function loadOverviewData() {
+        const q = $.param(collectFilters(), true);
+        fetch(`/category-overview/program-impact?${q}`).then(r=>r.json()).then(data=>{
+            updateKpis(data.kpis, data.trends, data.sparklines);
+            const ch = data.charts||{};
+            renderDoughnut('chartProgram', ch.by_program||[]);
+            renderLine('chartTrend', ch.trend||[]);
+            renderHBar('chartRegion', ch.by_region||[]);
+            renderOverviewTable(data.table||[]);
         });
     }
 
-    setTimeout(loadData, 300);
+    window.loadOverviewDrilldown = function(regionName) {
+        const q = $.param(collectFilters(), true) + `&region=${encodeURIComponent(regionName)}`;
+        fetch(`/category-overview/program-impact?${q}`).then(r=>r.json()).then(data=>{
+            if(data.kpis) updateKpis(data.kpis, data.trends, data.sparklines);
+        });
+        fetch(`/dashboard/drill-down?${q}`).then(r=>r.json()).then(data=>{
+            if($.fn.DataTable.isDataTable('#drilldownTable'))$('#drilldownTable').DataTable().destroy();
+            $('#drilldownRegionLabel,#ddTableRegionLabel').text(regionName);
+            $('#ddSessions').text(Number(data.summary.total_sessions||0).toLocaleString());
+            $('#ddStudents').text(Number(data.summary.total_students||0).toLocaleString());
+            $('#ddSchools').text(Number(data.summary.total_schools||0).toLocaleString());
+            const tbody=$('#drilldownTableBody').empty();
+            (data.programs||[]).forEach(p=>{
+                tbody.append(`<tr><td class="font-weight-600">${p.program}</td><td class="text-muted">${p.donor}</td><td class="text-right">${p.sessions.toLocaleString()}</td><td class="text-right">${p.students_reached.toLocaleString()}</td><td class="text-right">${p.schools_visited.toLocaleString()}</td><td class="text-right">${p.instructors.toLocaleString()}</td></tr>`);
+            });
+            $('#ddProgramCount').text((data.programs||[]).length+' programs');
+            PramanaDashboard.initDataTable('#drilldownTable',{paging:true,searching:true,pageLength:10,order:[[2,'desc']]});
+            $('#drilldownPanel').show(); $('html,body').animate({scrollTop:$('#drilldownPanel').offset().top-20},400);
+        });
+    };
+    window.clearDrilldown = function(){
+        $('#drilldownPanel').hide();
+        if($.fn.DataTable.isDataTable('#drilldownTable'))$('#drilldownTable').DataTable().destroy();
+        $('#drilldownTableBody').empty();
+        loadOverviewData();
+    };
+
+    // ── Nationwide Data ──
+    function computeTrendLine(values) {
+        const n = values.length; if (n < 2) return values.slice();
+        let sumX=0,sumY=0,sumXY=0,sumXX=0;
+        for(let i=0;i<n;i++){sumX+=i;sumY+=values[i];sumXY+=i*values[i];sumXX+=i*i;}
+        const slope=(n*sumXY-sumX*sumY)/(n*sumXX-sumX*sumX); const intercept=(sumY-slope*sumX)/n;
+        return values.map((_,i)=>Math.round(intercept+slope*i));
+    }
+    function getAcronym(str){if(!str)return'';const parts=str.split(/[ \-_]/);if(parts.length===1&&str.length>8)return str.substring(0,3).toUpperCase();let a='';parts.forEach(p=>{if(p.length>0)a+=p[0].toUpperCase();});return a.length>1?a:str.substring(0,3).toUpperCase();}
+
+    // ── Region → Coordinates Mapping for India Map ──
+    const REGION_COORDS = {
+        'SOUTH_KARNATAKA_1': { lat: 12.97, lng: 77.59, state: 'Karnataka' },
+        'SOUTH_KARNATAKA_2': { lat: 13.33, lng: 76.55, state: 'Karnataka' },
+        'NORTH_KARNATAKA_1': { lat: 15.85, lng: 75.72, state: 'Karnataka' },
+        'NORTH_KARNATAKA_2': { lat: 16.83, lng: 75.90, state: 'Karnataka' },
+        'Kuppam':            { lat: 12.75, lng: 78.34, state: 'Karnataka' },
+        'MAHARASHTRA_1':     { lat: 19.08, lng: 73.05, state: 'Maharashtra' },
+        'MAHARASHTRA_2':     { lat: 20.90, lng: 77.75, state: 'Maharashtra' },
+        'AP_AND_TELANGANA':  { lat: 17.12, lng: 79.20, state: 'Telangana' },
+        'GUJARAT':           { lat: 22.30, lng: 70.80, state: 'Gujarat' },
+        'NORTH_1':           { lat: 27.50, lng: 79.50, state: 'Uttar Pradesh' },
+        'NORTH_2':           { lat: 26.45, lng: 80.35, state: 'Uttar Pradesh' },
+        'TAMIL NADU':        { lat: 11.13, lng: 78.65, state: 'Tamil Nadu' },
+        'TAMIL_NADU':        { lat: 11.13, lng: 78.65, state: 'Tamil Nadu' },
+        'BTR':               { lat: 26.45, lng: 90.80, state: 'Assam' },
+    };
+    const DEFAULT_COORDS = { lat: 20.59, lng: 78.96 };
+
+    function getRegionCoords(regionName) {
+        if (REGION_COORDS[regionName]) return REGION_COORDS[regionName];
+        const upper = (regionName || '').toUpperCase().replace(/ /g, '_');
+        for (const [key, val] of Object.entries(REGION_COORDS)) {
+            if (upper.includes(key) || key.includes(upper)) return val;
+        }
+        if (upper.includes('KARNATAKA')) return REGION_COORDS['SOUTH_KARNATAKA_1'];
+        if (upper.includes('MAHARASHTRA')) return REGION_COORDS['MAHARASHTRA_1'];
+        if (upper.includes('GUJARAT')) return REGION_COORDS['GUJARAT'];
+        if (upper.includes('NORTH')) return REGION_COORDS['NORTH_1'];
+        if (upper.includes('SOUTH')) return REGION_COORDS['SOUTH_KARNATAKA_1'];
+        if (upper.includes('EAST')) return { lat: 22.57, lng: 88.36, state: 'West Bengal' };
+        if (upper.includes('WEST')) return { lat: 19.08, lng: 73.05, state: 'Maharashtra' };
+        if (upper.includes('TAMIL')) return REGION_COORDS['TAMIL NADU'];
+        if (upper.includes('ASSAM') || upper.includes('BTR')) return REGION_COORDS['BTR'];
+        if (upper.includes('TELANGANA') || upper.includes('ANDHRA')) return REGION_COORDS['AP_AND_TELANGANA'];
+        return { ...DEFAULT_COORDS, state: regionName };
+    }
+
+    let nwMapInstance = null;
+    let nwMapMarkers = null;
+    let nwMapData = [];
+    let nwCurrentMetric = 'students_reached';
+
+    const METRIC_CONFIG = {
+        students_reached: { label: 'Exposures', icon: 'fas fa-eye', color: '#3b82f6', fmt: v => v.toLocaleString() },
+        sessions: { label: 'Sessions', icon: 'fas fa-chalkboard', color: '#10b981', fmt: v => v.toLocaleString() },
+        schools_visited: { label: 'Schools', icon: 'fas fa-school', color: '#f59e0b', fmt: v => v.toLocaleString() }
+    };
+
+    function nwGetValue(r, metric) { return Number(r[metric] || 0); }
+
+    function nwGetGradientColor(value, min, max) {
+        if (max === min) return 'hsl(152, 68%, 50%)';
+        const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+        let h, s, l;
+        if (t < 0.5) {
+            const p = t / 0.5;
+            h = 0 + p * 40;
+            s = 78 + p * 17;
+            l = 66 - p * 8;
+        } else {
+            const p = (t - 0.5) / 0.5;
+            h = 40 + p * 112;
+            s = 95 - p * 27;
+            l = 58 - p * 8;
+        }
+        return `hsl(${h}, ${s}%, ${l}%)`;
+    }
+
+    function nwFormatNumber(n) {
+        if (n >= 10000000) return (n / 10000000).toFixed(1) + 'Cr';
+        if (n >= 100000) return (n / 100000).toFixed(1) + 'L';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n.toLocaleString();
+    }
+
+    function nwAnimateValue(el, target) {
+        const start = parseInt(el.textContent.replace(/[^0-9]/g, '')) || 0;
+        const diff = target - start;
+        const duration = 600;
+        const startTime = performance.now();
+        function step(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = nwFormatNumber(Math.round(start + diff * eased));
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    function nwUpdateStats(data) {
+        let totExp = 0, totSess = 0;
+        let topRegion = '', topVal = 0;
+        data.forEach(r => {
+            totExp += nwGetValue(r, 'students_reached');
+            totSess += nwGetValue(r, 'sessions');
+            const val = nwGetValue(r, 'students_reached');
+            if (val > topVal) { topVal = val; topRegion = r.region_name; }
+        });
+        nwAnimateValue(document.getElementById('nwStatExposures'), totExp);
+        nwAnimateValue(document.getElementById('nwStatSessions'), totSess);
+        nwAnimateValue(document.getElementById('nwStatRegions'), data.length);
+        const topEl = document.getElementById('nwStatTop');
+        topEl.textContent = (topRegion.length > 14 ? topRegion.substring(0, 14) + '...' : topRegion) + ' (' + nwFormatNumber(topVal) + ')';
+    }
+
+    function nwRenderBubbles(data) {
+        if (!nwMapInstance) return;
+        if (nwMapMarkers) { nwMapMarkers.clearLayers(); }
+
+        const metric = nwCurrentMetric;
+        const cfg = METRIC_CONFIG[metric];
+        const values = data.map(r => nwGetValue(r, metric));
+        const maxVal = Math.max(...values, 1);
+        const minVal = Math.min(...values, 0);
+        const totalExposure = data.reduce((s, r) => s + nwGetValue(r, 'students_reached'), 0);
+
+        const sorted = data.slice().sort((a, b) => nwGetValue(b, metric) - nwGetValue(a, metric));
+        const bounds = [];
+
+        // Update gradient legend
+        const legendMin = document.getElementById('nwLegendMin');
+        const legendMax = document.getElementById('nwLegendMax');
+        if (legendMin) legendMin.textContent = nwFormatNumber(minVal);
+        if (legendMax) legendMax.textContent = nwFormatNumber(maxVal);
+
+        sorted.forEach((r, i) => {
+            const regionName = r.region_name || r.region || 'Unknown';
+            const coords = getRegionCoords(regionName);
+            const val = nwGetValue(r, metric);
+            const exposure = nwGetValue(r, 'students_reached');
+            const sessions = nwGetValue(r, 'sessions');
+            const schools = nwGetValue(r, 'schools_visited');
+            const instructors = nwGetValue(r, 'instructors');
+            const programs = nwGetValue(r, 'programs');
+            const drivers = nwGetValue(r, 'drivers');
+
+            const radius = maxVal > 0 ? Math.max(10, Math.sqrt(val / maxVal) * 38) : 10;
+            const fillColor = nwGetGradientColor(val, minVal, maxVal);
+            const borderColor = nwGetGradientColor(Math.min(val * 1.15, maxVal), minVal, maxVal);
+            const pct = totalExposure > 0 ? ((exposure / totalExposure) * 100).toFixed(1) : '0.0';
+            const rank = i + 1;
+            const isTop3 = rank <= 3;
+
+            const marker = L.circleMarker([coords.lat, coords.lng], {
+                radius: radius,
+                fillColor: fillColor,
+                color: borderColor,
+                weight: isTop3 ? 3 : 2,
+                opacity: 0.95,
+                fillOpacity: isTop3 ? 0.7 : 0.55,
+                className: isTop3 ? 'nw-bubble-glow' : ''
+            });
+
+            const rankBadge = rank <= 3
+                ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:800;color:#fff;background:${rank===1?'#f59e0b':rank===2?'#94a3b8':'#cd7f32'};margin-right:6px;">${rank}</span>`
+                : `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:700;color:#64748b;background:#f1f5f9;margin-right:6px;">${rank}</span>`;
+
+            const miniBar = (label, value, max, clr) => {
+                const pctBar = max > 0 ? Math.round((value / max) * 100) : 0;
+                return `<div style="margin-top:4px;">
+                    <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:2px;">
+                        <span>${label}</span><span style="font-weight:700;color:#1e293b;">${value.toLocaleString()}</span>
+                    </div>
+                    <div style="width:100%;height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+                        <div style="width:${pctBar}%;height:100%;background:${clr};border-radius:2px;transition:width 0.3s;"></div>
+                    </div>
+                </div>`;
+            };
+
+            const popupHtml = `
+                <div style="font-family:Inter,Arial,sans-serif;padding:4px 0;">
+                    <div style="display:flex;align-items:center;padding:0 16px 12px;border-bottom:1px solid #e2e8f0;margin-bottom:12px;">
+                        ${rankBadge}
+                        <div>
+                            <div style="font-weight:800;font-size:15px;color:#0f172a;">${regionName}</div>
+                            <div style="font-size:11px;color:#64748b;">${coords.state || ''} &middot; Rank #${rank}</div>
+                        </div>
+                    </div>
+                    <div style="padding:0 16px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+                            <div style="text-align:center;padding:10px 4px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;">
+                                <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Exposures</div>
+                                <div style="font-weight:800;font-size:17px;color:#2563eb;margin-top:2px;">${nwFormatNumber(exposure)}</div>
+                                <div style="font-size:10px;color:#94a3b8;">${pct}% share</div>
+                            </div>
+                            <div style="text-align:center;padding:10px 4px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:10px;">
+                                <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Sessions</div>
+                                <div style="font-weight:800;font-size:17px;color:#16a34a;margin-top:2px;">${nwFormatNumber(sessions)}</div>
+                            </div>
+                            <div style="text-align:center;padding:10px 4px;background:linear-gradient(135deg,#fefce8,#fef9c3);border-radius:10px;">
+                                <div style="font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Schools</div>
+                                <div style="font-weight:800;font-size:17px;color:#ca8a04;margin-top:2px;">${nwFormatNumber(schools)}</div>
+                            </div>
+                        </div>
+                        ${miniBar('Instructors', instructors, Math.max(...data.map(d=>nwGetValue(d,'instructors')),1), '#9333ea')}
+                        ${miniBar('Programs', programs, Math.max(...data.map(d=>nwGetValue(d,'programs')),1), '#ea580c')}
+                        ${miniBar('Drivers', drivers, Math.max(...data.map(d=>nwGetValue(d,'drivers')),1), '#0891b2')}
+                    </div>
+                    <div style="padding:10px 16px 4px;margin-top:8px;border-top:1px solid #e2e8f0;">
+                        <div style="display:flex;align-items:center;gap:6px;color:#3b82f6;font-size:11px;font-weight:600;cursor:pointer;" onclick="setNwDrilldown('${regionName}')">
+                            <i class="fas fa-arrow-right"></i> Click to drilldown into ${regionName}
+                        </div>
+                    </div>
+                </div>`;
+
+            marker.bindPopup(popupHtml, { maxWidth: 340, minWidth: 300, className: 'nw-map-popup' });
+
+            marker.on('mouseover', function() { this.openPopup(); });
+
+            // Region label
+            const labelName = regionName.length > 16 ? regionName.substring(0, 14) + '..' : regionName;
+            marker.bindTooltip(labelName, {
+                permanent: true,
+                direction: 'top',
+                offset: [0, -radius - 4],
+                className: 'nw-region-label'
+            });
+
+            nwMapMarkers.addLayer(marker);
+            bounds.push([coords.lat, coords.lng]);
+        });
+
+        if (bounds.length > 1) {
+            nwMapInstance.fitBounds(bounds, { padding: [50, 50] });
+        } else if (bounds.length === 1) {
+            nwMapInstance.setView(bounds[0], 8);
+        }
+
+        setTimeout(() => nwMapInstance.invalidateSize(), 150);
+    }
+
+    function renderNationwideMap(tableData) {
+        if (!document.getElementById('nationwideMap')) return;
+        nwMapData = tableData || [];
+
+        if (!nwMapInstance) {
+            nwMapInstance = L.map('nationwideMap', {
+                zoomControl: false,
+                scrollWheelZoom: true,
+                attributionControl: false
+            }).setView([20.59, 78.96], 5);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                subdomains: 'abcd', maxZoom: 19
+            }).addTo(nwMapInstance);
+
+            L.control.zoom({ position: 'bottomleft' }).addTo(nwMapInstance);
+
+            L.control.attribution({ position: 'bottomleft', prefix: false })
+                .addAttribution('&copy; <a href="https://carto.com/">CARTO</a>')
+                .addTo(nwMapInstance);
+        }
+
+        if (!nwMapData.length) return;
+
+        nwMapMarkers = L.layerGroup().addTo(nwMapInstance);
+        nwUpdateStats(nwMapData);
+        nwRenderBubbles(nwMapData);
+    }
+
+    // ── Metric Toggle ──
+    $(document).on('click', '.nw-metric-btn', function() {
+        $('.nw-metric-btn').removeClass('active');
+        $(this).addClass('active');
+        nwCurrentMetric = $(this).data('metric');
+        if (nwMapData.length) nwRenderBubbles(nwMapData);
+    });
+
+    window.setNwDrilldown = function(region) {
+        nwDrilldownRegion = region;
+        $('#nwDrilldownTitle').text('Region: ' + region);
+        $('#nwDrilldownPanel').slideDown(200);
+        loadNationwideData();
+        $('html, body').animate({ scrollTop: $("#nwDrilldownPanel").offset().top - 100 }, 500);
+        if (nwMapInstance) {
+            const coords = getRegionCoords(region);
+            nwMapInstance.setView([coords.lat, coords.lng], 7, { animate: true });
+        }
+    };
+    window.clearNwDrilldown = function() {
+        nwDrilldownRegion = null;
+        $('#nwDrilldownPanel').slideUp(200);
+        loadNationwideData();
+        if (nwMapInstance) {
+            nwMapInstance.setView([20.59, 78.96], 5, { animate: true });
+        }
+    };
+
+    function loadNationwideData() {
+        window.loadReportData = loadNationwideData;
+        const q = $.param(collectFilters(), true);
+        fetch(`/nationwide/data?${q}`).then(r=>r.json()).then(data=>{
+            const tableData = data.table || data.data || [];
+            renderNationwideMap(tableData);
+        });
+    }
+
+    function loadCurrentTab() {
+        if (activeTab === 'overview') loadOverviewData();
+        else loadNationwideData();
+    }
+
+    $('.select2').on('change', function(e, opts) {
+        if (opts && opts.internal) return;
+        updateFilterSummary();
+        clearNwDrilldown();
+        loadCurrentTab();
+    });
+    $('#resetFilters').click(() => { $('.select2').val(null).trigger('change'); });
+    $('#exportXlsx').click(() => {
+        const q = $.param(collectFilters(), true);
+        const url = activeTab === 'overview' ? `/category-overview/program-impact?${q}` : `/nationwide/export?${q}`;
+        window.exportToXLSX(url, activeTab === 'overview' ? 'program_impact.xlsx' : 'nationwide_data.xlsx');
+    });
+
+    fetch('/nationwide/filters').then(r=>r.json()).then(data=>{
+        data.years.forEach(y=>$('#yearFilter').append(new Option(y,y)));
+        const currentYear=new Date().getFullYear();
+        if(!$('#yearFilter').val()?.length&&data.years.some(y=>String(y).startsWith(String(currentYear)))){$('#yearFilter').val([currentYear]);}
+        data.regions.forEach(r=>$('#regionFilter').append(new Option(r,r)));
+        data.months.forEach(m=>$('#monthFilter').append(new Option(m.name,m.id)));
+        $('.select2').trigger('change.select2',{internal:true});
+        updateFilterSummary();
+        setTimeout(loadOverviewData, 300);
+    });
 });
 </script>
 {% endblock %}

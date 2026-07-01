@@ -76,6 +76,9 @@
         if (window.ChartDataLabels) {
             Chart.register(ChartDataLabels);
         }
+        if (window.Chart && Chart.defaults && Chart.defaults.elements && Chart.defaults.elements.arc) {
+            Chart.defaults.elements.arc.hoverOffset = 0;
+        }
 
         // Dynamically standardize filter labels and placeholders globally
         standardizeFilters();
@@ -956,7 +959,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     layout: {
-                        padding: usePieConnectors ? 30 : 0
+                        padding: (type === 'pie' || type === 'doughnut') ? 10 : 0
                     },
                     plugins: {
                         legend: {
@@ -994,14 +997,20 @@
                             }
                         },
                         datalabels: {
-                            display: function() {
+                            display: function(context) {
                                 const toggle = document.getElementById('toggleDataLabels');
-                                return toggle ? toggle.checked : (datasetOptions && datasetOptions.showLabels !== false);
+                                if (toggle && !toggle.checked) return false;
+                                if (type === 'pie' || type === 'doughnut') {
+                                    const total = context.dataset.data.reduce((s, v) => s + v, 0);
+                                    const val = context.dataset.data[context.dataIndex];
+                                    return total && (val / total) > 0.03;
+                                }
+                                return datasetOptions && datasetOptions.showLabels !== false;
                             },
-                            anchor: usePieConnectors ? 'end' : 'center',
-                            align: usePieConnectors ? 'end' : 'center',
-                            offset: usePieConnectors ? 12 : 0,
-                            color: usePieConnectors ? '#000000' : (type === 'pie' || type === 'doughnut' ? '#ffffff' : '#000000'),
+                            anchor: 'center',
+                            align: 'center',
+                            offset: 0,
+                            color: (type === 'pie' || type === 'doughnut') ? '#ffffff' : '#000000',
                             font: { weight: 'bold', size: 10 },
                             formatter: function(value, context) {
                                 if (value === 0) return '';
@@ -1022,7 +1031,7 @@
                 chartConfig.options.scales = {
                     x: {
                         grid: { color: COLORS.grid },
-                        ticks: { color: COLORS.tick },
+                        ticks: { color: COLORS.tick, maxRotation: 45, font: { size: 11 } },
                         border: { display: false },
                     },
                     y: {
@@ -1036,11 +1045,7 @@
 
             const activePlugins = [];
             if (type === 'pie' || type === 'doughnut') {
-                if (usePieConnectors) {
-                    activePlugins.push(window.PieConnectorPlugin);
-                } else {
-                    activePlugins.push(internalDataLabelPlugin);
-                }
+                activePlugins.push(internalDataLabelPlugin);
             }
             
             charts[id] = new Chart(canvas, { ...chartConfig, plugins: activePlugins });
@@ -1302,14 +1307,19 @@
                 searching: true,
                 ordering: true,
                 info: true,
-                responsive: true,
+                responsive: false,
                 autoWidth: false, // Prevent DataTables from guessing widths, which causes misalignment
                 pageLength: 15,
                 lengthMenu: [10, 15, 25, 50, 100],
+                dom: '<"row align-items-center mb-2"lf>rtip',
                 language: {
                     search: "_INPUT_",
                     searchPlaceholder: "Filter records...",
-                    lengthMenu: "Show _MENU_ entries"
+                    lengthMenu: "Show _MENU_ entries",
+                    paginate: {
+                        previous: '<i class="fas fa-chevron-left"></i>',
+                        next: '<i class="fas fa-chevron-right"></i>'
+                    }
                 },
                 order: [], // Disable initial sort to respect server-side default
                 columnDefs: [
@@ -1383,6 +1393,29 @@
                     });
                 }
             };
+
+            // Global: Push all DataTables filters to extreme right
+            function _fixDtFilterFlex() {
+                document.querySelectorAll('.dataTables_wrapper .row').forEach(function(row) {
+                    if (row.children.length >= 2 && !row.dataset.flexFixed) {
+                        row.dataset.flexFixed = '1';
+                        row.style.setProperty('display', 'flex', 'important');
+                        row.style.setProperty('justify-content', 'space-between', 'important');
+                        row.style.setProperty('align-items', 'center', 'important');
+                        var first = row.children[0];
+                        var last = row.children[row.children.length - 1];
+                        first.style.setProperty('flex', '0 0 auto', 'important');
+                        first.style.setProperty('width', 'auto', 'important');
+                        first.style.setProperty('max-width', 'none', 'important');
+                        last.style.setProperty('flex', '1 1 0%', 'important');
+                        last.style.setProperty('width', 'auto', 'important');
+                        last.style.setProperty('max-width', 'none', 'important');
+                        last.style.setProperty('text-align', 'right', 'important');
+                    }
+                });
+            }
+            $(document).on('draw.dt', function() { _fixDtFilterFlex(); });
+            $(document).ready(function() { setTimeout(_fixDtFilterFlex, 500); });
 
             // Setup Custom Sort Dropdown Interactions (Run Once)
             if (!window._pramanaCustomSortInitialized) {
