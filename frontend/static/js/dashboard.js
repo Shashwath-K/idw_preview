@@ -1033,12 +1033,14 @@
                         grid: { color: COLORS.grid },
                         ticks: { color: COLORS.tick, maxRotation: 45, font: { size: 11 } },
                         border: { display: false },
+                        title: datasetOptions && datasetOptions.xTitle ? { display: true, text: datasetOptions.xTitle, font: { size: 12, weight: '600' }, color: '#475569' } : undefined,
                     },
                     y: {
                         beginAtZero: true,
                         grid: { color: type === "line" ? COLORS.grid : COLORS.gridSoft },
                         ticks: { color: COLORS.tick },
                         border: { display: false },
+                        title: datasetOptions && datasetOptions.yTitle ? { display: true, text: datasetOptions.yTitle, font: { size: 12, weight: '600' }, color: '#475569' } : undefined,
                     },
                 };
             }
@@ -1311,7 +1313,7 @@
                 autoWidth: false, // Prevent DataTables from guessing widths, which causes misalignment
                 pageLength: 15,
                 lengthMenu: [10, 15, 25, 50, 100],
-                dom: '<"row align-items-center mb-2"lf>rtip',
+                dom: '<"dt-top-bar"lf>rt<"dt-bottom-bar"ip>',
                 language: {
                     search: "_INPUT_",
                     searchPlaceholder: "Filter records...",
