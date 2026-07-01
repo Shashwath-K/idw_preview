@@ -218,13 +218,8 @@ def generate_insights_dict(curr_vals, prev_vals, trends, single_year, prev_year,
             "color": "linear-gradient(135deg, #3498db 0%, #2980b9 100%)",
             "name": f"Total Exposures{region_text}"
         },
-<<<<<<< HEAD
         "total_sessions": {
             "title": f"Count of Sessions Insights{region_text}",
-=======
-        "total_states": {
-            "title": f"Total Sessions Insights{region_text}",
->>>>>>> mee/main
             "icon": "fas fa-chalkboard-teacher",
             "color": "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)",
             "name": f"Total Sessions{region_text}"

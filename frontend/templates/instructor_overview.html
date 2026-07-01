@@ -111,7 +111,6 @@
         </div>
     </div>
 
-<<<<<<< HEAD
     <!-- New KPIs Row -->
     <div class="row">
         <!-- Card 5: Total Working Days -->
@@ -162,9 +161,6 @@
     </div>
 
     <!-- Charts Row 1 -->
-=======
-    <!-- Charts Row -->
->>>>>>> mee/main
     <div class="row">
         <div class="col-xl-6 col-lg-6 mb-3">
             <div class="card h-100 white-chart-card shadow-sm" style="border-radius:15px;overflow:hidden;">
@@ -188,7 +184,6 @@
         </div>
     </div>
 
-<<<<<<< HEAD
     <!-- Charts Row 2 -->
     <div class="row">
         <div class="col-md-12 mb-3">
@@ -222,9 +217,6 @@
     </div>
 
     <!-- Data Table -->
-=======
-    <!-- Drilldown Panel (Overview - Program Breakdown by Region) -->
->>>>>>> mee/main
     <div id="drilldownPanel" style="display:none; margin-top: 16px;">
         <div id="drilldownBreadcrumb" class="d-flex align-items-center mb-3 px-1" style="gap: 8px;">
             <span class="text-muted" style="font-size:13px; cursor:pointer;" onclick="clearDrilldown()">
@@ -350,55 +342,7 @@
     </div>
 </div>
 
-<<<<<<< HEAD
 {% include "partials/filters.html" %}
-=======
-<!-- Filter Drawer -->
-<div id="filterDrawerOverlay" class="filter-drawer-overlay"></div>
-<div id="filterDrawer" class="filter-drawer">
-    <div class="fd-header">
-        <h3 class="fd-title"><i class="fas fa-filter mr-2" style="color:#3b82f6;"></i>Filters</h3>
-        <button id="closeDrawer" class="fd-close"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="fd-body">
-        <div class="fd-section">
-            <label class="fd-label">Fiscal Year</label>
-            <select id="yearFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Year" data-filter="years"></select>
-        </div>
-        <div class="fd-section">
-            <label class="fd-label">Regional Hubs</label>
-            <select id="regionFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Region" data-filter="region"></select>
-        </div>
-        <div class="fd-section">
-            <label class="fd-label">Activity Type</label>
-            <select id="programFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Activity" data-filter="program"></select>
-        </div>
-        <div class="fd-section">
-            <label class="fd-label">Month</label>
-            <select id="monthFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Month" data-filter="month"></select>
-        </div>
-        <hr style="border-color:#e2e8f0; margin:20px 0;">
-        <div class="fd-section">
-            <label class="fd-label">Quarter</label>
-            <select id="quarterFilter" class="form-control select2 filter-multi" multiple data-placeholder="Select Quarter" data-filter="quarter"></select>
-        </div>
-        <div class="fd-section">
-            <label class="fd-label">Group Chart By</label>
-            <select id="groupByFilter" class="form-control" style="border:1px solid #e2e8f0; border-radius:10px; padding:8px;">
-                <option value="month">Month</option>
-                <option value="day">Day</option>
-                <option value="quarter">Quarter</option>
-                <option value="year">Year</option>
-            </select>
-        </div>
-    </div>
-    <div class="fd-footer">
-        <button id="resetFilters" class="btn btn-outline-secondary btn-block" style="border-radius:10px;">
-            <i class="fas fa-undo mr-2"></i>Reset All Filters
-        </button>
-    </div>
-</div>
->>>>>>> mee/main
 
 <!-- KPI Insights Modal -->
 <div class="modal fade" id="kpiInsightModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -528,7 +472,6 @@ $(function(){
     $('#filterDrawerOverlay').click(closeDrawer);
     if($.fn.select2){ $('.select2').select2({ theme:'bootstrap4', dropdownParent:$('#filterDrawer'), width:'100%', allowClear:true, multiple:true }); }
 
-<<<<<<< HEAD
     // Filters
     const rf = $('#regionFilter'), pf = $('#programFilter'),
           myf = $('#monthYearFilter'), ptf = $('#programTypeFilter'), emf = $('#engagementModeFilter');
@@ -569,33 +512,11 @@ $(function(){
                 myf.trigger('change.select2', { internal: true });
                 ptf.trigger('change.select2', { internal: true });
                 emf.trigger('change.select2', { internal: true });
-=======
-    // ── Filters ──
-    function fetchOverviewFilters(target, years, regions){
-        const q = $.param({years:years||[], regions:regions||[]}, true);
-        return fetch(`/dashboard/filters?${q}`).then(r=>r.json()).then(d=>{
-            if(target==='all'){
-                $('#yearFilter').empty(); d.years.forEach(y=>$('#yearFilter').append(new Option(y,y)));
-                const currentYear = new Date().getFullYear();
-                if(!($('#yearFilter').val()||[]).length && d.years.includes(currentYear)){ $('#yearFilter').val([currentYear]); }
-                $('#regionFilter').empty(); d.regions.forEach(r=>$('#regionFilter').append(new Option(r,r)));
-                $('#programFilter').empty(); d.programs.forEach(p=>$('#programFilter').append(new Option(p,p)));
-                $('.select2').trigger('change.select2');
-            } else if(target==='regions'){
-                const cur=$('#regionFilter').val()||[];
-                $('#regionFilter').empty(); d.regions.forEach(r=>$('#regionFilter').append(new Option(r,r)));
-                $('#regionFilter').val(cur).trigger('change.select2',{internal:true});
-            } else if(target==='programs'){
-                const cur=$('#programFilter').val()||[];
-                $('#programFilter').empty(); d.programs.forEach(p=>$('#programFilter').append(new Option(p,p)));
-                $('#programFilter').val(cur).trigger('change.select2',{internal:true});
->>>>>>> mee/main
             }
             updateFilterSummary();
         });
     }
 
-<<<<<<< HEAD
     fetchFilters('all').then(() => loadData());
 
     rf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
@@ -616,28 +537,6 @@ $(function(){
         const program_types = ptf.val() || [];
         const engagement_modes = emf.val() || [];
         const t = regions.length + programs.length + month_years.length + program_types.length + engagement_modes.length;
-=======
-    function fetchPerfFilters(){
-        const f = collectFilters();
-        return fetch('/performance-mgmt/filters?' + $.param(f, true)).then(r=>r.json()).then(data=>{
-            if (!$('#monthFilter option').length) {
-                data.months.forEach(m => $('#monthFilter').append(new Option(m.name, m.id)));
-            }
-            if (!$('#quarterFilter option').length) {
-                data.quarters.forEach(q => $('#quarterFilter').append(new Option('Q' + q, q)));
-            }
-            $('.select2').trigger('change.select2', { internal: true });
-        });
-    }
-
-    fetchOverviewFilters('all');
-    fetchPerfFilters();
-
-    function collectFilters(){ return window.PramanaDashboard.collectFilters(); }
-
-    function updateFilterSummary(){
-        const t=($('#yearFilter').val()||[]).length+($('#regionFilter').val()||[]).length+($('#programFilter').val()||[]).length+($('#monthFilter').val()||[]).length+($('#quarterFilter').val()||[]).length;
->>>>>>> mee/main
         $('#activeFilterCount').text(t?`${t} Filters Applied`:'All Data');
     }
     $('.select2').on('change', updateFilterSummary);
@@ -683,7 +582,6 @@ $(function(){
     // ── KPI Updates ──
     function updateKpis(kpis, trends=[], sparklines=null) {
         animateNum($('#kpiInstructors'), kpis.total_instructors);
-<<<<<<< HEAD
         animateNum($('#kpiSessions'),    kpis.total_sessions);
         animateNum($('#kpiWorkingDays'), kpis.total_working_days);
         
@@ -724,13 +622,6 @@ $(function(){
         animateNum($('#kpiStudents'),    kpis.total_students);
 
         // Render trend pills
-=======
-        animateNum($('#kpiSessions'), kpis.total_sessions);
-        const avgEl=$('#kpiAvgSessions'); const startAvg=parseFloat(avgEl.text())||0; const targetAvg=kpis.avg_per_instructor||0;
-        const steps=20, inc=(targetAvg-startAvg)/steps; let step=0;
-        const t=setInterval(()=>{ step++; avgEl.text((startAvg+inc*step).toFixed(1)); if(step>=steps){avgEl.text(targetAvg.toFixed(1));clearInterval(t);} },25);
-        animateNum($('#kpiStudents'), kpis.total_students);
->>>>>>> mee/main
         function renderTrend(wrapperId, containerId, trend) {
             const wrapper=$(wrapperId), container=$(containerId).empty();
             if(!trend||trend.dir==='neutral'){ wrapper.attr('style','display: none !important;'); return; }
@@ -744,7 +635,6 @@ $(function(){
         else if(trends&&trends.length){ renderMiniChart('miniChartInstructors',trends.map(t=>t.instructors),'#f39c12'); renderMiniChart('miniChartSessions',trends.map(t=>t.sessions),'#28a745'); renderMiniChart('miniChartAvgSessions',trends.map(t=>t.avg),'#001f3f'); renderMiniChart('miniChartStudents',trends.map(t=>t.students),'#dc3545'); }
     }
 
-<<<<<<< HEAD
     let dt=null;
     let fullKpis = null;
     let drilldownKpis = null;
@@ -891,9 +781,6 @@ $(function(){
     });
 
     // Chart helpers
-=======
-    // ── Chart Instances ──
->>>>>>> mee/main
     let chartInstances={};
     function destroyChart(id){ if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; } }
 
@@ -975,7 +862,6 @@ $(function(){
         });
     }
 
-<<<<<<< HEAD
     function renderBar(id, points){
         destroyChart(id);
         const c=document.getElementById(id); if(!c) return;
@@ -991,99 +877,6 @@ $(function(){
     }
 
     setTimeout(loadData, 300);
-=======
-    function loadPerfData(){
-        const f=collectFilters(); f.group_by=$('#groupByFilter').val()||'month';
-        fetch('/performance-mgmt/chart?'+$.param(f,true)).then(r=>r.json()).then(resp=>{
-            window._chartRawData=resp.data; renderPerfTrendChart(resp.data);
-        }).catch(e=>console.error('Chart error',e));
-        fetch('/performance-mgmt/region-chart?'+$.param(f,true)).then(r=>r.json()).then(resp=>{
-            renderRegionBarChart(resp.data);
-        }).catch(e=>console.error('Region chart error',e));
-    }
-
-    function applyAll(){
-        $('#drilldownPanel').hide(); $('#perfDrilldownPanel').hide();
-        loadOverviewData(); loadPerfData();
-    }
-
-    // ── Overview Drilldown (Program Breakdown by Region) ──
-    window.loadOverviewDrilldown = function(regionName){
-        selectedRegion=regionName;
-        const q=getParams()+`&region=${encodeURIComponent(regionName)}`;
-        fetch(`/category-overview/instructor?${q}`).then(r=>r.json()).then(data=>{
-            if(data.kpis){drilldownKpis=data.kpis;updateKpis(data.kpis,data.trends,data.sparklines);}
-        });
-        fetch(`/dashboard/drill-down?${q}`).then(r=>r.json()).then(data=>{
-            if($.fn.DataTable.isDataTable('#drilldownTable'))$('#drilldownTable').DataTable().destroy();
-            $('#drilldownRegionLabel,#ddTableRegionLabel').text(regionName);
-            animateNum('#ddSessions',data.summary.total_sessions); animateNum('#ddStudents',data.summary.total_students); animateNum('#ddSchools',data.summary.total_schools);
-            const tbody=$('#drilldownTableBody').empty();
-            (data.programs||[]).forEach(p=>{
-                tbody.append(`<tr><td class="font-weight-600">${p.program}</td><td class="text-muted">${p.donor}</td><td class="text-right">${p.sessions.toLocaleString()}</td><td class="text-right">${p.students_reached.toLocaleString()}</td><td class="text-right">${p.schools_visited.toLocaleString()}</td><td class="text-right">${p.instructors.toLocaleString()}</td></tr>`);
-            });
-            $('#ddProgramCount').text((data.programs||[]).length+' programs');
-            PramanaDashboard.initDataTable('#drilldownTable',{paging:true,searching:true,pageLength:10,order:[[2,'desc']]});
-            $('#drilldownPanel').show(); $('html,body').animate({scrollTop:$('#drilldownPanel').offset().top-20},400);
-        });
-    };
-    window.clearDrilldown = function(){
-        selectedRegion=null; drilldownKpis=null; $('#drilldownPanel').hide();
-        if($.fn.DataTable.isDataTable('#drilldownTable'))$('#drilldownTable').DataTable().destroy();
-        $('#drilldownTableBody').empty();
-        if(fullKpis){updateKpis(fullKpis,fullTrends,fullSparklines);}
-    };
-
-    // ── Performance Drilldown (Ignator Breakdown) ──
-    function loadPerfDrilldown(value,type){
-        $('#perfDrilldownTitle').text(value); $('#perfDdTableLabel').text(value);
-        const filters=collectFilters(); const params=new URLSearchParams();
-        if(filters.year&&filters.year.length)filters.year.forEach(v=>params.append('year',v));
-        if(filters.month&&filters.month.length)filters.month.forEach(v=>params.append('month',v));
-        if(filters.quarter&&filters.quarter.length)filters.quarter.forEach(v=>params.append('quarter',v));
-        if(type==='region'){params.append('region',value);params.set('period','ALL');}
-        else{if(filters.region&&filters.region.length)filters.region.forEach(v=>params.append('region',v));params.set('period',value);}
-        params.set('group_by',$('#groupByFilter').val()||'month');
-        fetch('/performance-mgmt/drilldown?'+params.toString(),{cache:'no-store'}).then(r=>r.json()).then(resp=>{
-            if($.fn.DataTable.isDataTable('#perfDrilldownTable'))$('#perfDrilldownTable').DataTable().destroy();
-            const rows=resp.table||[];
-            $('#perfDdRecordCount').text(rows.length+' record'+(rows.length!==1?'s':''));
-            const tbody=$('#perfDrilldownBody').empty();
-            rows.forEach(r=>{
-                tbody.append('<tr><td class="font-weight-600">'+r.instructor_name+'</td><td>'+r.region_name+'</td><td class="text-right">'+(r.programs||0).toLocaleString()+'</td><td class="text-right">'+(r.sessions||0).toLocaleString()+'</td><td class="text-right">'+(r.schools||0).toLocaleString()+'</td><td class="text-right">'+(r.students_impacted||0).toLocaleString()+'</td><td class="text-right">'+(r.avg_duration_min||0)+'</td></tr>');
-            });
-            PramanaDashboard.initDataTable('#perfDrilldownTable',{paging:true,searching:true,pageLength:15,order:[[3,'desc']]});
-            $('#perfDrilldownPanel').show(); $('html,body').animate({scrollTop:$('#perfDrilldownPanel').offset().top-20},400);
-        }).catch(e=>console.error('Drilldown error',e));
-    }
-    window.clearPerfDrilldown = function(){
-        $('#perfDrilldownPanel').hide();
-        if($.fn.DataTable.isDataTable('#perfDrilldownTable'))$('#perfDrilldownTable').DataTable().destroy();
-        $('#perfDrilldownBody').empty();
-    };
-
-    // ── KPI Insight Modal ──
-    $(document).on('click','.kpi-info-btn',function(e){
-        e.preventDefault();e.stopPropagation();
-        const kpiKey=$(this).attr('data-kpi');
-        const currentKpis=selectedRegion?drilldownKpis:fullKpis;
-        if(!currentKpis||!currentKpis.insights||!currentKpis.insights[kpiKey]){console.error("Insights not found for: "+kpiKey);return;}
-        const insight=currentKpis.insights[kpiKey];
-        $('#modalTitle').text(insight.title); $('#modalHeaderIcon').attr('class',insight.icon); $('#modalIconWrapper').css('background',insight.color);
-        $('#modalComparisonText').html(insight.comparison_text);
-        const trend=(currentKpis.trends&&currentKpis.trends[kpiKey])?currentKpis.trends[kpiKey]:{dir:'neutral'};
-        const compIcon=$('#modalComparisonIcon').empty();
-        if(trend.dir==='up')compIcon.append('<i class="fas fa-arrow-alt-circle-up text-success" style="font-size: 2rem;"></i>');
-        else if(trend.dir==='down')compIcon.append('<i class="fas fa-arrow-alt-circle-down text-danger" style="font-size: 2rem;"></i>');
-        else compIcon.append('<i class="fas fa-balance-scale text-primary" style="font-size: 2rem;"></i>');
-        const suggestionsList=$('#modalSuggestionsList').empty();
-        if(insight.suggestions&&insight.suggestions.length){insight.suggestions.forEach(s=>{suggestionsList.append(`<li class="insight-list-item"><span class="mr-3 text-success" style="font-size:1.15rem;line-height:1.2;"><i class="fas fa-check-circle"></i></span><span class="text-secondary" style="font-size:0.95rem;line-height:1.5;font-family:Inter,Arial,sans-serif;">${s}</span></li>`);});}
-        else{suggestionsList.append('<li class="text-muted">No suggestions available for this view.</li>');}
-        $('#kpiInsightModal').modal('show');
-    });
-
-    setTimeout(applyAll, 300);
->>>>>>> mee/main
 });
 </script>
 {% endblock %}
