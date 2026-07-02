@@ -474,19 +474,21 @@ $(function(){
 
     // Filters
     const rf = $('#regionFilter'), pf = $('#programFilter'),
-          myf = $('#monthYearFilter'), ptf = $('#programTypeFilter'), emf = $('#engagementModeFilter');
+          yf = $('#yearFilter'), mf = $('#monthFilter'),
+          ptf = $('#programTypeFilter'), emf = $('#engagementModeFilter');
 
     function fetchFilters(target) {
         const query = $.param(window.PramanaDashboard.collectFilters(), true);
         return fetch(`/dashboard/filters?${query}`).then(r=>r.json()).then(d=>{
             if(target==='all'){
+                yf.empty();
+                if (d.years) { d.years.forEach(y => yf.append(new Option(y, y))); }
+
+                mf.empty();
+                if (d.months) { d.months.forEach(m => mf.append(new Option(m.name, m.id))); }
+
                 rf.empty(); d.regions.forEach(r=>rf.append(new Option(r,r)));
                 pf.empty(); d.programs.forEach(p=>pf.append(new Option(p,p)));
-
-                myf.empty();
-                if (d.month_years) {
-                    d.month_years.forEach(my => myf.append(new Option(my.name, my.id)));
-                }
 
                 ptf.empty();
                 if (d.program_types) {
@@ -498,18 +500,21 @@ $(function(){
                     d.engagement_modes.forEach(em => emf.append(new Option(em, em)));
                 }
 
-                // Default to current calendar month-year if available
+                // Default: select current FY year if available
+                if (d.years && d.years.length > 0) {
+                    yf.val([d.years[0]]);
+                }
+                // Default: select current month if available
                 const now = new Date();
-                const currentMy = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                if (d.month_years.some(my => my.id === currentMy)) {
-                    myf.val([currentMy]);
-                } else if (d.month_years.length > 0) {
-                    myf.val([d.month_years[0].id]);
+                const currentMonth = String(now.getMonth() + 1);
+                if (d.months && d.months.some(m => String(m.id) === currentMonth)) {
+                    mf.val([currentMonth]);
                 }
 
+                yf.trigger('change.select2', { internal: true });
+                mf.trigger('change.select2', { internal: true });
                 rf.trigger('change.select2', { internal: true });
                 pf.trigger('change.select2', { internal: true });
-                myf.trigger('change.select2', { internal: true });
                 ptf.trigger('change.select2', { internal: true });
                 emf.trigger('change.select2', { internal: true });
             }
@@ -519,9 +524,10 @@ $(function(){
 
     fetchFilters('all').then(() => loadData());
 
+    yf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
+    mf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
     rf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
     pf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
-    myf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
     ptf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
     emf.on('change', function(e, d) { if(d&&d.internal) return; loadData(); });
 
@@ -533,13 +539,14 @@ $(function(){
     function updateSummary(){
         const regions = rf.val() || [];
         const programs = pf.val() || [];
-        const month_years = myf.val() || [];
+        const years = yf.val() || [];
+        const months = mf.val() || [];
         const program_types = ptf.val() || [];
         const engagement_modes = emf.val() || [];
-        const t = regions.length + programs.length + month_years.length + program_types.length + engagement_modes.length;
+        const t = regions.length + programs.length + years.length + months.length + program_types.length + engagement_modes.length;
         $('#activeFilterCount').text(t?`${t} Filters Applied`:'All Data');
     }
-    $('.select2').on('change', updateFilterSummary);
+    $('.select2').on('change', updateSummary);
 
     $('#yearFilter').on('change',(e,d)=>{ if(d&&d.internal) return; fetchOverviewFilters('regions',$('#yearFilter').val()).then(()=>fetchOverviewFilters('programs',$('#yearFilter').val(),$('#regionFilter').val())); applyAll(); });
     $('#regionFilter').on('change',(e,d)=>{ if(d&&d.internal) return; fetchOverviewFilters('programs',$('#yearFilter').val(),$('#regionFilter').val()); applyAll(); });
@@ -553,7 +560,7 @@ $(function(){
         const t=setInterval(()=>{ step++; $el.text(Math.round(start+inc*step).toLocaleString()); if(step>=steps){$el.text(target.toLocaleString()); clearInterval(t);} },25);
     }
 
-    function getParams(){ return $.param(collectFilters(), true); }
+    function getParams(){ return $.param(window.PramanaDashboard.collectFilters(), true); }
 
     // ── Mini Sparkline Charts ──
     const miniCharts = {};
