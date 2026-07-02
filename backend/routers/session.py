@@ -18,7 +18,10 @@ def session_kpis(
     region: list[str] | None = Query(default=None),
     program: list[str] | None = Query(default=None),
     month: list[str] | None = Query(default=None),
-    quarter: list[str] | None = Query(default=None)
+    quarter: list[str] | None = Query(default=None),
+    month_year: list[str] | None = Query(default=None),
+    program_type: list[str] | None = Query(default=None),
+    engagement_mode: list[str] | None = Query(default=None),
 ):
     return session_service.get_session_kpis(
         years=years, region=region, program=program, month=month, quarter=quarter
@@ -32,6 +35,9 @@ def monthly_sessions(
     program: list[str] | None = Query(default=None),
     month: list[str] | None = Query(default=None),
     quarter: list[str] | None = Query(default=None),
+    month_year: list[str] | None = Query(default=None),
+    program_type: list[str] | None = Query(default=None),
+    engagement_mode: list[str] | None = Query(default=None),
     group_by: str = Query(default="month")
 ):
     return {
@@ -48,7 +54,10 @@ def sessions_by_region(
     region: list[str] | None = Query(default=None),
     program: list[str] | None = Query(default=None),
     month: list[str] | None = Query(default=None),
-    quarter: list[str] | None = Query(default=None)
+    quarter: list[str] | None = Query(default=None),
+    month_year: list[str] | None = Query(default=None),
+    program_type: list[str] | None = Query(default=None),
+    engagement_mode: list[str] | None = Query(default=None),
 ):
     return {
         "title": "Sessions by Region",
