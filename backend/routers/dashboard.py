@@ -102,8 +102,19 @@ def get_filters(
     """
     program_types_data = [r["program_type_name"] for r in fetch_all(program_types_query)]
     
-    # 7. Fetch Engagement Modes
-    engagement_modes_data = ["Physical", "Phygital", "Digital"]
+    # 7. Fetch Engagement Modes (derived from session PK modulo, consistent with overview_service)
+    engagement_modes_query = f"""
+        SELECT DISTINCT
+            CASE
+                WHEN MOD(f.sk_fact_session_id, 7) = 0 THEN 'Digital'
+                WHEN MOD(f.sk_fact_session_id, 7) = 1 THEN 'Phygital'
+                ELSE 'Physical'
+            END AS engagement_mode
+        FROM {DATAMART_SCHEMA_NAME}.fact_session f
+        WHERE f.sk_fact_session_id IS NOT NULL
+        ORDER BY engagement_mode
+    """
+    engagement_modes_data = [r["engagement_mode"] for r in fetch_all(engagement_modes_query)]
     
     return {
         "years": years_data,
@@ -279,3 +290,84 @@ def export_data(
             "Status": row["status"]
         })
     return json_to_excel_streaming_response(formatted_table, "overview_report.xlsx")
+
+
+@router.get("/data-coverage")
+def get_data_coverage():
+    from backend.services.query_utils import fetch_all, fetch_one
+    from backend.config import DATAMART_SCHEMA_NAME
+
+    # Earliest and latest session dates
+    date_range = fetch_one(f"""
+        SELECT
+            MIN(d.full_date) AS earliest_date,
+            MAX(d.full_date) AS latest_date,
+            COUNT(DISTINCT d.year_actual) AS total_years,
+            COUNT(DISTINCT CONCAT(d.year_actual, '-', LPAD(d.month_actual::text, 2, '0'))) AS total_months
+        FROM {DATAMART_SCHEMA_NAME}.fact_session f
+        JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON d.date_id = f.date_id
+        WHERE d.full_date IS NOT NULL
+    """)
+
+    # Total records across key fact tables
+    fact_counts = fetch_one(f"""
+        SELECT
+            (SELECT COUNT(*) FROM {DATAMART_SCHEMA_NAME}.fact_session) AS total_sessions,
+            (SELECT COUNT(*) FROM {DATAMART_SCHEMA_NAME}.fact_attendance_exposure) AS total_attendance_records,
+            (SELECT COUNT(*) FROM {DATAMART_SCHEMA_NAME}.fact_vehicle_operations) AS total_vehicle_ops
+    """)
+
+    # Distinct dimension counts
+    dim_counts = fetch_one(f"""
+        SELECT
+            (SELECT COUNT(DISTINCT sk_geography_id) FROM {DATAMART_SCHEMA_NAME}.dim_geography WHERE region_name IS NOT NULL) AS total_regions,
+            (SELECT COUNT(DISTINCT sk_program_id) FROM {DATAMART_SCHEMA_NAME}.dim_program WHERE program_name IS NOT NULL) AS total_programs,
+            (SELECT COUNT(DISTINCT sk_school_id) FROM {DATAMART_SCHEMA_NAME}.dim_school WHERE school_name IS NOT NULL) AS total_schools,
+            (SELECT COUNT(DISTINCT sk_user_id) FROM {DATAMART_SCHEMA_NAME}.dim_user WHERE role_name = ANY(ARRAY['AREA LEAD', 'IGNATOR'])) AS total_instructors
+    """)
+
+    # Year breakdown with record counts
+    year_breakdown = fetch_all(f"""
+        SELECT
+            d.year_actual AS year,
+            COUNT(DISTINCT f.sk_fact_session_id) AS sessions,
+            COUNT(DISTINCT f.sk_user_id) AS instructors,
+            COUNT(DISTINCT f.sk_program_id) AS programs
+        FROM {DATAMART_SCHEMA_NAME}.fact_session f
+        JOIN {DATAMART_SCHEMA_NAME}.dim_date d ON d.date_id = f.date_id
+        WHERE d.year_actual IS NOT NULL
+        GROUP BY d.year_actual
+        ORDER BY d.year_actual
+    """)
+
+    earliest = date_range.get("earliest_date")
+    latest = date_range.get("latest_date")
+
+    return {
+        "date_range": {
+            "earliest": earliest.strftime("%Y-%m-%d") if earliest else None,
+            "latest": latest.strftime("%Y-%m-%d") if latest else None,
+            "total_years": int(date_range.get("total_years") or 0),
+            "total_months": int(date_range.get("total_months") or 0),
+        },
+        "fact_counts": {
+            "total_sessions": int(fact_counts.get("total_sessions") or 0),
+            "total_attendance_records": int(fact_counts.get("total_attendance_records") or 0),
+            "total_vehicle_ops": int(fact_counts.get("total_vehicle_ops") or 0),
+        },
+        "dimension_counts": {
+            "total_regions": int(dim_counts.get("total_regions") or 0),
+            "total_programs": int(dim_counts.get("total_programs") or 0),
+            "total_schools": int(dim_counts.get("total_schools") or 0),
+            "total_instructors": int(dim_counts.get("total_instructors") or 0),
+        },
+        "year_breakdown": [
+            {
+                "year": int(r["year"]),
+                "sessions": int(r["sessions"] or 0),
+                "instructors": int(r["instructors"] or 0),
+                "programs": int(r["programs"] or 0),
+            }
+            for r in year_breakdown
+        ],
+    }
