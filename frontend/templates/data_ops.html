@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block title %}Data Operations{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Data Operations Dashboard</h2>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs" id="dataOpsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pipeline-tab" data-bs-toggle="tab" data-bs-target="#pipeline" type="button" role="tab" aria-controls="pipeline" aria-selected="true">Pipeline Runner</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="validation-tab" data-bs-toggle="tab" data-bs-target="#validation" type="button" role="tab" aria-controls="validation" aria-selected="false">Validation</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="reconciliation-tab" data-bs-toggle="tab" data-bs-target="#reconciliation" type="button" role="tab" aria-controls="reconciliation" aria-selected="false">Reconciliation</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="reference-tab" data-bs-toggle="tab" data-bs-target="#reference" type="button" role="tab" aria-controls="reference" aria-selected="false">Reference Data</button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content pt-4" id="dataOpsTabsContent">
+        
+        <!-- Pipeline Runner Tab -->
+        <div class="tab-pane fade show active" id="pipeline" role="tabpanel" aria-labelledby="pipeline-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Run ELT Pipeline</h5>
+                    <p class="card-text">Executes the redesigned ELT pipeline (Dimension, Fact, and Aggregate loads) sequentially.</p>
+                    <button class="btn btn-primary" id="btn-run-pipeline">Run Pipeline</button>
+                    
+                    <div id="pipeline-result" class="mt-4" style="display: none;">
+                        <h6>Pipeline Execution Status</h6>
+                        <div class="alert" id="pipeline-alert" role="alert"></div>
+                        <ul class="list-group" id="pipeline-details">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Run ID
+                                <span class="badge bg-secondary rounded-pill" id="run-id-val">-</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Steps Completed
+                                <span class="badge bg-success rounded-pill" id="steps-completed-val">0</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Steps Failed
+                                <span class="badge bg-danger rounded-pill" id="steps-failed-val">0</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Validation Tab -->
+        <div class="tab-pane fade" id="validation" role="tabpanel" aria-labelledby="validation-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Pre-ELT Validations</h5>
+                    <p class="card-text">Check for data anomalies like NULL or non-numeric Primary Keys in the source.</p>
+                    <button class="btn btn-warning" id="btn-run-validation">Run Validation Checks</button>
+                    <div class="mt-4" id="validation-result-container" style="display: none;">
+                        <h6>Validation Results</h6>
+                        <table class="table table-bordered mt-2">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Table</th>
+                                    <th>Issue</th>
+                                    <th>Severity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="validation-table-body">
+                                <!-- Results go here -->
+                            </tbody>
+                        </table>
+                        <div id="validation-no-issues" class="alert alert-success" style="display:none;">No issues found. Data looks clean!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reconciliation Tab -->
+        <div class="tab-pane fade" id="reconciliation" role="tabpanel" aria-labelledby="reconciliation-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Source vs DW Reconciliation</h5>
+                    <p class="card-text">Verify row counts between source tables and Data Warehouse facts.</p>
+                    <button class="btn btn-info" id="btn-run-reconciliation">Run Reconciliation</button>
+                    <div class="mt-4" id="reconciliation-result-container" style="display: none;">
+                        <h6>Reconciliation Results</h6>
+                        <table class="table table-bordered mt-2">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Entity</th>
+                                    <th>Source Count</th>
+                                    <th>DW Count</th>
+                                    <th>Match?</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reconciliation-table-body">
+                                <!-- Results go here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reference Data Tab -->
+        <div class="tab-pane fade" id="reference" role="tabpanel" aria-labelledby="reference-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Reference Data Explorer</h5>
+                    <div class="mb-3">
+                        <label for="reference-table-select" class="form-label">Select Reference Table</label>
+                        <select class="form-select" id="reference-table-select">
+                            <option value="ref_region_state_mapping">ref_region_state_mapping</option>
+                            <option value="ref_program_type">ref_program_type</option>
+                            <option value="ref_mode_of_engagement">ref_mode_of_engagement</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-secondary" id="btn-load-reference">Load Data</button>
+                    <div class="mt-4" id="reference-result-container" style="display: none;">
+                        <table class="table table-striped mt-2" id="reference-table">
+                            <thead class="table-dark" id="reference-table-head">
+                                <!-- Headers go here -->
+                            </thead>
+                            <tbody id="reference-table-body">
+                                <!-- Rows go here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    
+    // Pipeline Run
+    document.getElementById("btn-run-pipeline").addEventListener("click", async function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...';
+        
+        try {
+            const res = await fetch("/api/data-ops/pipeline/run", { method: "POST" });
+            const data = await res.json();
+            
+            document.getElementById("pipeline-result").style.display = "block";
+            document.getElementById("run-id-val").innerText = data.run_id;
+            document.getElementById("steps-completed-val").innerText = data.steps_completed;
+            document.getElementById("steps-failed-val").innerText = data.steps_failed;
+            
+            const alertBox = document.getElementById("pipeline-alert");
+            if (data.status === "success") {
+                alertBox.className = "alert alert-success";
+                alertBox.innerText = "Pipeline executed successfully!";
+            } else {
+                alertBox.className = "alert alert-danger";
+                alertBox.innerText = "Pipeline encountered failures. Check steps_failed.";
+            }
+        } catch (error) {
+            alert("Error running pipeline: " + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Run Pipeline";
+        }
+    });
+
+    // Validation
+    document.getElementById("btn-run-validation").addEventListener("click", async function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerText = "Validating...";
+        
+        try {
+            const res = await fetch("/api/data-ops/pipeline/validate");
+            const data = await res.json();
+            
+            document.getElementById("validation-result-container").style.display = "block";
+            const tbody = document.getElementById("validation-table-body");
+            tbody.innerHTML = "";
+            
+            if (data.validation_results.length === 0) {
+                document.getElementById("validation-no-issues").style.display = "block";
+            } else {
+                document.getElementById("validation-no-issues").style.display = "none";
+                data.validation_results.forEach(item => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `<td>${item.table}</td><td>${item.issue}</td><td><span class="badge bg-danger">${item.severity}</span></td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (error) {
+            alert("Error running validation: " + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Run Validation Checks";
+        }
+    });
+
+    // Reconciliation
+    document.getElementById("btn-run-reconciliation").addEventListener("click", async function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerText = "Reconciling...";
+        
+        try {
+            const res = await fetch("/api/data-ops/pipeline/reconcile");
+            const data = await res.json();
+            
+            document.getElementById("reconciliation-result-container").style.display = "block";
+            const tbody = document.getElementById("reconciliation-table-body");
+            tbody.innerHTML = "";
+            
+            data.reconciliation_results.row_counts.forEach(item => {
+                const tr = document.createElement("tr");
+                const matchHtml = item.match 
+                    ? `<span class="badge bg-success">Yes</span>` 
+                    : `<span class="badge bg-danger">No</span>`;
+                tr.innerHTML = `<td>${item.entity}</td><td>${item.source_count}</td><td>${item.dw_count}</td><td>${matchHtml}</td>`;
+                tbody.appendChild(tr);
+            });
+        } catch (error) {
+            alert("Error running reconciliation: " + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Run Reconciliation";
+        }
+    });
+
+    // Reference Data
+    document.getElementById("btn-load-reference").addEventListener("click", async function() {
+        const table = document.getElementById("reference-table-select").value;
+        const btn = this;
+        btn.disabled = true;
+        btn.innerText = "Loading...";
+        
+        try {
+            const res = await fetch(`/api/data-ops/reference/${table}`);
+            const data = await res.json();
+            
+            document.getElementById("reference-result-container").style.display = "block";
+            const thead = document.getElementById("reference-table-head");
+            const tbody = document.getElementById("reference-table-body");
+            thead.innerHTML = "";
+            tbody.innerHTML = "";
+            
+            if (data.data.length > 0) {
+                // headers
+                const keys = Object.keys(data.data[0]);
+                const trHead = document.createElement("tr");
+                keys.forEach(k => {
+                    const th = document.createElement("th");
+                    th.innerText = k;
+                    trHead.appendChild(th);
+                });
+                thead.appendChild(trHead);
+                
+                // rows
+                data.data.forEach(row => {
+                    const tr = document.createElement("tr");
+                    keys.forEach(k => {
+                        const td = document.createElement("td");
+                        td.innerText = row[k];
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+            } else {
+                thead.innerHTML = "<tr><th>No data available</th></tr>";
+            }
+        } catch (error) {
+            alert("Error loading reference data: " + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Load Data";
+        }
+    });
+
+});
+</script>
+{% endblock %}
