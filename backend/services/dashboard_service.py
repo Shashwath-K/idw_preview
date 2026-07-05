@@ -36,10 +36,25 @@ def _get_filter_options():
         ORDER BY d.month_actual
     """)]
 
+    quarters_query = f"""
+        SELECT DISTINCT
+            CASE
+                WHEN d.month_actual IN (4,5,6) THEN 1
+                WHEN d.month_actual IN (7,8,9) THEN 2
+                WHEN d.month_actual IN (10,11,12) THEN 3
+                ELSE 4
+            END AS fiscal_quarter
+        FROM {DATAMART_SCHEMA_NAME}.dim_date d
+        INNER JOIN {DATAMART_SCHEMA_NAME}.fact_session f ON d.date_id = f.date_id
+        WHERE d.month_actual IS NOT NULL
+        ORDER BY fiscal_quarter
+    """
+    quarters = [row["fiscal_quarter"] for row in fetch_all(quarters_query)]
+
     return {
         "regions": regions,
         "programs": programs,
         "years": years,
         "months": months,
-        "quarters": [1, 2, 3, 4]
+        "quarters": quarters
     }
