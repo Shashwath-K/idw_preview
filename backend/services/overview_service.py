@@ -1,16 +1,191 @@
 from datetime import datetime
-from backend.services.query_utils import build_dimension_filters, fetch_all, fetch_one
+from backend.services.query_utils import (
+    build_dimension_filters, fetch_all, fetch_one,
+    parse_fy_string, get_current_fy, fy_to_date_clause,
+)
 
 
 LOCATION_EXPRESSION = "g.region_name"
 PROGRAM_EXPRESSION = "p.program_name"
 
-# Default ignator roles — matches Looker's definition to yield 528 Programs / 717 Ignators
-# for FY 2026-27 (April 2026). Only sessions conducted by these roles and not marked overdue
-# are included in the overview KPI counts.
-DEFAULT_IGNATOR_ROLES = ['AREA LEAD', 'IGNATOR']
+# Default ignator roles — matches Looker's definition to yield ~528 Programs / ~717 Ignators
+# for FY 2026-27 (April 2026). Only sessions conducted by these roles are included
+# in the overview KPI counts. is_overdue filtering is applied separately via
+# conditional aggregation only on the Active Ignators KPI.
+DEFAULT_IGNATOR_ROLES = ['INSTRUCTOR', 'AREA LEAD']
 
 from backend.config import DEFAULT_YEAR
+
+
+# ---------------------------------------------------------------------------
+# Transaction-based helpers for Overview KPIs
+# ---------------------------------------------------------------------------
+# The dw.fact_session table is a derived datamart that can inflate or deflate
+# row counts during ETL.  Source txn_session is the system of record for
+# session, instructor, and program counts.  Exposures still come from
+# dw.fact_attendance_exposure because source.txn_feedback_exposure is
+# truncated (≈1 000 rows).
+# ---------------------------------------------------------------------------
+
+def _build_txn_overview_filters(
+    years=None, region=None, program=None, month=None, month_year=None,
+    program_type=None, engagement_mode=None,
+    include_role_filter=True, is_overdue_filter=None,
+):
+    """
+    Build FROM / WHERE fragments for queries against source.txn_session.
+
+    Returns (from_clause, where_clause, params) where:
+      - from_clause: JOINs to mst_user, mst_role, dim_date, dim_geography, etc.
+      - where_clause: starts with 'WHERE ...' or is empty string
+      - params: positional parameters for %s placeholders
+
+    Parameters
+    ----------
+    include_role_filter : bool
+        If True, restrict to DEFAULT_IGNATOR_ROLES.
+    is_overdue_filter : str | None
+        If 'false', add AND (s.is_overdue IS NULL OR s.is_overdue = '0').
+        If 'true', add AND s.is_overdue = '1'.
+        If None, no overdue filter.
+    """
+    from_clause = """
+        FROM source.txn_session s
+        JOIN source.mst_user u ON u.mst_user_id = s.instructor_id
+        JOIN source.mst_role r ON r.mst_role_id = u.role_id
+        JOIN dw.dim_date d ON d.full_date = (s.date)::date
+        LEFT JOIN source.mst_area a ON a.mst_area_id = u.area_id
+        LEFT JOIN source.mst_region reg ON reg.mst_region_id = a.region_id
+    """
+    if program_type:
+        from_clause += """
+        LEFT JOIN source.conf_program_school_mapping cspm
+            ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+        LEFT JOIN source.txn_program tp ON tp.txn_program_id = cspm.program_id
+        LEFT JOIN source.mst_program_type pt
+            ON (CASE WHEN tp.program_type_id ~ '^[0-9]+$' THEN tp.program_type_id::BIGINT ELSE NULL END)
+             = (CASE WHEN pt.mst_program_type_id ~ '^[0-9]+$' THEN pt.mst_program_type_id::BIGINT ELSE NULL END)
+        """
+    if engagement_mode:
+        from_clause += """
+        LEFT JOIN source.conf_program_school_mapping cspm2
+            ON cspm2.conf_program_school_mapping_id = s.program_school_mapped_id
+        LEFT JOIN source.txn_program tp2 ON tp2.txn_program_id = cspm2.program_id
+        """
+
+    where_parts = []
+    params = []
+
+    # -- Excluded deleted sessions ------------------------------------------
+    where_parts.append("(s.is_deleted IS NULL OR s.is_deleted != '1')")
+
+    # -- Future session exclusion -------------------------------------------
+    where_parts.append("(s.date)::date <= CURRENT_DATE")
+
+    # -- Financial year filter ----------------------------------------------
+    effective_years = years
+    if not effective_years:
+        effective_years = [get_current_fy()]
+
+    fy_strings = [v for v in effective_years if parse_fy_string(str(v)) is not None]
+    cal_years = [v for v in effective_years if parse_fy_string(str(v)) is None]
+
+    if fy_strings:
+        fy_conditions = []
+        for fy_str in fy_strings:
+            parsed = parse_fy_string(str(fy_str))
+            if parsed:
+                start_yr, end_yr = parsed
+                fy_conditions.append(
+                    "(d.year_actual = %s AND d.month_actual >= 4) OR "
+                    "(d.year_actual = %s AND d.month_actual <= 3)"
+                )
+                params.extend([start_yr, end_yr])
+        if fy_conditions:
+            where_parts.append("(" + " OR ".join(fy_conditions) + ")")
+
+    if cal_years:
+        where_parts.append("d.year_actual = ANY(%s)")
+        params.append([int(y) for y in cal_years])
+
+    # -- Month / month_year filter -----------------------------------------
+    if month_year and len(month_year) > 0:
+        where_parts.append("TO_CHAR(d.full_date, 'YYYY-MM') = ANY(%s)")
+        params.append(month_year)
+    elif month and len(month) > 0:
+        try:
+            month_ints = [int(m) for m in month if str(m).isdigit()]
+            if month_ints:
+                where_parts.append("d.month_actual = ANY(%s)")
+                params.append(month_ints)
+        except Exception:
+            pass
+    else:
+        # YTD cap for current FY
+        current_fy = get_current_fy()
+        single_fy = None
+        if years and len(years) == 1:
+            single_fy = str(years[0])
+        elif not years or len(years) == 0:
+            single_fy = current_fy
+        if single_fy and single_fy == current_fy:
+            where_parts.append("d.month_actual <= %s")
+            params.append(datetime.now().month)
+
+    # -- Region filter (via mst_region) -------------------------------------
+    if region:
+        if isinstance(region, list):
+            clean = [r for r in region if r]
+            if clean:
+                where_parts.append("REPLACE(LOWER(reg.name), '_', ' ') = ANY(%s)")
+                params.append([r.lower().replace("_", " ") for r in clean])
+        elif region:
+            where_parts.append("REPLACE(LOWER(reg.name), '_', ' ') = %s")
+            params.append(region.lower().replace("_", " "))
+
+    # -- Program type filter -----------------------------------------------
+    if program_type and len(program_type) > 0:
+        where_parts.append("pt.name = ANY(%s)")
+        params.append(program_type)
+
+    # -- Role filter -------------------------------------------------------
+    if include_role_filter:
+        where_parts.append("r.name = ANY(%s)")
+        params.append(DEFAULT_IGNATOR_ROLES)
+
+    # -- is_overdue filter --------------------------------------------------
+    if is_overdue_filter == 'false':
+        where_parts.append("(s.is_overdue IS NULL OR s.is_overdue = '0')")
+    elif is_overdue_filter == 'true':
+        where_parts.append("s.is_overdue = '1'")
+
+    where_clause = "WHERE " + " AND ".join(where_parts) if where_parts else ""
+    return from_clause, where_clause, params
+
+
+def _build_txn_kpi_select(include_overdue_conditional=True):
+    """
+    Return the SELECT columns for the main KPI query against source.txn_session.
+
+    If include_overdue_conditional is True, Active Ignators uses
+    is_overdue = false conditional aggregation.
+    """
+    if include_overdue_conditional:
+        return """
+        SELECT
+            COUNT(DISTINCT CASE WHEN (s.is_overdue IS NULL OR s.is_overdue = '0')
+                THEN s.instructor_id END)                  AS total_instructors,
+            COUNT(*)                                        AS total_sessions,
+            COUNT(DISTINCT cspm.program_id)                 AS active_programs,
+            COUNT(DISTINCT s.instructor_id || '_' || (s.date)::date) AS total_working_days
+        """
+    return """
+    SELECT
+        COUNT(DISTINCT s.instructor_id)                     AS total_instructors,
+        COUNT(*)                                            AS total_sessions,
+        COUNT(DISTINCT cspm.program_id)                     AS active_programs,
+        COUNT(DISTINCT s.instructor_id || '_' || (s.date)::date) AS total_working_days
+    """
 
 def currentYearYTD(year: int, region: list[str] | None = None, program: list[str] | None = None) -> int:
     """
@@ -164,8 +339,8 @@ def _build_filters(
     if engagement_mode and len(engagement_mode) > 0:
         pk_col = "sk_fact_vehicle_operations_id" if is_vehicle_ops else ("sk_fact_attendance_id" if is_attendance else "sk_fact_session_id")
         em_clause = f"""(CASE 
-            WHEN f.{pk_col} % 7 = 0 THEN 'Digital' 
-            WHEN f.{pk_col} % 7 = 1 THEN 'Phygital' 
+            WHEN MOD(f.{pk_col}, 7) = 0 THEN 'Digital' 
+            WHEN MOD(f.{pk_col}, 7) = 1 THEN 'Phygital' 
             ELSE 'Physical' 
         END) = ANY(%s)"""
         if where_clause:
@@ -176,7 +351,8 @@ def _build_filters(
 
     # ── Default Ignator role filter (Looker-matching definition) ─────────────
     # For session-based queries: only count sessions by INSTRUCTOR and AREA LEAD
-    # roles. Overdue check is only applicable for sessions (not attendance/operations).
+    # roles. Note: is_overdue is NOT filtered here — it only applies to the
+    # Active Ignators KPI via conditional aggregation in get_overview_kpis().
     if not is_vehicle_ops:
         role_clause = (
             "f.sk_user_id IN ("
@@ -187,9 +363,6 @@ def _build_filters(
         else:
             where_clause = f"WHERE {role_clause}"
         params.append(DEFAULT_IGNATOR_ROLES)
-        
-        if not is_attendance:
-            where_clause += " AND f.is_overdue = false"
 
     return where_clause, params
 
@@ -425,92 +598,118 @@ def get_overview_kpis(
     program_type: list[str] | None = None,
     engagement_mode: list[str] | None = None
 ):
-    where_clause, params = _build_filters(
+    # ── Build txn-based filters ──────────────────────────────────────────────
+    from_clause, where_clause, params = _build_txn_overview_filters(
         years=years, region=region, program=program,
-        program_type=program_type, engagement_mode=engagement_mode
-    )
-    # Apply YTD month boundary filtering
-    where_clause, params = _apply_ytd_filter(
-        where_clause, params, years, region, program, 
-        month=month, month_year=month_year
+        month=month, month_year=month_year,
+        program_type=program_type, engagement_mode=engagement_mode,
+        include_role_filter=False, is_overdue_filter=None,
     )
 
-    # 1. Main session-based KPIs
+    # Add LEFT JOIN for cspm when no program_type (still need it for active_programs)
+    if not program_type:
+        from_clause += """
+        LEFT JOIN source.conf_program_school_mapping cspm
+            ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+        """
+
+    # ── 1. Main KPIs from source.txn_session ────────────────────────────────
+    # Sessions, programs, working days: NO role filter (all valid sessions count).
+    # Active Ignators: role filter + is_overdue = false.
     kpis_row = fetch_one(
         f"""
         SELECT
-            COUNT(DISTINCT f.sk_user_id) AS total_instructors,
-            COUNT(DISTINCT f.sk_fact_session_id) AS total_sessions,
-            COUNT(DISTINCT p.sk_program_id) AS active_programs,
-            COALESCE(SUM(exp.exposure_sum), 0) + COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS total_exposures,
-            COUNT(DISTINCT CONCAT(f.sk_user_id, '_', f.date_id)) AS total_working_days
-        FROM dw.fact_session f
-        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
-        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
-        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
-        LEFT JOIN (
-            SELECT session_nk_id, SUM(total_exposure_count) AS exposure_sum
-            FROM dw.fact_attendance_exposure
-            GROUP BY session_nk_id
-        ) exp ON f.session_nk_id = exp.session_nk_id
+            COUNT(*) AS total_sessions,
+            COUNT(DISTINCT cspm.program_id) AS active_programs,
+            COUNT(DISTINCT s.instructor_id || '_' || (s.date)::date) AS total_working_days
+        {from_clause}
         {where_clause}
         """,
         params,
     )
 
-    # 2. Unique Children reached
-    where_clause_att, params_att = _build_filters(
+    # Active Ignators (role-filtered, is_overdue=false only)
+    ign_from, ign_where, ign_params = _build_txn_overview_filters(
         years=years, region=region, program=program,
+        month=month, month_year=month_year,
         program_type=program_type, engagement_mode=engagement_mode,
-        is_attendance=True
+        include_role_filter=True, is_overdue_filter='false',
     )
-    where_clause_att, params_att = _apply_ytd_filter(
-        where_clause_att, params_att, years, region, program, 
-        month=month, month_year=month_year
+    if not program_type:
+        ign_from += """
+        LEFT JOIN source.conf_program_school_mapping cspm
+            ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+        """
+    ign_row = fetch_one(
+        f"""
+        SELECT COUNT(DISTINCT s.instructor_id) AS total_instructors
+        {ign_from}
+        {ign_where}
+        """,
+        ign_params,
     )
 
+    # ── 2. Exposure total from source.rpt_feedback (txn table) ──────────────
+    # dw.fact_attendance_exposure is underreported by ~7x.
+    # rpt_feedback has no_of_boys, no_of_girls, no_of_men, no_of_women columns.
+    exp_where, exp_params = _build_exposure_where(years, region, program, month, month_year,
+                                       program_type, engagement_mode)
+    exposure_row = fetch_one(
+        f"""
+        SELECT
+            SUM(COALESCE(rf.no_of_boys::int, 0) + COALESCE(rf.no_of_girls::int, 0)) AS student_exposure,
+            SUM(COALESCE(rf.no_of_men::int, 0) + COALESCE(rf.no_of_women::int, 0)) AS community_exposure
+        FROM source.rpt_feedback rf
+        JOIN source.txn_session s ON s.txn_session_id = rf.session_id
+        JOIN source.mst_user u ON u.mst_user_id = s.instructor_id
+        JOIN source.mst_role r ON r.mst_role_id = u.role_id
+        LEFT JOIN source.mst_area a ON a.mst_area_id = u.area_id
+        LEFT JOIN source.mst_region reg ON reg.mst_region_id = a.region_id
+        {exp_where}
+        """,
+        exp_params,
+    )
+
+    # ── 3. Unique Children reached (from source.rpt_feedback) ───────────────
     children_row = fetch_one(
         f"""
-        SELECT COALESCE(SUM(max_exp), 0) AS unique_children
-        FROM (
-            SELECT f.sk_school_id, f.sk_program_id, f.class_name, f.section_name, MAX(f.total_exposure_count) AS max_exp
-            FROM dw.fact_attendance_exposure f
-            LEFT JOIN dw.dim_date d ON f.date_id = d.date_id
-            LEFT JOIN dw.dim_geography g ON f.sk_geography_id = g.sk_geography_id
-            {where_clause_att}
-            GROUP BY f.sk_school_id, f.sk_program_id, f.class_name, f.section_name
-        ) sub
+        SELECT COALESCE(SUM(COALESCE(rf.no_of_boys::int, 0) + COALESCE(rf.no_of_girls::int, 0)), 0) AS unique_children
+        FROM source.rpt_feedback rf
+        JOIN source.txn_session s ON s.txn_session_id = rf.session_id
+        JOIN source.mst_user u ON u.mst_user_id = s.instructor_id
+        JOIN source.mst_role r ON r.mst_role_id = u.role_id
+        LEFT JOIN source.mst_area a ON a.mst_area_id = u.area_id
+        LEFT JOIN source.mst_region reg ON reg.mst_region_id = a.region_id
+        {exp_where}
         """,
-        params_att,
+        exp_params,
     )
 
-    # 3. Active/Inactive Programs
+    # ── 4. Active/Inactive Programs ──────────────────────────────────────────
     active_progs = kpis_row.get("active_programs", 0) or 0
     total_progs_row = fetch_one("SELECT COUNT(DISTINCT sk_program_id) AS total FROM dw.dim_program;")
     total_progs = total_progs_row.get("total", 0) or 0
     inactive_programs = max(total_progs - active_progs, 0)
 
-    # 4. Active/Inactive Instructors (Ignators)
-    active_inst = kpis_row.get("total_instructors", 0) or 0
+    # ── 5. Active/Inactive Instructors (Ignators) ────────────────────────────
+    active_inst = int(ign_row.get("total_instructors", 0) or 0)
     inactive_inst_row = fetch_one(
         "SELECT COUNT(DISTINCT sk_user_id) AS total FROM dw.dim_user WHERE role_name = ANY(%s) AND is_active = false;",
         [DEFAULT_IGNATOR_ROLES]
     )
     inactive_instructors = inactive_inst_row.get("total", 0) or 0
 
-    # 5. Coverage (Count of unique states reached)
+    # ── 6. Coverage (Count of unique states reached) ─────────────────────────
     coverage_row = fetch_one(
         f"""
-        SELECT COUNT(DISTINCT g.state_name) FILTER (WHERE g.state_name IS NOT NULL AND g.state_name != 'Other') AS total_coverage
-        FROM dw.fact_session f
-        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
-        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
+        SELECT COUNT(DISTINCT reg.name) FILTER (WHERE reg.name IS NOT NULL AND reg.name != 'Other') AS total_coverage
+        {from_clause}
         {where_clause}
         """,
         params,
     )
 
-    # 6. Vehicles (Bikes and Buses active/used)
+    # ── 7. Vehicles (Bikes and Buses active/used) ────────────────────────────
     veh_where, veh_params = _build_filters(
         years=years, region=region, program=program, is_vehicle_ops=True,
         program_type=program_type, engagement_mode=engagement_mode
@@ -578,11 +777,18 @@ def get_overview_kpis(
     if single_year is not None:
         try:
             prev_year = single_year - 1
-            prev_where_clause, prev_params = _build_filters(
+            prev_from, prev_where, prev_params = _build_txn_overview_filters(
                 years=[prev_year], region=region, program=program,
-                program_type=program_type, engagement_mode=engagement_mode
+                month=month, month_year=None,
+                program_type=program_type, engagement_mode=engagement_mode,
+                include_role_filter=True, is_overdue_filter=None,
             )
-            # Use same YTD months filtering for the previous year same period
+            if not program_type:
+                prev_from += """
+                LEFT JOIN source.conf_program_school_mapping cspm
+                    ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+                """
+            # Use same month filter for previous year same period
             prev_month_year = None
             if month_year:
                 prev_month_year = []
@@ -596,38 +802,77 @@ def get_overview_kpis(
                             prev_month_year.append(my)
                     else:
                         prev_month_year.append(my)
-            prev_where_clause, prev_params = _apply_ytd_filter(
-                prev_where_clause, prev_params, [single_year], region, program, 
-                month=month, month_year=prev_month_year
+            # Rebuild prev_filters with month applied — NO role filter for sessions/progs
+            prev_from, prev_where, prev_params = _build_txn_overview_filters(
+                years=[prev_year], region=region, program=program,
+                month=month, month_year=prev_month_year,
+                program_type=program_type, engagement_mode=engagement_mode,
+                include_role_filter=False, is_overdue_filter=None,
             )
-            
-            # Fetch previous year's values
+            if not program_type:
+                prev_from += """
+                LEFT JOIN source.conf_program_school_mapping cspm
+                    ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+                """
+
             prev_kpis_row = fetch_one(
                 f"""
                 SELECT
-                    COUNT(DISTINCT f.sk_user_id) AS total_instructors,
-                    COUNT(DISTINCT f.sk_fact_session_id) AS total_sessions,
-                    COUNT(DISTINCT p.sk_program_id) AS active_programs,
-                    COALESCE(SUM(exp.exposure_sum), 0) + COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS total_exposures
-                FROM dw.fact_session f
-                LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
-                LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
-                LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
-                LEFT JOIN (
-                    SELECT session_nk_id, SUM(total_exposure_count) AS exposure_sum
-                    FROM dw.fact_attendance_exposure
-                    GROUP BY session_nk_id
-                ) exp ON f.session_nk_id = exp.session_nk_id
-                {prev_where_clause}
+                    COUNT(*) AS total_sessions,
+                    COUNT(DISTINCT cspm.program_id) AS active_programs
+                {prev_from}
+                {prev_where}
                 """,
                 prev_params,
             )
+
+            # Previous year Active Ignators (role-filtered, is_overdue=false)
+            prev_ign_from, prev_ign_where, prev_ign_params = _build_txn_overview_filters(
+                years=[prev_year], region=region, program=program,
+                month=month, month_year=prev_month_year,
+                program_type=program_type, engagement_mode=engagement_mode,
+                include_role_filter=True, is_overdue_filter='false',
+            )
+            if not program_type:
+                prev_ign_from += """
+                LEFT JOIN source.conf_program_school_mapping cspm
+                    ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+                """
+            prev_ign_row = fetch_one(
+                f"""
+                SELECT COUNT(DISTINCT s.instructor_id) AS total_instructors
+                {prev_ign_from}
+                {prev_ign_where}
+                """,
+                prev_ign_params,
+            )
+
+            # Previous year exposures
+            prev_exp_where, prev_exp_params = _build_exposure_where(
+                [prev_year], region, program, month, prev_month_year,
+                program_type, engagement_mode
+            )
+            prev_exposure_row = fetch_one(
+                f"""
+                SELECT
+                    SUM(COALESCE(rf.no_of_boys::int, 0) + COALESCE(rf.no_of_girls::int, 0)) AS student_exposure,
+                    SUM(COALESCE(rf.no_of_men::int, 0) + COALESCE(rf.no_of_women::int, 0)) AS community_exposure
+                FROM source.rpt_feedback rf
+                JOIN source.txn_session s ON s.txn_session_id = rf.session_id
+                JOIN source.mst_user u ON u.mst_user_id = s.instructor_id
+                JOIN source.mst_role r ON r.mst_role_id = u.role_id
+                LEFT JOIN source.mst_area a ON a.mst_area_id = u.area_id
+                LEFT JOIN source.mst_region reg ON reg.mst_region_id = a.region_id
+                {prev_exp_where}
+                """,
+                prev_exp_params,
+            )
             
-            curr_inst = int(kpis_row.get("total_instructors", 0) or 0)
-            prev_inst = int(prev_kpis_row.get("total_instructors", 0) or 0)
+            curr_inst = int(ign_row.get("total_instructors", 0) or 0)
+            prev_inst = int(prev_ign_row.get("total_instructors", 0) or 0)
             
-            curr_driver = int(kpis_row.get("total_exposures", 0) or 0)
-            prev_driver = int(prev_kpis_row.get("total_exposures", 0) or 0)
+            curr_exposure = int((exposure_row.get("student_exposure", 0) or 0) + (exposure_row.get("community_exposure", 0) or 0))
+            prev_exposure = int((prev_exposure_row.get("student_exposure", 0) or 0) + (prev_exposure_row.get("community_exposure", 0) or 0))
             
             curr_state = int(kpis_row.get("total_sessions", 0) or 0)
             prev_state = int(prev_kpis_row.get("total_sessions", 0) or 0)
@@ -635,11 +880,10 @@ def get_overview_kpis(
             curr_prog = int(kpis_row.get("active_programs", 0) or 0)
             prev_prog = int(prev_kpis_row.get("active_programs", 0) or 0)
 
-            # For YTD totals comparison, averages are set directly to YTD totals
             curr_inst_avg = curr_inst
             prev_inst_avg = prev_inst
-            curr_driver_avg = curr_driver
-            prev_driver_avg = prev_driver
+            curr_driver_avg = curr_exposure
+            prev_driver_avg = prev_exposure
             curr_state_avg = curr_state
             prev_state_avg = prev_state
             curr_prog_avg = curr_prog
@@ -648,7 +892,7 @@ def get_overview_kpis(
             prev_vals = {
                 "total_instructors": prev_inst,
                 "total_instructors_avg": prev_inst_avg,
-                "total_exposures": prev_driver,
+                "total_exposures": prev_exposure,
                 "total_exposures_avg": prev_driver_avg,
                 "total_sessions": prev_state,
                 "total_sessions_avg": prev_state_avg,
@@ -666,16 +910,18 @@ def get_overview_kpis(
                 
             trends = {
                 "total_instructors": calc_trend(curr_inst, prev_inst),
-                "total_exposures": calc_trend(curr_driver, prev_driver),
+                "total_exposures": calc_trend(curr_exposure, prev_exposure),
                 "total_sessions": calc_trend(curr_state, prev_state),
                 "total_programs": calc_trend(curr_prog, prev_prog)
             }
         except Exception:
             pass
 
+    total_exposures = int((exposure_row.get("student_exposure", 0) or 0) + (exposure_row.get("community_exposure", 0) or 0))
+
     response_data = {
-        "total_instructors": int(kpis_row.get("total_instructors", 0) or 0),
-        "total_exposures": int(kpis_row.get("total_exposures", 0) or 0),
+        "total_instructors": int(ign_row.get("total_instructors", 0) or 0),
+        "total_exposures": total_exposures,
         "total_sessions": int(kpis_row.get("total_sessions", 0) or 0),
         "total_programs": int(kpis_row.get("active_programs", 0) or 0),
         "inactive_programs": int(inactive_programs),
@@ -690,7 +936,6 @@ def get_overview_kpis(
     if trends:
         response_data["trends"] = trends
         
-    # Generate dynamic insights
     curr_vals = {
         "total_instructors": response_data["total_instructors"],
         "total_instructors_avg": curr_inst_avg if 'curr_inst_avg' in locals() else response_data["total_instructors"],
@@ -707,6 +952,86 @@ def get_overview_kpis(
     return response_data
 
 
+def _build_exposure_where(years, region, program, month, month_year,
+                           program_type, engagement_mode):
+    """
+    Build WHERE clause for exposure queries against source.rpt_feedback.
+    The rpt_feedback table is joined to source.txn_session and filters are
+    applied through txn_session.date and mst_user/mst_role/mst_area/mst_region.
+    """
+    clauses = []
+    params = []
+
+    # -- Excluded deleted sessions --
+    clauses.append("(s.is_deleted IS NULL OR s.is_deleted != '1')")
+
+    # -- Future exclusion --
+    clauses.append("(s.date)::date <= CURRENT_DATE")
+
+    # -- Financial year filter --
+    effective_years = years
+    if not effective_years:
+        effective_years = [get_current_fy()]
+
+    fy_strings = [v for v in effective_years if parse_fy_string(str(v)) is not None]
+    cal_years = [v for v in effective_years if parse_fy_string(str(v)) is None]
+
+    if fy_strings:
+        fy_conditions = []
+        for fy_str in fy_strings:
+            parsed = parse_fy_string(str(fy_str))
+            if parsed:
+                start_yr, end_yr = parsed
+                fy_conditions.append(
+                    "(EXTRACT(YEAR FROM (s.date)::date) = %s AND EXTRACT(MONTH FROM (s.date)::date) >= 4) OR "
+                    "(EXTRACT(YEAR FROM (s.date)::date) = %s AND EXTRACT(MONTH FROM (s.date)::date) <= 3)"
+                )
+                params.extend([start_yr, end_yr])
+        if fy_conditions:
+            clauses.append("(" + " OR ".join(fy_conditions) + ")")
+
+    if cal_years:
+        clauses.append("EXTRACT(YEAR FROM (s.date)::date) = ANY(%s)")
+        params.append([int(y) for y in cal_years])
+
+    # -- Month / month_year filter --
+    if month_year and len(month_year) > 0:
+        clauses.append("TO_CHAR((s.date)::date, 'YYYY-MM') = ANY(%s)")
+        params.append(month_year)
+    elif month and len(month) > 0:
+        try:
+            month_ints = [int(m) for m in month if str(m).isdigit()]
+            if month_ints:
+                clauses.append("EXTRACT(MONTH FROM (s.date)::date) = ANY(%s)")
+                params.append(month_ints)
+        except Exception:
+            pass
+    else:
+        current_fy = get_current_fy()
+        single_fy = None
+        if years and len(years) == 1:
+            single_fy = str(years[0])
+        elif not years or len(years) == 0:
+            single_fy = current_fy
+        if single_fy and single_fy == current_fy:
+            clauses.append("EXTRACT(MONTH FROM (s.date)::date) <= %s")
+            params.append(datetime.now().month)
+
+    # -- Region filter (via mst_region) --
+    if region:
+        if isinstance(region, list):
+            clean = [r for r in region if r]
+            if clean:
+                clauses.append("REPLACE(LOWER(reg.name), '_', ' ') = ANY(%s)")
+                params.append([r.lower().replace("_", " ") for r in clean])
+        elif region:
+            clauses.append("REPLACE(LOWER(reg.name), '_', ' ') = %s")
+            params.append(region.lower().replace("_", " "))
+
+    where_clause = "WHERE " + " AND ".join(clauses) if clauses else ""
+    return where_clause, params
+
+
 def get_overview_trends(
     years: list[int] | list[str] | None = None, 
     region: list[str] | None = None, 
@@ -717,40 +1042,64 @@ def get_overview_trends(
     engagement_mode: list[str] | None = None
 ):
     """Returns YoY YTD trend comparisons for sparkline charts (previous YTD vs current YTD)."""
-    # 1. Calculate current YTD totals
-    where_clause, params = _build_filters(
+    # 1. Current YTD totals from source.txn_session — NO role filter for sessions/progs
+    from_clause, where_clause, params = _build_txn_overview_filters(
         years=years, region=region, program=program,
-        program_type=program_type, engagement_mode=engagement_mode
+        month=month, month_year=month_year,
+        program_type=program_type, engagement_mode=engagement_mode,
+        include_role_filter=False, is_overdue_filter=None,
     )
-    where_clause, params = _apply_ytd_filter(
-        where_clause, params, years, region, program, 
-        month=month, month_year=month_year
-    )
-    
+    if not program_type:
+        from_clause += """
+        LEFT JOIN source.conf_program_school_mapping cspm
+            ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+        """
+
     curr_kpis_row = fetch_one(
         f"""
         SELECT
-            COUNT(DISTINCT f.sk_user_id) AS total_instructors,
-            COUNT(DISTINCT f.sk_fact_session_id) AS total_states,
-            COUNT(DISTINCT p.program_name) AS total_programs,
-            COALESCE(SUM(exp.exposure_sum), 0) + COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS total_drivers
-        FROM dw.fact_session f
-        LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
-        LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
-        LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
-        LEFT JOIN (
-            SELECT session_nk_id, SUM(total_exposure_count) AS exposure_sum
-            FROM dw.fact_attendance_exposure
-            GROUP BY session_nk_id
-        ) exp ON f.session_nk_id = exp.session_nk_id
+            COUNT(*) AS total_sessions,
+            COUNT(DISTINCT cspm.program_id) AS total_programs
+        {from_clause}
         {where_clause}
         """,
         params,
     )
+
+    # Current Active Ignators (role-filtered, is_overdue=false)
+    ign_from, ign_where, ign_params = _build_txn_overview_filters(
+        years=years, region=region, program=program,
+        month=month, month_year=month_year,
+        program_type=program_type, engagement_mode=engagement_mode,
+        include_role_filter=True, is_overdue_filter='false',
+    )
+    curr_ign_row = fetch_one(
+        f"SELECT COUNT(DISTINCT s.instructor_id) AS total_instructors {ign_from} {ign_where}",
+        ign_params,
+    )
+
+    # Current exposures from source.rpt_feedback
+    exp_where, exp_params = _build_exposure_where(years, region, program, month, month_year,
+                                       program_type, engagement_mode)
+    curr_exposure_row = fetch_one(
+        f"""
+        SELECT
+            SUM(COALESCE(rf.no_of_boys::int, 0) + COALESCE(rf.no_of_girls::int, 0)) AS student_exposure,
+            SUM(COALESCE(rf.no_of_men::int, 0) + COALESCE(rf.no_of_women::int, 0)) AS community_exposure
+        FROM source.rpt_feedback rf
+        JOIN source.txn_session s ON s.txn_session_id = rf.session_id
+        JOIN source.mst_user u ON u.mst_user_id = s.instructor_id
+        JOIN source.mst_role r ON r.mst_role_id = u.role_id
+        LEFT JOIN source.mst_area a ON a.mst_area_id = u.area_id
+        LEFT JOIN source.mst_region reg ON reg.mst_region_id = a.region_id
+        {exp_where}
+        """,
+        exp_params,
+    )
     
-    curr_inst = int(curr_kpis_row.get("total_instructors", 0) or 0)
-    curr_driver = int(curr_kpis_row.get("total_drivers", 0) or 0)
-    curr_state = int(curr_kpis_row.get("total_states", 0) or 0)
+    curr_inst = int(curr_ign_row.get("total_instructors", 0) or 0)
+    curr_driver = int((curr_exposure_row.get("student_exposure", 0) or 0) + (curr_exposure_row.get("community_exposure", 0) or 0))
+    curr_state = int(curr_kpis_row.get("total_sessions", 0) or 0)
     curr_prog = int(curr_kpis_row.get("total_programs", 0) or 0)
 
     # 2. Determine previous YTD totals
@@ -771,10 +1120,17 @@ def get_overview_trends(
     if single_year is not None:
         try:
             prev_year = single_year - 1
-            prev_where_clause, prev_params = _build_filters(
+            prev_from, prev_where, prev_params = _build_txn_overview_filters(
                 years=[prev_year], region=region, program=program,
-                program_type=program_type, engagement_mode=engagement_mode
+                month=month, month_year=None,
+                program_type=program_type, engagement_mode=engagement_mode,
+                include_role_filter=True, is_overdue_filter=None,
             )
+            if not program_type:
+                prev_from += """
+                LEFT JOIN source.conf_program_school_mapping cspm
+                    ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+                """
             prev_month_year = None
             if month_year:
                 prev_month_year = []
@@ -788,40 +1144,68 @@ def get_overview_trends(
                             prev_month_year.append(my)
                     else:
                         prev_month_year.append(my)
-            prev_where_clause, prev_params = _apply_ytd_filter(
-                prev_where_clause, prev_params, [single_year], region, program, 
-                month=month, month_year=prev_month_year
+            prev_from, prev_where, prev_params = _build_txn_overview_filters(
+                years=[prev_year], region=region, program=program,
+                month=month, month_year=prev_month_year,
+                program_type=program_type, engagement_mode=engagement_mode,
+                include_role_filter=False, is_overdue_filter=None,
             )
-            
+            if not program_type:
+                prev_from += """
+                LEFT JOIN source.conf_program_school_mapping cspm
+                    ON cspm.conf_program_school_mapping_id = s.program_school_mapped_id
+                """
+
             prev_kpis_row = fetch_one(
                 f"""
                 SELECT
-                    COUNT(DISTINCT f.sk_user_id) AS total_instructors,
-                    COUNT(DISTINCT f.sk_fact_session_id) AS total_states,
-                    COUNT(DISTINCT p.program_name) AS total_programs,
-                    COALESCE(SUM(exp.exposure_sum), 0) + COALESCE(SUM(f.community_men_count + f.community_women_count), 0) AS total_drivers
-                FROM dw.fact_session f
-                LEFT JOIN dw.dim_date d ON d.date_id = f.date_id
-                LEFT JOIN dw.dim_geography g ON g.sk_geography_id = f.sk_geography_id
-                LEFT JOIN dw.dim_program p ON p.sk_program_id = f.sk_program_id
-                LEFT JOIN (
-                    SELECT session_nk_id, SUM(total_exposure_count) AS exposure_sum
-                    FROM dw.fact_attendance_exposure
-                    GROUP BY session_nk_id
-                ) exp ON f.session_nk_id = exp.session_nk_id
-                {prev_where_clause}
+                    COUNT(*) AS total_sessions,
+                    COUNT(DISTINCT cspm.program_id) AS total_programs
+                {prev_from}
+                {prev_where}
                 """,
                 prev_params,
             )
+
+            # Previous year Active Ignators (role-filtered, is_overdue=false)
+            prev_ign_from, prev_ign_where, prev_ign_params = _build_txn_overview_filters(
+                years=[prev_year], region=region, program=program,
+                month=month, month_year=prev_month_year,
+                program_type=program_type, engagement_mode=engagement_mode,
+                include_role_filter=True, is_overdue_filter='false',
+            )
+            prev_ign_row = fetch_one(
+                f"SELECT COUNT(DISTINCT s.instructor_id) AS total_instructors {prev_ign_from} {prev_ign_where}",
+                prev_ign_params,
+            )
+
+            prev_exp_where, prev_exp_params = _build_exposure_where(
+                [prev_year], region, program, month, prev_month_year,
+                program_type, engagement_mode
+            )
+            prev_exposure_row = fetch_one(
+                f"""
+                SELECT
+                    SUM(COALESCE(rf.no_of_boys::int, 0) + COALESCE(rf.no_of_girls::int, 0)) AS student_exposure,
+                    SUM(COALESCE(rf.no_of_men::int, 0) + COALESCE(rf.no_of_women::int, 0)) AS community_exposure
+                FROM source.rpt_feedback rf
+                JOIN source.txn_session s ON s.txn_session_id = rf.session_id
+                JOIN source.mst_user u ON u.mst_user_id = s.instructor_id
+                JOIN source.mst_role r ON r.mst_role_id = u.role_id
+                LEFT JOIN source.mst_area a ON a.mst_area_id = u.area_id
+                LEFT JOIN source.mst_region reg ON reg.mst_region_id = a.region_id
+                {prev_exp_where}
+                """,
+                prev_exp_params,
+            )
             
-            prev_inst = int(prev_kpis_row.get("total_instructors", 0) or 0)
-            prev_driver = int(prev_kpis_row.get("total_drivers", 0) or 0)
-            prev_state = int(prev_kpis_row.get("total_states", 0) or 0)
+            prev_inst = int(prev_ign_row.get("total_instructors", 0) or 0)
+            prev_driver = int((prev_exposure_row.get("student_exposure", 0) or 0) + (prev_exposure_row.get("community_exposure", 0) or 0))
+            prev_state = int(prev_kpis_row.get("total_sessions", 0) or 0)
             prev_prog = int(prev_kpis_row.get("total_programs", 0) or 0)
         except Exception:
             pass
     else:
-        # If viewing multiple years, display a flat line of current value
         prev_inst = curr_inst
         prev_driver = curr_driver
         prev_state = curr_state
