@@ -24,7 +24,7 @@ def get_unified_exposure_data(years=None, region=None, program=None, month=None,
     
     effective_years = years
     if effective_years is None or (isinstance(effective_years, list) and len(effective_years) == 0):
-        effective_years = [DATAMART_SCHEMA_NAME] # Actually config.DEFAULT_YEAR is standard. We will resolve to DEFAULT_YEAR.
+        effective_years = None
     
     from backend.config import DEFAULT_YEAR
     resolved_years = []
